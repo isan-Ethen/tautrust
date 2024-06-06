@@ -1,2 +1,2 @@
 # Tautrust
-This is an verifier for interior mutability in Rust 
+Types with interior mutability resemble the Ship of Theseus.
