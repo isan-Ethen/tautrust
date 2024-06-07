@@ -7,5 +7,5 @@ The types with interior mutability resemble the Ship of Theseus.
 - [ ] Rc
 - [ ] Arc
 - [ ] Mutex
-- [ ] Atomic
+- [ ] Atomic types
 - [ ] RwLock
