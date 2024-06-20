@@ -1,7 +1,12 @@
+// rustc crates
 use rustc_middle::thir::*;
 use rustc_middle::ty::{AdtDef, TyCtxt};
 use rustc_span::def_id::LocalDefId;
+
+// std crates
 use std::fmt::{self, Write};
+
+// Own crates
 
 pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
   match tcx.thir_body(owner_def) {
