@@ -5,9 +5,9 @@ use rustc_middle::ty::TyCtxt;
 use std::io::Result;
 
 // Own crates
-use crate::util::print_thir;
+use crate::print::print_thir;
 
 pub fn drive_tautrust(tcx: TyCtxt) -> Result<()> {
-  print_thir(tcx);
+  print_thir(&tcx);
   Ok(())
 }

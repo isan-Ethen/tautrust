@@ -18,6 +18,8 @@ extern crate rustc_target;
 #[macro_use]
 mod util;
 mod drive;
+mod print;
 mod run;
+mod thir;
 
 fn main() { run::run_tautrust(); }
