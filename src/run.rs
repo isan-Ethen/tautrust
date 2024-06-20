@@ -25,7 +25,7 @@ impl Callbacks for MyCallbacks {
   fn after_expansion<'tcx>(
     &mut self, _compiler: &Compiler, queries: &'tcx Queries<'tcx>,
   ) -> Compilation {
-    queries.global_ctxt().unwrap().peek_mut().enter(|tcx| {
+    queries.global_ctxt().unwrap().enter(|tcx| {
       let res = drive_tautrust(tcx);
       res.unwrap();
     });
