@@ -1,0 +1,250 @@
+params: [
+  Param {
+    ty: i32
+    ty_span: Some(sample/test.rs:1:12: 1:15 (#0))
+    self_kind: None
+    hir_id: Some(HirId(DefId(0:3 ~ test[71ef]::test).1))
+    param: Some( 
+      Pat: {
+        ty: i32
+        span: sample/test.rs:1:9: 1:10 (#0)
+        kind: PatKind {
+          Binding {
+            name: "n"
+            mode: BindingMode(No, Not)
+            var: LocalVarId(HirId(DefId(0:3 ~ test[71ef]::test).2))
+            ty: i32
+            is_primary: true
+            subpattern: None
+          }
+        }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/test.rs:1:17: 4:2 (#0)
+    kind: 
+          Expr {
+            span: sample/test.rs:1:17: 4:2 (#0)
+            kind: 
+                stmts: [
+                  Stmt {
+                    kind: Let {
+                      remainder_scope: Remainder { block: 29, first_statement_index: 0}
+                      init_scope: Node(3)
+                      pattern: 
+                        Pat: {
+                          ty: i32
+                          span: sample/test.rs:2:7: 2:8 (#0)
+                          kind: PatKind {
+                            Binding {
+                              name: "m"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:3 ~ test[71ef]::test).10))
+                              ty: i32
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                      ,
+                      initializer: Some(
+                        Expr {
+                          span: sample/test.rs:2:11: 2:16 (#0)
+                          kind: 
+                                Expr {
+                                  span: sample/test.rs:2:11: 2:16 (#0)
+                                  kind: 
+                                    Binary {
+                                      op: Mul
+                                      lhs:
+                                        Expr {
+                                          span: sample/test.rs:2:11: 2:12 (#0)
+                                          kind: 
+                                                Expr {
+                                                  span: sample/test.rs:2:11: 2:12 (#0)
+                                                  kind: 
+                                                    VarRef {
+                                                      id: LocalVarId(HirId(DefId(0:3 ~ test[71ef]::test).2))
+                                                    }
+                                                }
+                                        }
+                                      rhs:
+                                        Expr {
+                                          span: sample/test.rs:2:15: 2:16 (#0)
+                                          kind: 
+                                                Expr {
+                                                  span: sample/test.rs:2:15: 2:16 (#0)
+                                                  kind: 
+                                                    VarRef {
+                                                      id: LocalVarId(HirId(DefId(0:3 ~ test[71ef]::test).2))
+                                                    }
+                                                }
+                                        }
+                                    }
+                                }
+                        }
+                      )
+                      else_block: None
+                      lint_level: Explicit(HirId(DefId(0:3 ~ test[71ef]::test).9))
+                      span: sample/test.rs:2:3: 2:16 (#0)
+                    }
+                  }
+                  Stmt {
+                    kind: Let {
+                      remainder_scope: Remainder { block: 29, first_statement_index: 1}
+                      init_scope: Node(11)
+                      pattern: 
+                        Pat: {
+                          ty: ()
+                          span: sample/test.rs:3:7: 3:8 (#0)
+                          kind: PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:3 ~ test[71ef]::test).28))
+                              ty: ()
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                      ,
+                      initializer: Some(
+                        Expr {
+                          span: sample/test.rs:3:11: 3:26 (#4)
+                          kind: 
+                                Expr {
+                                  span: sample/test.rs:3:11: 3:26 (#4)
+                                  kind: 
+                                    If {
+                                      if_then_scope: IfThen(26)
+                                      cond:
+                                        Expr {
+                                          span: sample/test.rs:3:11: 3:26 (#7)
+                                          kind: 
+                                                Expr {
+                                                  span: sample/test.rs:3:11: 3:26 (#7)
+                                                  kind: 
+                                                    Use {
+                                                      source:
+                                                        Expr {
+                                                          span: sample/test.rs:3:11: 3:26 (#4)
+                                                          kind: 
+                                                                Expr {
+                                                                  span: sample/test.rs:3:11: 3:26 (#4)
+                                                                  kind: 
+                                                                    Unary {
+                                                                      op: Not
+                                                                      arg:
+                                                                        Expr {
+                                                                          span: sample/test.rs:3:19: 3:25 (#0)
+                                                                          kind: 
+                                                                                Expr {
+                                                                                  span: sample/test.rs:3:19: 3:25 (#0)
+                                                                                  kind: 
+                                                                                    Binary {
+                                                                                      op: Ge
+                                                                                      lhs:
+                                                                                        Expr {
+                                                                                          span: sample/test.rs:3:19: 3:20 (#0)
+                                                                                          kind: 
+                                                                                                Expr {
+                                                                                                  span: sample/test.rs:3:19: 3:20 (#0)
+                                                                                                  kind: 
+                                                                                                    VarRef {
+                                                                                                      id: LocalVarId(HirId(DefId(0:3 ~ test[71ef]::test).10))
+                                                                                                    }
+                                                                                                }
+                                                                                        }
+                                                                                      rhs:
+                                                                                        Expr {
+                                                                                          span: sample/test.rs:3:24: 3:25 (#0)
+                                                                                          kind: 
+                                                                                                Expr {
+                                                                                                  span: sample/test.rs:3:24: 3:25 (#0)
+                                                                                                  kind: 
+                                                                                                    Literal( lit: Spanned { node: Int(Pu128(0), Unsuffixed), span: sample/test.rs:3:24: 3:25 (#0) }, neg: false)
+
+                                                                                                }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                        }
+                                                                    }
+                                                                }
+                                                        }
+                                                    }
+                                                }
+                                        }
+                                      then:
+                                        Expr {
+                                          span: sample/test.rs:3:11: 3:26 (#4)
+                                          kind: 
+                                                Expr {
+                                                  span: sample/test.rs:3:11: 3:26 (#4)
+                                                  kind: 
+                                                      stmts: []
+                                                      expr:
+                                                        Expr {
+                                                          span: sample/test.rs:3:11: 3:26 (#4)
+                                                          kind: 
+                                                                Expr {
+                                                                  span: sample/test.rs:3:11: 3:26 (#4)
+                                                                  kind: 
+                                                                    NeverToAny {
+                                                                      source:
+                                                                        Expr {
+                                                                          span: sample/test.rs:3:11: 3:26 (#4)
+                                                                          kind: 
+                                                                            Call {
+                                                                              ty: FnDef(DefId(2:9518 ~ core[e2cd]::panicking::panic), [true])
+                                                                              from_hir_call: true
+                                                                              fn_span: sample/test.rs:3:11: 3:26 (#4)
+                                                                              fun:
+                                                                                Expr {
+                                                                                  span: sample/test.rs:3:11: 3:26 (#4)
+                                                                                  kind: 
+                                                                                        Expr {
+                                                                                          span: sample/test.rs:3:11: 3:26 (#4)
+                                                                                          kind: 
+                                                                                            ZstLiteral(user_ty: None)
+                                                                                        }
+                                                                                }
+                                                                              args: [
+                                                                                Expr {
+                                                                                  span: no-location (#0)
+                                                                                  kind: 
+                                                                                        Expr {
+                                                                                          span: no-location (#0)
+                                                                                          kind: 
+                                                                                            Literal( lit: Spanned { node: Str("assertion failed: m >= 0", Cooked), span: no-location (#0) }, neg: false)
+
+                                                                                        }
+                                                                                }
+                                                                              ]
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                        }
+                                                    }
+                                                }
+                                        }
+                                    }
+                                }
+                        }
+                      )
+                      else_block: None
+                      lint_level: Explicit(HirId(DefId(0:3 ~ test[71ef]::test).27))
+                      span: sample/test.rs:3:3: 3:26 (#0)
+                    }
+                  }
+                ]
+                expr: []
+              }
+          }
+  }
+
