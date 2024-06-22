@@ -6,10 +6,7 @@ use rustc_middle::mir::interpret::AllocId;
 use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
 use rustc_middle::thir::*;
 use rustc_middle::ty::adjustment::PointerCoercion;
-use rustc_middle::ty::{
-  self, CanonicalUserType, CanonicalUserTypeAnnotation, FnSig, GenericArgsRef, List, Ty, TyCtxt,
-  UpvarArgs,
-};
+use rustc_middle::ty::{self, CanonicalUserType, GenericArgsRef, List, Ty};
 use rustc_span::Span;
 use rustc_target::abi::*;
 
@@ -128,7 +125,7 @@ pub enum RExprKind<'tcx> {
   },
   /// A block.
   Block {
-    block: BlockId,
+    expr: Option<RExpr<'tcx>>,
   },
   /// An assignment: `lhs = rhs`.
   Assign {
@@ -260,6 +257,13 @@ pub enum RExprKind<'tcx> {
     alloc_id: AllocId,
     ty: Ty<'tcx>,
     def_id: DefId,
+  },
+  /// Inline assembly, i.e. `asm!()`.
+  InlineAsm(Box<InlineAsmExpr<'tcx>>),
+  /// Field offset (`offset_of!`)
+  OffsetOf {
+    container: Ty<'tcx>,
+    fields: &'tcx List<(VariantIdx, FieldIdx)>,
   },
   /// An expression taking a reference to a thread local.
   ThreadLocalRef(DefId),

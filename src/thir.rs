@@ -1,6 +1,4 @@
 // rustc crates
-// rustc crates
-use rustc_middle::thir::Thir;
 use rustc_middle::ty::TyCtxt;
 use rustc_span::def_id::LocalDefId;
 
