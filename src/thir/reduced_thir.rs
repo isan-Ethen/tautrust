@@ -30,6 +30,18 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
     Some(self.reduce_expr(&expr_id))
   }
 
+  fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
+    let arm = &self.thir.arms[*arm_id];
+    RArm {
+      pattern: self.handle_pattern(&arm.pattern),
+      guard: if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
+      body: self.reduce_expr(&arm.body),
+      lint_level: arm.lint_level,
+      scope: arm.scope,
+      span: arm.span,
+    }
+  }
+
   fn reduce_expr_kind(&self, expr_kind: &ExprKind<'tcx>) -> RExprKind<'tcx> {
     use rustc_middle::thir::ExprKind::*;
     let unwrap_option = |value: &Option<ExprId>| {
@@ -75,7 +87,7 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       Match { scrutinee, scrutinee_hir_id, arms, match_source } => RExprKind::Match {
         scrutinee: self.reduce_expr(scrutinee),
         scrutinee_hir_id: *scrutinee_hir_id,
-        arms: arms.clone(),
+        arms: arms.iter().map(|arm| self.handle_arm(arm)).collect(),
         match_source: *match_source,
       },
       Block { block } => RExprKind::Block { block: self.handle_block(block) },
@@ -98,14 +110,9 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       Borrow { borrow_kind, arg } => {
         RExprKind::Borrow { borrow_kind: *borrow_kind, arg: self.reduce_expr(arg) }
       }
-      AddressOf { mutability, arg } => {
-        RExprKind::AddressOf { mutability: *mutability, arg: self.reduce_expr(arg) }
-      }
       Break { label, value } => RExprKind::Break { label: *label, value: unwrap_option(value) },
       Continue { label } => RExprKind::Continue { label: *label },
       Return { value } => RExprKind::Return { value: unwrap_option(value) },
-      Become { value } => RExprKind::Become { value: self.reduce_expr(value) },
-      ConstBlock { did, args } => RExprKind::ConstBlock { did: *did, args: *args },
       Repeat { value, count } => {
         RExprKind::Repeat { value: self.reduce_expr(value), count: *count }
       }
@@ -115,7 +122,6 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       Tuple { fields } => {
         RExprKind::Tuple { fields: fields.iter().map(|f| self.reduce_expr(f)).collect() }
       }
-      Adt(adt_expr) => RExprKind::Adt(adt_expr.clone()),
       PlaceTypeAscription { source, user_ty } => RExprKind::PlaceTypeAscription {
         source: self.reduce_expr(source),
         user_ty: user_ty.clone(),
@@ -134,15 +140,7 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
         RExprKind::NamedConst { def_id: *def_id, args: *args, user_ty: user_ty.clone() }
       }
       ConstParam { param, def_id } => RExprKind::ConstParam { param: *param, def_id: *def_id },
-      StaticRef { alloc_id, ty, def_id } => {
-        RExprKind::StaticRef { alloc_id: *alloc_id, ty: *ty, def_id: *def_id }
-      }
-      InlineAsm(expr) => RExprKind::InlineAsm(expr.clone()),
-      OffsetOf { container, fields } => {
-        RExprKind::OffsetOf { container: *container, fields: *fields }
-      }
-      ThreadLocalRef(def_id) => RExprKind::ThreadLocalRef(*def_id),
-      Yield { value } => RExprKind::Yield { value: self.reduce_expr(value) },
+      _ => unimplemented!(),
     }
   }
   fn reduce_expr(&self, expr_id: &ExprId) -> RExpr<'tcx> {
