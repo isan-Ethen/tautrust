@@ -1,14 +1,38 @@
+// use rustc_hir as hir;
+// use rustc_hir::def_id::DefId;
+// use rustc_hir::{HirId, MatchSource};
+// use rustc_middle::middle::region;
+// use rustc_middle::mir::interpret::AllocId;
+// use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
+use rustc_middle::thir::*;
+// use rustc_middle::ty::adjustment::PointerCoercion;
+// use rustc_middle::ty::{self, CanonicalUserType, GenericArgsRef, List, Ty};
+// use rustc_span::Span;
+// use rustc_target::abi::*;
+
+use rustc_errors::{DiagArgValue, IntoDiagArg};
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
-use rustc_hir::{HirId, MatchSource};
+use rustc_hir::{BindingMode, ByRef, HirId, MatchSource, RangeEnd};
+use rustc_index::newtype_index;
+use rustc_index::IndexVec;
+use rustc_macros::{HashStable, TyDecodable, TyEncodable, TypeVisitable};
 use rustc_middle::middle::region;
 use rustc_middle::mir::interpret::AllocId;
-use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
-use rustc_middle::thir::*;
+use rustc_middle::mir::{self, BinOp, BorrowKind, FakeReadCause, UnOp};
 use rustc_middle::ty::adjustment::PointerCoercion;
-use rustc_middle::ty::{self, CanonicalUserType, GenericArgsRef, List, Ty};
-use rustc_span::Span;
-use rustc_target::abi::*;
+use rustc_middle::ty::layout::IntegerExt;
+use rustc_middle::ty::{
+  self, AdtDef, CanonicalUserType, CanonicalUserTypeAnnotation, FnSig, GenericArgsRef, List, Ty,
+  TyCtxt, UpvarArgs,
+};
+use rustc_span::def_id::LocalDefId;
+use rustc_span::{sym, ErrorGuaranteed, Span, Symbol, DUMMY_SP};
+use rustc_target::abi::{FieldIdx, Integer, Size, VariantIdx};
+use rustc_target::asm::InlineAsmRegOrRegClass;
+use std::cmp::Ordering;
+use std::fmt;
+use std::ops::Index;
 
 #[derive(Clone, Debug)]
 pub struct RExpr<'tcx> {
@@ -125,7 +149,7 @@ pub enum RExprKind<'tcx> {
   },
   /// A block.
   Block {
-    expr: Option<RExpr<'tcx>>,
+    block: RBlock<'tcx>,
   },
   /// An assignment: `lhs = rhs`.
   Assign {
@@ -273,6 +297,118 @@ pub enum RExprKind<'tcx> {
   },
 }
 
-impl<'tcx> RExprKind<'tcx> {
-  pub fn new(value: Option<RExpr<'tcx>>) -> Self { Self::Return { value } }
+#[derive(Clone, Debug)]
+pub struct RBlock<'tcx> {
+  pub stmts: Vec<RStmt<'tcx>>,
+  pub expr: Option<RExpr<'tcx>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct RStmt<'tcx> {
+  pub kind: RStmtKind<'tcx>,
+}
+
+#[derive(Clone, Debug)]
+pub enum RStmtKind<'tcx> {
+  /// An expression with a trailing semicolon.
+  Expr {
+    /// The expression being evaluated in this statement.
+    expr: RExpr<'tcx>,
+  },
+  /// A `let` binding.
+  Let {
+    /// `let <PAT> = ...`
+    ///
+    /// If a type annotation is included, it is added as an ascription pattern.
+    pattern: Box<RPat<'tcx>>,
+
+    /// `let pat: ty = <INIT>`
+    initializer: Option<RExpr<'tcx>>,
+
+    /// `let pat: ty = <INIT> else { <ELSE> }`
+    else_block: Option<RBlock<'tcx>>,
+
+    /// Span of the `let <PAT> = <INIT>` part.
+    span: Span,
+  },
+}
+
+/// Represents the association of a field identifier and an expression.
+///
+/// This is used in struct constructors.
+#[derive(Clone, Debug)]
+pub struct FieldExpr<'tcx> {
+  pub name: FieldIdx,
+  pub expr: RExpr<'tcx>,
+}
+
+#[derive(Clone, Debug)]
+pub struct FruInfo<'tcx> {
+  pub base: RExpr<'tcx>,
+  pub field_types: Box<[Ty<'tcx>]>,
+}
+
+/// A `match` arm.
+#[derive(Clone, Debug)]
+pub struct Arm<'tcx> {
+  pub pattern: Box<Pat<'tcx>>,
+  pub guard: Option<RExpr<'tcx>>,
+  pub body: RExpr<'tcx>,
+  pub lint_level: LintLevel,
+  pub scope: region::Scope,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum InlineAsmOperand<'tcx> {
+  In {
+    reg: InlineAsmRegOrRegClass,
+    expr: Expr<'tcx>,
+  },
+  Out {
+    reg: InlineAsmRegOrRegClass,
+    late: bool,
+    expr: Option<Expr<'tcx>>,
+  },
+  InOut {
+    reg: InlineAsmRegOrRegClass,
+    late: bool,
+    expr: RExpr<'tcx>,
+  },
+  SplitInOut {
+    reg: InlineAsmRegOrRegClass,
+    late: bool,
+    in_expr: RExpr<'tcx>,
+    out_expr: Option<RExpr<'tcx>>,
+  },
+  Const {
+    value: mir::Const<'tcx>,
+    span: Span,
+  },
+  SymFn {
+    value: mir::Const<'tcx>,
+    span: Span,
+  },
+  SymStatic {
+    def_id: DefId,
+  },
+  Label {
+    block: RBlock<'tcx>,
+  },
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldPat<'tcx> {
+  pub field: FieldIdx,
+  pub pattern: Box<RPat<'tcx>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct RPat<'tcx> {
+  pub kind: PatKind<'tcx>,
+  pub span: Span,
+}
+
+impl<'tcx> RPat<'tcx> {
+  pub fn new(kind: PatKind<'tcx>, span: Span) -> Self { Self { kind, span } }
 }
