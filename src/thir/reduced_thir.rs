@@ -55,8 +55,7 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
     match expr_kind {
       Scope { region_scope: _, lint_level: _, value } => self.handle_scope(value),
       Box { value } => RExprKind::Box { value: self.reduce_expr(value) },
-      If { if_then_scope, cond, then, else_opt } => RExprKind::If {
-        if_then_scope: *if_then_scope,
+      If { if_then_scope: _, cond, then, else_opt } => RExprKind::If {
         cond: self.reduce_expr(cond),
         then: self.reduce_expr(then),
         else_opt: unwrap_option(else_opt),

@@ -31,7 +31,6 @@ pub enum RExprKind<'tcx> {
     value: RExpr<'tcx>,
   },
   If {
-    if_then_scope: region::Scope,
     cond: RExpr<'tcx>,
     then: RExpr<'tcx>,
     else_opt: Option<RExpr<'tcx>>,
