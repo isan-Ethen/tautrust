@@ -197,8 +197,6 @@ pub struct RArm<'tcx> {
   pub pattern: RPat<'tcx>,
   pub guard: Option<RExpr<'tcx>>,
   pub body: RExpr<'tcx>,
-  pub lint_level: LintLevel,
-  pub scope: region::Scope,
   pub span: Span,
 }
 #[derive(Clone, Debug)]

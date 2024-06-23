@@ -36,8 +36,6 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       pattern: self.handle_pattern(&arm.pattern),
       guard: if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
       body: self.reduce_expr(&arm.body),
-      lint_level: arm.lint_level,
-      scope: arm.scope,
       span: arm.span,
     }
   }
