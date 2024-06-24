@@ -1,12 +1,11 @@
 // rustc crates
 use rustc_data_structures::steal::Steal;
-use rustc_index::IndexVec;
 use rustc_middle::thir::*;
 
 // std crates
 // Own crates
 mod rexpr;
-use rexpr::*;
+pub use rexpr::*;
 
 #[derive(Debug)]
 pub struct ThirReducer<'a, 'tcx> {
@@ -20,11 +19,26 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
   pub fn get_reduced_thir(&mut self) -> RThir<'tcx> { self.reduced_thir.steal() }
 
   pub fn reduce(&mut self) {
-    self.reduced_thir.get_mut().set_params(&self.thir.params);
+    let new_params = self.reduce_params();
+    self.reduced_thir.get_mut().set_params(new_params);
     let new_body = self.reduce_body();
     self.reduced_thir.get_mut().set_body(new_body);
   }
 
+  fn reduce_params(&self) -> Vec<RParam<'tcx>> {
+    let mut new_params: Vec<RParam<'tcx>> = Vec::new();
+    for param in self.thir.params.iter() {
+      new_params.push(self.reduce_param(param));
+    }
+    new_params
+  }
+
+  fn reduce_param(&self, param: &Param<'tcx>) -> RParam<'tcx> {
+    let Param { pat, ty: _, ty_span: _, self_kind: _, hir_id: _ } = param;
+    RParam {
+      pat: if let Some(pat) = pat { Some(Box::new(self.handle_pattern(pat))) } else { None },
+    }
+  }
   fn reduce_body(&self) -> Option<RExpr<'tcx>> {
     let expr_id = ExprId::from_usize(self.thir.exprs.len() - 1);
     Some(self.reduce_expr(&expr_id))
@@ -202,21 +216,4 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       expr: if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
     }
   }
-}
-
-// R: Reduced
-#[derive(Debug)]
-pub struct RThir<'tcx> {
-  params: IndexVec<ParamId, Param<'tcx>>,
-  body: Option<RExpr<'tcx>>,
-}
-
-impl<'tcx> RThir<'tcx> {
-  pub fn new() -> Self { Self { params: IndexVec::new(), body: None } }
-
-  pub fn set_params(&mut self, new_params: &IndexVec<ParamId, Param<'tcx>>) {
-    self.params = new_params.clone();
-  }
-
-  pub fn set_body(&mut self, new_body: Option<RExpr<'tcx>>) { self.body = new_body; }
 }

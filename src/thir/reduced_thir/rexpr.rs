@@ -12,7 +12,22 @@ use rustc_target::abi::{FieldIdx, VariantIdx};
 
 // std crates
 // Own crates
-//
+
+// R: Reduced
+#[derive(Debug)]
+pub struct RThir<'tcx> {
+  pub params: Vec<RParam<'tcx>>,
+  pub body: Option<RExpr<'tcx>>,
+}
+
+impl<'tcx> RThir<'tcx> {
+  pub fn new() -> Self { Self { params: Vec::new(), body: None } }
+
+  pub fn set_params(&mut self, new_params: Vec<RParam<'tcx>>) { self.params = new_params.clone(); }
+
+  pub fn set_body(&mut self, new_body: Option<RExpr<'tcx>>) { self.body = new_body; }
+}
+
 #[derive(Clone, Debug)]
 pub struct RExpr<'tcx> {
   pub kind: Box<RExprKind<'tcx>>,
@@ -199,6 +214,12 @@ pub struct RArm<'tcx> {
   pub body: RExpr<'tcx>,
   pub span: Span,
 }
+
+#[derive(Clone, Debug)]
+pub struct RParam<'tcx> {
+  pub pat: Option<Box<RPat<'tcx>>>,
+}
+
 #[derive(Clone, Debug)]
 pub struct RPat<'tcx> {
   pub kind: PatKind<'tcx>,
