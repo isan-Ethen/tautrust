@@ -13,7 +13,7 @@ pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
   match tcx.thir_body(owner_def) {
     Ok((thir, _)) => {
       let thir = thir.steal();
-      // let mut printer = printer::ThirPrinter::new(&thir);
+      // let mut printer = printer::RThirPrinter::new(&thir);
       let mut printer = original_printer::ThirPrinter::new(&thir);
       printer.print();
       printer.into_buffer()
