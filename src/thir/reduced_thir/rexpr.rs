@@ -29,6 +29,21 @@ impl<'tcx> RThir<'tcx> {
 }
 
 #[derive(Clone, Debug)]
+pub struct RParam<'tcx> {
+  pub pat: Option<Box<RPat<'tcx>>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct RPat<'tcx> {
+  pub kind: PatKind<'tcx>,
+  pub span: Span,
+}
+
+impl<'tcx> RPat<'tcx> {
+  pub fn new(kind: PatKind<'tcx>, span: Span) -> Self { Self { kind, span } }
+}
+
+#[derive(Clone, Debug)]
 pub struct RExpr<'tcx> {
   pub kind: Box<RExprKind<'tcx>>,
   pub span: Span,
@@ -184,6 +199,14 @@ pub enum RExprKind<'tcx> {
 }
 
 #[derive(Clone, Debug)]
+pub struct RArm<'tcx> {
+  pub pattern: RPat<'tcx>,
+  pub guard: Option<RExpr<'tcx>>,
+  pub body: RExpr<'tcx>,
+  pub span: Span,
+}
+
+#[derive(Clone, Debug)]
 pub struct RBlock<'tcx> {
   pub stmts: Vec<RStmt<'tcx>>,
   pub expr: Option<RExpr<'tcx>>,
@@ -205,27 +228,4 @@ pub enum RStmtKind<'tcx> {
     else_block: Option<RBlock<'tcx>>,
     span: Span,
   },
-}
-
-#[derive(Clone, Debug)]
-pub struct RArm<'tcx> {
-  pub pattern: RPat<'tcx>,
-  pub guard: Option<RExpr<'tcx>>,
-  pub body: RExpr<'tcx>,
-  pub span: Span,
-}
-
-#[derive(Clone, Debug)]
-pub struct RParam<'tcx> {
-  pub pat: Option<Box<RPat<'tcx>>>,
-}
-
-#[derive(Clone, Debug)]
-pub struct RPat<'tcx> {
-  pub kind: PatKind<'tcx>,
-  pub span: Span,
-}
-
-impl<'tcx> RPat<'tcx> {
-  pub fn new(kind: PatKind<'tcx>, span: Span) -> Self { Self { kind, span } }
 }

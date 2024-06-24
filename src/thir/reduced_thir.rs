@@ -39,19 +39,21 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       pat: if let Some(pat) = pat { Some(Box::new(self.handle_pattern(pat))) } else { None },
     }
   }
+
+  fn handle_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
+    let Pat { ty: _, span, kind } = &**pat;
+    RPat { kind: kind.clone(), span: *span }
+  }
+
   fn reduce_body(&self) -> Option<RExpr<'tcx>> {
     let expr_id = ExprId::from_usize(self.thir.exprs.len() - 1);
     Some(self.reduce_expr(&expr_id))
   }
 
-  fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
-    let arm = &self.thir.arms[*arm_id];
-    RArm {
-      pattern: self.handle_pattern(&arm.pattern),
-      guard: if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
-      body: self.reduce_expr(&arm.body),
-      span: arm.span,
-    }
+  fn reduce_expr(&self, expr_id: &ExprId) -> RExpr<'tcx> {
+    let expr = &self.thir[*expr_id];
+    let rexprkind = self.reduce_expr_kind(&expr.kind);
+    RExpr::new(rexprkind, expr.span)
   }
 
   fn reduce_expr_kind(&self, expr_kind: &ExprKind<'tcx>) -> RExprKind<'tcx> {
@@ -154,20 +156,34 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       _ => unimplemented!(),
     }
   }
-  fn reduce_expr(&self, expr_id: &ExprId) -> RExpr<'tcx> {
-    let expr = &self.thir[*expr_id];
-    let rexprkind = self.reduce_expr_kind(&expr.kind);
-    RExpr::new(rexprkind, expr.span)
-  }
 
   fn handle_scope(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
     let scope = &self.thir[*expr_id];
     self.reduce_expr_kind(&scope.kind)
   }
 
-  fn handle_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
-    let Pat { ty: _, span, kind } = &**pat;
-    RPat { kind: kind.clone(), span: *span }
+  fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
+    let arm = &self.thir.arms[*arm_id];
+    RArm {
+      pattern: self.handle_pattern(&arm.pattern),
+      guard: if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
+      body: self.reduce_expr(&arm.body),
+      span: arm.span,
+    }
+  }
+
+  fn handle_block(&self, block_id: &BlockId) -> RBlock<'tcx> {
+    let block = &self.thir.blocks[*block_id];
+
+    let mut stmtv = Vec::new();
+    for stmt in block.stmts.iter() {
+      stmtv.push(self.handle_stmt(*stmt));
+    }
+
+    RBlock {
+      stmts: stmtv,
+      expr: if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
+    }
   }
 
   fn handle_stmt(&self, stmt_id: StmtId) -> RStmt<'tcx> {
@@ -200,20 +216,6 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
           span: *span,
         },
       },
-    }
-  }
-
-  fn handle_block(&self, block_id: &BlockId) -> RBlock<'tcx> {
-    let block = &self.thir.blocks[*block_id];
-
-    let mut stmtv = Vec::new();
-    for stmt in block.stmts.iter() {
-      stmtv.push(self.handle_stmt(*stmt));
-    }
-
-    RBlock {
-      stmts: stmtv,
-      expr: if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
     }
   }
 }
