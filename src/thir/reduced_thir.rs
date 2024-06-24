@@ -1,12 +1,11 @@
 // rustc crates
 use rustc_data_structures::steal::Steal;
-use rustc_index::IndexVec;
 use rustc_middle::thir::*;
 
 // std crates
 // Own crates
 mod rexpr;
-use rexpr::*;
+pub use rexpr::*;
 
 #[derive(Debug)]
 pub struct ThirReducer<'a, 'tcx> {
@@ -20,9 +19,30 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
   pub fn get_reduced_thir(&mut self) -> RThir<'tcx> { self.reduced_thir.steal() }
 
   pub fn reduce(&mut self) {
-    self.reduced_thir.get_mut().set_params(&self.thir.params);
+    let new_params = self.reduce_params();
+    self.reduced_thir.get_mut().set_params(new_params);
     let new_body = self.reduce_body();
     self.reduced_thir.get_mut().set_body(new_body);
+  }
+
+  fn reduce_params(&self) -> Vec<RParam<'tcx>> {
+    let mut new_params: Vec<RParam<'tcx>> = Vec::new();
+    for param in self.thir.params.iter() {
+      new_params.push(self.reduce_param(param));
+    }
+    new_params
+  }
+
+  fn reduce_param(&self, param: &Param<'tcx>) -> RParam<'tcx> {
+    let Param { pat, ty: _, ty_span: _, self_kind: _, hir_id: _ } = param;
+    RParam {
+      pat: if let Some(pat) = pat { Some(Box::new(self.handle_pattern(pat))) } else { None },
+    }
+  }
+
+  fn handle_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
+    let Pat { ty: _, span, kind } = &**pat;
+    RPat { kind: kind.clone(), span: *span }
   }
 
   fn reduce_body(&self) -> Option<RExpr<'tcx>> {
@@ -30,14 +50,10 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
     Some(self.reduce_expr(&expr_id))
   }
 
-  fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
-    let arm = &self.thir.arms[*arm_id];
-    RArm {
-      pattern: self.handle_pattern(&arm.pattern),
-      guard: if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
-      body: self.reduce_expr(&arm.body),
-      span: arm.span,
-    }
+  fn reduce_expr(&self, expr_id: &ExprId) -> RExpr<'tcx> {
+    let expr = &self.thir[*expr_id];
+    let rexprkind = self.reduce_expr_kind(&expr.kind);
+    RExpr::new(rexprkind, expr.span)
   }
 
   fn reduce_expr_kind(&self, expr_kind: &ExprKind<'tcx>) -> RExprKind<'tcx> {
@@ -140,20 +156,34 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       _ => unimplemented!(),
     }
   }
-  fn reduce_expr(&self, expr_id: &ExprId) -> RExpr<'tcx> {
-    let expr = &self.thir[*expr_id];
-    let rexprkind = self.reduce_expr_kind(&expr.kind);
-    RExpr::new(rexprkind, expr.span)
-  }
 
   fn handle_scope(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
     let scope = &self.thir[*expr_id];
     self.reduce_expr_kind(&scope.kind)
   }
 
-  fn handle_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
-    let Pat { ty: _, span, kind } = &**pat;
-    RPat { kind: kind.clone(), span: *span }
+  fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
+    let arm = &self.thir.arms[*arm_id];
+    RArm {
+      pattern: self.handle_pattern(&arm.pattern),
+      guard: if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
+      body: self.reduce_expr(&arm.body),
+      span: arm.span,
+    }
+  }
+
+  fn handle_block(&self, block_id: &BlockId) -> RBlock<'tcx> {
+    let block = &self.thir.blocks[*block_id];
+
+    let mut stmtv = Vec::new();
+    for stmt in block.stmts.iter() {
+      stmtv.push(self.handle_stmt(*stmt));
+    }
+
+    RBlock {
+      stmts: stmtv,
+      expr: if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
+    }
   }
 
   fn handle_stmt(&self, stmt_id: StmtId) -> RStmt<'tcx> {
@@ -188,35 +218,4 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       },
     }
   }
-
-  fn handle_block(&self, block_id: &BlockId) -> RBlock<'tcx> {
-    let block = &self.thir.blocks[*block_id];
-
-    let mut stmtv = Vec::new();
-    for stmt in block.stmts.iter() {
-      stmtv.push(self.handle_stmt(*stmt));
-    }
-
-    RBlock {
-      stmts: stmtv,
-      expr: if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
-    }
-  }
-}
-
-// R: Reduced
-#[derive(Debug)]
-pub struct RThir<'tcx> {
-  params: IndexVec<ParamId, Param<'tcx>>,
-  body: Option<RExpr<'tcx>>,
-}
-
-impl<'tcx> RThir<'tcx> {
-  pub fn new() -> Self { Self { params: IndexVec::new(), body: None } }
-
-  pub fn set_params(&mut self, new_params: &IndexVec<ParamId, Param<'tcx>>) {
-    self.params = new_params.clone();
-  }
-
-  pub fn set_body(&mut self, new_body: Option<RExpr<'tcx>>) { self.body = new_body; }
 }
