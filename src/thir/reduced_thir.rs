@@ -34,14 +34,14 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
   }
 
   fn reduce_param(&self, param: &Param<'tcx>) -> RParam<'tcx> {
-    let Param { pat, ty: _, ty_span: _, self_kind: _, hir_id: _ } = param;
+    let Param { pat, .. } = param;
     RParam {
       pat: if let Some(pat) = pat { Some(Box::new(self.reduce_pattern(pat))) } else { None },
     }
   }
 
   fn reduce_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
-    let Pat { ty: _, span, kind } = &**pat;
+    let Pat { span, kind, .. } = &**pat;
     RPat { kind: self.reduce_pattern_kind(kind), span: *span }
   }
 
@@ -109,9 +109,9 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
     };
 
     match expr_kind {
-      Scope { region_scope: _, lint_level: _, value } => self.handle_scope(value),
+      Scope { value, .. } => self.handle_scope(value),
       Box { value } => RExprKind::Box { value: self.reduce_expr(value) },
-      If { if_then_scope: _, cond, then, else_opt } => RExprKind::If {
+      If { cond, then, else_opt, .. } => RExprKind::If {
         cond: self.reduce_expr(cond),
         then: self.reduce_expr(then),
         else_opt: unwrap_option(else_opt),
@@ -139,11 +139,9 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
       }
       Loop { body } => RExprKind::Loop { body: self.reduce_expr(body) },
       Let { expr, pat } => RExprKind::Let { expr: self.reduce_expr(expr), pat: pat.clone() },
-      Match { scrutinee, scrutinee_hir_id, arms, match_source } => RExprKind::Match {
+      Match { scrutinee, arms, .. } => RExprKind::Match {
         scrutinee: self.reduce_expr(scrutinee),
-        scrutinee_hir_id: *scrutinee_hir_id,
         arms: arms.iter().map(|arm| self.handle_arm(arm)).collect(),
-        match_source: *match_source,
       },
       Block { block } => RExprKind::Block { block: self.handle_block(block) },
       Assign { lhs, rhs } => {
@@ -230,18 +228,10 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
   fn handle_stmt(&self, stmt_id: StmtId) -> RStmt<'tcx> {
     let Stmt { kind } = &self.thir.stmts[stmt_id];
     match kind {
-      StmtKind::Expr { scope: _, expr } => {
+      StmtKind::Expr { expr, .. } => {
         RStmt { kind: RStmtKind::Expr { expr: self.reduce_expr(expr) } }
       }
-      StmtKind::Let {
-        remainder_scope: _,
-        init_scope: _,
-        pattern,
-        initializer,
-        else_block,
-        lint_level: _,
-        span,
-      } => RStmt {
+      StmtKind::Let { pattern, initializer, else_block, span, .. } => RStmt {
         kind: RStmtKind::Let {
           pattern: Box::new(self.reduce_pattern(pattern)),
           initializer: if let Some(expr_id) = initializer {
