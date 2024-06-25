@@ -231,7 +231,6 @@ pub enum RExprKind<'tcx> {
     source: RExpr<'tcx>,
     user_ty: UserTy<'tcx>,
   },
-  Closure(Box<ClosureExpr<'tcx>>),
   Literal {
     lit: &'tcx hir::Lit,
     neg: bool,

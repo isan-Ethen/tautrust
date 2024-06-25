@@ -185,7 +185,6 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
         source: self.reduce_expr(source),
         user_ty: user_ty.clone(),
       },
-      Closure(closure_expr) => RExprKind::Closure(closure_expr.clone()),
       Literal { lit, neg } => RExprKind::Literal { lit: *lit, neg: *neg },
       NonHirLiteral { lit, user_ty } => {
         RExprKind::NonHirLiteral { lit: *lit, user_ty: user_ty.clone() }
