@@ -19,7 +19,6 @@ extern crate rustc_target;
 #[macro_use]
 mod util;
 mod drive;
-mod print;
 mod run;
 mod thir;
 

@@ -34,7 +34,7 @@ impl Callbacks for MyCallbacks {
 }
 
 pub fn run_tautrust() {
-  // println!("Tautrust!");
+  println!("Tautrust!");
   let mut args = Vec::new();
   let mut args_iter = get_args();
   while let Some(arg) = args_iter.next() {
