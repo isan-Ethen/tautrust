@@ -4,15 +4,18 @@ use rustc_span::def_id::LocalDefId;
 
 // std crates
 // Own crates
-mod original_printer;
-mod reduced_thir;
-pub use reduced_thir::{RThir, ThirReducer};
+mod rthir;
+mod thir_printer;
+mod thir_reducer;
+pub use rthir::*;
+use thir_printer::ThirPrinter;
+use thir_reducer::ThirReducer;
 
 pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
   match tcx.thir_body(owner_def) {
     Ok((thir, _)) => {
       let thir = thir.steal();
-      let mut printer = original_printer::ThirPrinter::new(&thir);
+      let mut printer = ThirPrinter::new(&thir);
       printer.print();
       printer.into_buffer()
     }

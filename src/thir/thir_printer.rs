@@ -1,6 +1,12 @@
+// rustc crates
 use rustc_middle::thir::*;
 use rustc_middle::ty;
+
+// std crates
 use std::fmt::{self, Write};
+
+// Own crates
+
 pub struct ThirPrinter<'a, 'tcx> {
   thir: &'a Thir<'tcx>,
   fmt: String,
