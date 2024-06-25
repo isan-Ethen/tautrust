@@ -4,8 +4,7 @@ use rustc_middle::thir::*;
 
 // std crates
 // Own crates
-mod rexpr;
-pub use rexpr::*;
+use crate::thir::*;
 
 #[derive(Debug)]
 pub struct ThirReducer<'a, 'tcx> {
