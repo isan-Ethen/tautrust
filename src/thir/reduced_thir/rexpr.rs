@@ -2,7 +2,7 @@
 use rustc_errors::ErrorGuaranteed;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
-use rustc_hir::{BindingMode, HirId, MatchSource};
+use rustc_hir::BindingMode;
 use rustc_middle::middle::region;
 use rustc_middle::mir;
 use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
@@ -47,8 +47,6 @@ impl<'tcx> RPat<'tcx> {
 
 #[derive(Clone, Debug)]
 pub enum RPatKind<'tcx> {
-  Wild,
-
   AscribeUserType {
     ascription: Ascription<'tcx>,
     subpattern: Box<RPat<'tcx>>,
@@ -77,18 +75,6 @@ pub enum RPatKind<'tcx> {
   },
 
   Range(Box<PatRange<'tcx>>),
-
-  Slice {
-    prefix: Box<[Box<RPat<'tcx>>]>,
-    slice: Option<Box<RPat<'tcx>>>,
-    suffix: Box<[Box<RPat<'tcx>>]>,
-  },
-
-  Array {
-    prefix: Box<[Box<RPat<'tcx>>]>,
-    slice: Option<Box<RPat<'tcx>>>,
-    suffix: Box<[Box<RPat<'tcx>>]>,
-  },
 
   Or {
     pats: Box<[Box<RPat<'tcx>>]>,
@@ -167,9 +153,7 @@ pub enum RExprKind<'tcx> {
   },
   Match {
     scrutinee: RExpr<'tcx>,
-    scrutinee_hir_id: HirId,
     arms: Vec<RArm<'tcx>>,
-    match_source: MatchSource,
   },
   Block {
     block: RBlock<'tcx>,
