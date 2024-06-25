@@ -1,13 +1,15 @@
 // rustc crates
+use rustc_errors::ErrorGuaranteed;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
-use rustc_hir::{HirId, MatchSource};
+use rustc_hir::{BindingMode, HirId, MatchSource};
 use rustc_middle::middle::region;
+use rustc_middle::mir;
 use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
 use rustc_middle::thir::*;
 use rustc_middle::ty::adjustment::PointerCoercion;
 use rustc_middle::ty::{self, CanonicalUserType, GenericArgsRef, Ty};
-use rustc_span::Span;
+use rustc_span::{Span, Symbol};
 use rustc_target::abi::{FieldIdx, VariantIdx};
 
 // std crates
@@ -35,12 +37,66 @@ pub struct RParam<'tcx> {
 
 #[derive(Clone, Debug)]
 pub struct RPat<'tcx> {
-  pub kind: PatKind<'tcx>,
+  pub kind: RPatKind<'tcx>,
   pub span: Span,
 }
 
 impl<'tcx> RPat<'tcx> {
-  pub fn new(kind: PatKind<'tcx>, span: Span) -> Self { Self { kind, span } }
+  pub fn new(kind: RPatKind<'tcx>, span: Span) -> Self { Self { kind, span } }
+}
+
+#[derive(Clone, Debug)]
+pub enum RPatKind<'tcx> {
+  Wild,
+
+  AscribeUserType {
+    ascription: Ascription<'tcx>,
+    subpattern: Box<RPat<'tcx>>,
+  },
+
+  Binding {
+    name: Symbol,
+    mode: BindingMode,
+    var: LocalVarId,
+    ty: Ty<'tcx>,
+    subpattern: Option<Box<RPat<'tcx>>>,
+    is_primary: bool,
+  },
+
+  Deref {
+    subpattern: Box<RPat<'tcx>>,
+  },
+
+  DerefPattern {
+    subpattern: Box<RPat<'tcx>>,
+    mutability: hir::Mutability,
+  },
+
+  Constant {
+    value: mir::Const<'tcx>,
+  },
+
+  Range(Box<PatRange<'tcx>>),
+
+  Slice {
+    prefix: Box<[Box<RPat<'tcx>>]>,
+    slice: Option<Box<RPat<'tcx>>>,
+    suffix: Box<[Box<RPat<'tcx>>]>,
+  },
+
+  Array {
+    prefix: Box<[Box<RPat<'tcx>>]>,
+    slice: Option<Box<RPat<'tcx>>>,
+    suffix: Box<[Box<RPat<'tcx>>]>,
+  },
+
+  Or {
+    pats: Box<[Box<RPat<'tcx>>]>,
+  },
+
+  Never,
+
+  Error(ErrorGuaranteed),
 }
 
 #[derive(Clone, Debug)]
