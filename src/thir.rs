@@ -7,7 +7,8 @@ use rustc_span::def_id::LocalDefId;
 mod original_printer;
 mod printer;
 mod reduced_thir;
-use reduced_thir::{RThir, ThirReducer};
+pub use printer::RThirPrinter;
+pub use reduced_thir::{RThir, ThirReducer};
 
 pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
   match tcx.thir_body(owner_def) {

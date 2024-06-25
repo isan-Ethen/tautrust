@@ -1,6 +1,4 @@
 // rustc crates
-use rustc_middle::thir::*;
-
 // std crates
 use std::fmt::{self, Write};
 
@@ -39,7 +37,7 @@ impl<'a, 'tcx> RThirPrinter<'a, 'tcx> {
     }
   }
 
-  fn print(&mut self) {
+  pub fn print(&mut self) {
     print_indented!(self, "params: [", 0);
 
     for param in self.rthir.params.iter() {
@@ -397,12 +395,6 @@ impl<'a, 'tcx> RThirPrinter<'a, 'tcx> {
         print_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
         print_indented!(self, "source:", depth_lvl + 1);
         self.print_expr(source, depth_lvl + 2);
-        print_indented!(self, "}", depth_lvl);
-      }
-      Closure(closure_expr) => {
-        print_indented!(self, "Closure {", depth_lvl);
-        print_indented!(self, "closure_expr:", depth_lvl + 1);
-        self.print_closure_expr(&**closure_expr, depth_lvl + 2);
         print_indented!(self, "}", depth_lvl);
       }
       Literal { lit, neg } => {
