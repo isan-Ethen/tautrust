@@ -36,13 +36,55 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
   fn reduce_param(&self, param: &Param<'tcx>) -> RParam<'tcx> {
     let Param { pat, ty: _, ty_span: _, self_kind: _, hir_id: _ } = param;
     RParam {
-      pat: if let Some(pat) = pat { Some(Box::new(self.handle_pattern(pat))) } else { None },
+      pat: if let Some(pat) = pat { Some(Box::new(self.reduce_pattern(pat))) } else { None },
     }
   }
 
-  fn handle_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
+  fn reduce_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
     let Pat { ty: _, span, kind } = &**pat;
-    RPat { kind: kind.clone(), span: *span }
+    RPat { kind: self.reduce_pattern_kind(kind), span: *span }
+  }
+
+  fn reduce_pattern_kind(&self, pat_kind: &PatKind<'tcx>) -> RPatKind<'tcx> {
+    let boxed_slice_to_new = |boxed_slice: &Box<[Box<Pat<'tcx>>]>| {
+      boxed_slice
+        .iter()
+        .map(|pat| Box::new(self.reduce_pattern(pat)))
+        .collect::<Vec<Box<RPat<'tcx>>>>()
+        .into_boxed_slice()
+    };
+
+    match pat_kind {
+      PatKind::AscribeUserType { ascription, subpattern } => RPatKind::AscribeUserType {
+        ascription: ascription.clone(),
+        subpattern: Box::new(self.reduce_pattern(subpattern)),
+      },
+      PatKind::Binding { name, mode, var, ty, subpattern, is_primary } => RPatKind::Binding {
+        name: *name,
+        mode: *mode,
+        var: *var,
+        ty: *ty,
+        subpattern: if let Some(pat) = subpattern {
+          Some(Box::new(self.reduce_pattern(pat)))
+        } else {
+          None
+        },
+        is_primary: *is_primary,
+      },
+      PatKind::Deref { subpattern } => {
+        RPatKind::Deref { subpattern: Box::new(self.reduce_pattern(subpattern)) }
+      }
+      PatKind::DerefPattern { subpattern, mutability } => RPatKind::DerefPattern {
+        subpattern: Box::new(self.reduce_pattern(subpattern)),
+        mutability: *mutability,
+      },
+      PatKind::Constant { value } => RPatKind::Constant { value: *value },
+      PatKind::Range(patrange) => RPatKind::Range(patrange.clone()),
+      PatKind::Or { pats } => RPatKind::Or { pats: boxed_slice_to_new(pats) },
+      PatKind::Never => RPatKind::Never,
+      PatKind::Error(err) => RPatKind::Error(*err),
+      _ => unimplemented!(),
+    }
   }
 
   fn reduce_body(&self) -> Option<RExpr<'tcx>> {
@@ -165,7 +207,7 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
   fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
     let arm = &self.thir.arms[*arm_id];
     RArm {
-      pattern: self.handle_pattern(&arm.pattern),
+      pattern: self.reduce_pattern(&arm.pattern),
       guard: if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
       body: self.reduce_expr(&arm.body),
       span: arm.span,
@@ -202,7 +244,7 @@ impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
         span,
       } => RStmt {
         kind: RStmtKind::Let {
-          pattern: Box::new(self.handle_pattern(pattern)),
+          pattern: Box::new(self.reduce_pattern(pattern)),
           initializer: if let Some(expr_id) = initializer {
             Some(self.reduce_expr(&expr_id))
           } else {
