@@ -13,7 +13,7 @@ use rustc_span::{Span, Symbol};
 use rustc_target::abi::{FieldIdx, VariantIdx};
 
 // std crates
-use std::fmt::{self, Write};
+use std::fmt;
 // Own crates
 
 // R: Reduced
@@ -32,9 +32,7 @@ impl<'tcx> RThir<'tcx> {
 
 impl<'tcx> fmt::Debug for RThir<'tcx> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut formatter = RThirFormatter::new(self);
-    formatter.format();
-    write!(f, "{}", formatter.get_formated_rthir())
+    write!(f, "{}", RThirFormatter::get_formated_rthir(self))
   }
 }
 
@@ -45,24 +43,20 @@ struct RThirFormatter<'a, 'tcx> {
 
 const INDENT: &str = "  ";
 
-macro_rules! format_indented {
-  ($writer:ident, $s:expr, $indent_lvl:expr) => {
-    $writer.indent($indent_lvl);
-    writeln!($writer, "{}", $s).expect("unable to write to RThirFormatter");
-  };
-}
-
-impl<'a, 'tcx> Write for RThirFormatter<'a, 'tcx> {
-  fn write_str(&mut self, s: &str) -> fmt::Result {
-    self.fmt.push_str(s);
-    Ok(())
-  }
-}
-
 impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
-  pub fn new(rthir: &'a RThir<'tcx>) -> Self { Self { rthir, fmt: String::new() } }
+  fn new(rthir: &'a RThir<'tcx>) -> Self { Self { rthir, fmt: String::new() } }
 
-  pub fn get_formated_rthir(self) -> String { self.fmt }
+  fn get_formated_rthir(rthir: &'a RThir<'tcx>) -> String {
+    let mut formatter = RThirFormatter::new(rthir);
+    formatter.format();
+    formatter.fmt
+  }
+
+  fn add_indented_string(&mut self, string: &str, indent_lvl: usize) {
+    self.indent(indent_lvl);
+    self.fmt.push_str(string);
+    self.fmt.push_str("\n");
+  }
 
   fn indent(&mut self, level: usize) {
     for _ in 0..level {
@@ -71,124 +65,124 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
   }
 
   pub fn format(&mut self) {
-    format_indented!(self, "params: [", 0);
+    self.add_indented_string("params: [", 0);
 
     for param in self.rthir.params.iter() {
       self.format_param(param, 1);
     }
 
-    format_indented!(self, "]", 0);
+    self.add_indented_string("]", 0);
 
-    format_indented!(self, "body:", 0);
+    self.add_indented_string("body:", 0);
     if let Some(body) = &self.rthir.body {
       self.format_expr(&body, 1);
     } else {
-      format_indented!(self, "None", 1);
+      self.add_indented_string("None", 1);
     }
   }
 
   fn format_param(&mut self, param: &RParam<'tcx>, depth_lvl: usize) {
     let RParam { pat } = param;
 
-    format_indented!(self, "Param {", depth_lvl);
+    self.add_indented_string("Param {", depth_lvl);
 
     if let Some(pat) = pat {
-      format_indented!(self, "param: Some(", depth_lvl + 1);
+      self.add_indented_string("param: Some(", depth_lvl + 1);
       self.format_pat(pat, depth_lvl + 2);
-      format_indented!(self, ")", depth_lvl + 1);
+      self.add_indented_string(")", depth_lvl + 1);
     } else {
-      format_indented!(self, "param: None", depth_lvl + 1);
+      self.add_indented_string("param: None", depth_lvl + 1);
     }
 
-    format_indented!(self, "}", depth_lvl);
+    self.add_indented_string("}", depth_lvl);
   }
 
   fn format_pat(&mut self, pat: &RPat<'tcx>, depth_lvl: usize) {
     let RPat { kind, span } = pat;
 
-    format_indented!(self, "Pat {", depth_lvl);
-    format_indented!(self, format!("span: {:?}", span), depth_lvl + 1);
+    self.add_indented_string("Pat {", depth_lvl);
+    self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
     self.format_pat_kind(kind, depth_lvl + 1);
-    format_indented!(self, "}", depth_lvl);
+    self.add_indented_string("}", depth_lvl);
   }
 
   fn format_pat_kind(&mut self, pat_kind: &RPatKind<'tcx>, depth_lvl: usize) {
-    format_indented!(self, "kind: PatKind {", depth_lvl);
+    self.add_indented_string("kind: PatKind {", depth_lvl);
 
     match pat_kind {
       RPatKind::Never => {
-        format_indented!(self, "Never", depth_lvl + 1);
+        self.add_indented_string("Never", depth_lvl + 1);
       }
       RPatKind::AscribeUserType { ascription, subpattern } => {
-        format_indented!(self, "AscribeUserType: {", depth_lvl + 1);
-        format_indented!(self, format!("ascription: {:?}", ascription), depth_lvl + 2);
-        format_indented!(self, "subpattern: ", depth_lvl + 2);
+        self.add_indented_string("AscribeUserType: {", depth_lvl + 1);
+        self.add_indented_string(&format!("ascription: {:?}", ascription), depth_lvl + 2);
+        self.add_indented_string("subpattern: ", depth_lvl + 2);
         self.format_pat(subpattern, depth_lvl + 3);
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::Binding { name, mode, var, ty, subpattern, is_primary } => {
-        format_indented!(self, "Binding {", depth_lvl + 1);
-        format_indented!(self, format!("name: {:?}", name), depth_lvl + 2);
-        format_indented!(self, format!("mode: {:?}", mode), depth_lvl + 2);
-        format_indented!(self, format!("var: {:?}", var), depth_lvl + 2);
-        format_indented!(self, format!("ty: {:?}", ty), depth_lvl + 2);
-        format_indented!(self, format!("is_primary: {:?}", is_primary), depth_lvl + 2);
+        self.add_indented_string("Binding {", depth_lvl + 1);
+        self.add_indented_string(&format!("name: {:?}", name), depth_lvl + 2);
+        self.add_indented_string(&format!("mode: {:?}", mode), depth_lvl + 2);
+        self.add_indented_string(&format!("var: {:?}", var), depth_lvl + 2);
+        self.add_indented_string(&format!("ty: {:?}", ty), depth_lvl + 2);
+        self.add_indented_string(&format!("is_primary: {:?}", is_primary), depth_lvl + 2);
 
         if let Some(subpattern) = subpattern {
-          format_indented!(self, "subpattern: Some( ", depth_lvl + 2);
+          self.add_indented_string("subpattern: Some( ", depth_lvl + 2);
           self.format_pat(subpattern, depth_lvl + 3);
-          format_indented!(self, ")", depth_lvl + 2);
+          self.add_indented_string(")", depth_lvl + 2);
         } else {
-          format_indented!(self, "subpattern: None", depth_lvl + 2);
+          self.add_indented_string("subpattern: None", depth_lvl + 2);
         }
 
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::Deref { subpattern } => {
-        format_indented!(self, "Deref { ", depth_lvl + 1);
-        format_indented!(self, "subpattern:", depth_lvl + 2);
+        self.add_indented_string("Deref { ", depth_lvl + 1);
+        self.add_indented_string("subpattern:", depth_lvl + 2);
         self.format_pat(subpattern, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::DerefPattern { subpattern, mutability } => {
-        format_indented!(self, "DerefPattern { ", depth_lvl + 1);
-        format_indented!(self, format!("mutability: {:?}", mutability), depth_lvl + 2);
-        format_indented!(self, "subpattern:", depth_lvl + 2);
+        self.add_indented_string("DerefPattern { ", depth_lvl + 1);
+        self.add_indented_string(&format!("mutability: {:?}", mutability), depth_lvl + 2);
+        self.add_indented_string("subpattern:", depth_lvl + 2);
         self.format_pat(subpattern, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::Constant { value } => {
-        format_indented!(self, "Constant {", depth_lvl + 1);
-        format_indented!(self, format!("value: {:?}", value), depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string("Constant {", depth_lvl + 1);
+        self.add_indented_string(&format!("value: {:?}", value), depth_lvl + 2);
+        self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::Range(pat_range) => {
-        format_indented!(self, format!("Range ( {:?} )", pat_range), depth_lvl + 1);
+        self.add_indented_string(&format!("Range ( {:?} )", pat_range), depth_lvl + 1);
       }
       RPatKind::Or { pats } => {
-        format_indented!(self, "Or {", depth_lvl + 1);
-        format_indented!(self, "pats: [", depth_lvl + 2);
+        self.add_indented_string("Or {", depth_lvl + 1);
+        self.add_indented_string("pats: [", depth_lvl + 2);
         for pat in pats.iter() {
           self.format_pat(pat, depth_lvl + 3);
         }
-        format_indented!(self, "]", depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string("]", depth_lvl + 2);
+        self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::Error(_) => {
-        format_indented!(self, "Error", depth_lvl + 1);
+        self.add_indented_string("Error", depth_lvl + 1);
       }
     }
 
-    format_indented!(self, "}", depth_lvl);
+    self.add_indented_string("}", depth_lvl);
   }
 
   fn format_expr(&mut self, expr: &RExpr<'tcx>, depth_lvl: usize) {
     let RExpr { span, kind } = expr;
-    format_indented!(self, "Expr {", depth_lvl);
-    format_indented!(self, format!("span: {:?}", span), depth_lvl + 1);
-    format_indented!(self, "kind: ", depth_lvl + 1);
+    self.add_indented_string("Expr {", depth_lvl);
+    self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
+    self.add_indented_string("kind: ", depth_lvl + 1);
     self.format_expr_kind(kind, depth_lvl + 2);
-    format_indented!(self, "}", depth_lvl);
+    self.add_indented_string("}", depth_lvl);
   }
 
   fn format_expr_kind(&mut self, expr_kind: &RExprKind<'tcx>, depth_lvl: usize) {
@@ -196,264 +190,264 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
     match expr_kind {
       Box { value } => {
-        format_indented!(self, "Box {", depth_lvl);
+        self.add_indented_string("Box {", depth_lvl);
         self.format_expr(value, depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       If { cond, then, else_opt } => {
-        format_indented!(self, "If {", depth_lvl);
-        format_indented!(self, "cond:", depth_lvl + 1);
+        self.add_indented_string("If {", depth_lvl);
+        self.add_indented_string("cond:", depth_lvl + 1);
         self.format_expr(cond, depth_lvl + 2);
-        format_indented!(self, "then:", depth_lvl + 1);
+        self.add_indented_string("then:", depth_lvl + 1);
         self.format_expr(then, depth_lvl + 2);
 
         if let Some(else_expr) = else_opt {
-          format_indented!(self, "else:", depth_lvl + 1);
+          self.add_indented_string("else:", depth_lvl + 1);
           self.format_expr(else_expr, depth_lvl + 2);
         }
 
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Call { fun, args, ty, from_hir_call, fn_span } => {
-        format_indented!(self, "Call {", depth_lvl);
-        format_indented!(self, format!("ty: {:?}", ty), depth_lvl + 1);
-        format_indented!(self, format!("from_hir_call: {}", from_hir_call), depth_lvl + 1);
-        format_indented!(self, format!("fn_span: {:?}", fn_span), depth_lvl + 1);
-        format_indented!(self, "fun:", depth_lvl + 1);
+        self.add_indented_string("Call {", depth_lvl);
+        self.add_indented_string(&format!("ty: {:?}", ty), depth_lvl + 1);
+        self.add_indented_string(&format!("from_hir_call: {}", from_hir_call), depth_lvl + 1);
+        self.add_indented_string(&format!("fn_span: {:?}", fn_span), depth_lvl + 1);
+        self.add_indented_string("fun:", depth_lvl + 1);
         self.format_expr(fun, depth_lvl + 2);
 
         if args.len() > 0 {
-          format_indented!(self, "args: [", depth_lvl + 1);
+          self.add_indented_string("args: [", depth_lvl + 1);
           for arg in args.iter() {
             self.format_expr(arg, depth_lvl + 2);
           }
-          format_indented!(self, "]", depth_lvl + 1);
+          self.add_indented_string("]", depth_lvl + 1);
         } else {
-          format_indented!(self, "args: []", depth_lvl + 1);
+          self.add_indented_string("args: []", depth_lvl + 1);
         }
 
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Deref { arg } => {
-        format_indented!(self, "Deref {", depth_lvl);
+        self.add_indented_string("Deref {", depth_lvl);
         self.format_expr(arg, depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Binary { op, lhs, rhs } => {
-        format_indented!(self, "Binary {", depth_lvl);
-        format_indented!(self, format!("op: {:?}", op), depth_lvl + 1);
-        format_indented!(self, "lhs:", depth_lvl + 1);
+        self.add_indented_string("Binary {", depth_lvl);
+        self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+        self.add_indented_string("lhs:", depth_lvl + 1);
         self.format_expr(lhs, depth_lvl + 2);
-        format_indented!(self, "rhs:", depth_lvl + 1);
+        self.add_indented_string("rhs:", depth_lvl + 1);
         self.format_expr(rhs, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       LogicalOp { op, lhs, rhs } => {
-        format_indented!(self, "LogicalOp {", depth_lvl);
-        format_indented!(self, format!("op: {:?}", op), depth_lvl + 1);
-        format_indented!(self, "lhs:", depth_lvl + 1);
+        self.add_indented_string("LogicalOp {", depth_lvl);
+        self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+        self.add_indented_string("lhs:", depth_lvl + 1);
         self.format_expr(lhs, depth_lvl + 2);
-        format_indented!(self, "rhs:", depth_lvl + 1);
+        self.add_indented_string("rhs:", depth_lvl + 1);
         self.format_expr(rhs, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Unary { op, arg } => {
-        format_indented!(self, "Unary {", depth_lvl);
-        format_indented!(self, format!("op: {:?}", op), depth_lvl + 1);
-        format_indented!(self, "arg:", depth_lvl + 1);
+        self.add_indented_string("Unary {", depth_lvl);
+        self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+        self.add_indented_string("arg:", depth_lvl + 1);
         self.format_expr(arg, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Cast { source } => {
-        format_indented!(self, "Cast {", depth_lvl);
-        format_indented!(self, "source:", depth_lvl + 1);
+        self.add_indented_string("Cast {", depth_lvl);
+        self.add_indented_string("source:", depth_lvl + 1);
         self.format_expr(source, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Use { source } => {
-        format_indented!(self, "Use {", depth_lvl);
-        format_indented!(self, "source:", depth_lvl + 1);
+        self.add_indented_string("Use {", depth_lvl);
+        self.add_indented_string("source:", depth_lvl + 1);
         self.format_expr(source, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       NeverToAny { source } => {
-        format_indented!(self, "NeverToAny {", depth_lvl);
-        format_indented!(self, "source:", depth_lvl + 1);
+        self.add_indented_string("NeverToAny {", depth_lvl);
+        self.add_indented_string("source:", depth_lvl + 1);
         self.format_expr(source, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       PointerCoercion { cast, source } => {
-        format_indented!(self, "Pointer {", depth_lvl);
-        format_indented!(self, format!("cast: {:?}", cast), depth_lvl + 1);
-        format_indented!(self, "source:", depth_lvl + 1);
+        self.add_indented_string("Pointer {", depth_lvl);
+        self.add_indented_string(&format!("cast: {:?}", cast), depth_lvl + 1);
+        self.add_indented_string("source:", depth_lvl + 1);
         self.format_expr(source, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Loop { body } => {
-        format_indented!(self, "Loop (", depth_lvl);
-        format_indented!(self, "body:", depth_lvl + 1);
+        self.add_indented_string("Loop (", depth_lvl);
+        self.add_indented_string("body:", depth_lvl + 1);
         self.format_expr(body, depth_lvl + 2);
-        format_indented!(self, ")", depth_lvl);
+        self.add_indented_string(")", depth_lvl);
       }
       Let { expr, pat } => {
-        format_indented!(self, "Let {", depth_lvl);
-        format_indented!(self, "expr:", depth_lvl + 1);
+        self.add_indented_string("Let {", depth_lvl);
+        self.add_indented_string("expr:", depth_lvl + 1);
         self.format_expr(expr, depth_lvl + 2);
-        format_indented!(self, format!("pat: {:?}", pat), depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string(&format!("pat: {:?}", pat), depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       Match { scrutinee, arms, .. } => {
-        format_indented!(self, "Match {", depth_lvl);
-        format_indented!(self, "scrutinee:", depth_lvl + 1);
+        self.add_indented_string("Match {", depth_lvl);
+        self.add_indented_string("scrutinee:", depth_lvl + 1);
         self.format_expr(scrutinee, depth_lvl + 2);
 
-        format_indented!(self, "arms: [", depth_lvl + 1);
+        self.add_indented_string("arms: [", depth_lvl + 1);
         for arm_id in arms.iter() {
           self.format_arm(arm_id, depth_lvl + 2);
         }
-        format_indented!(self, "]", depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("]", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       Block { block } => self.format_block(block, depth_lvl),
       Assign { lhs, rhs } => {
-        format_indented!(self, "Assign {", depth_lvl);
-        format_indented!(self, "lhs:", depth_lvl + 1);
+        self.add_indented_string("Assign {", depth_lvl);
+        self.add_indented_string("lhs:", depth_lvl + 1);
         self.format_expr(lhs, depth_lvl + 2);
-        format_indented!(self, "rhs:", depth_lvl + 1);
+        self.add_indented_string("rhs:", depth_lvl + 1);
         self.format_expr(rhs, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       AssignOp { op, lhs, rhs } => {
-        format_indented!(self, "AssignOp {", depth_lvl);
-        format_indented!(self, format!("op: {:?}", op), depth_lvl + 1);
-        format_indented!(self, "lhs:", depth_lvl + 1);
+        self.add_indented_string("AssignOp {", depth_lvl);
+        self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+        self.add_indented_string("lhs:", depth_lvl + 1);
         self.format_expr(lhs, depth_lvl + 2);
-        format_indented!(self, "rhs:", depth_lvl + 1);
+        self.add_indented_string("rhs:", depth_lvl + 1);
         self.format_expr(rhs, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Field { lhs, variant_index, name } => {
-        format_indented!(self, "Field {", depth_lvl);
-        format_indented!(self, format!("variant_index: {:?}", variant_index), depth_lvl + 1);
-        format_indented!(self, format!("name: {:?}", name), depth_lvl + 1);
-        format_indented!(self, "lhs:", depth_lvl + 1);
+        self.add_indented_string("Field {", depth_lvl);
+        self.add_indented_string(&format!("variant_index: {:?}", variant_index), depth_lvl + 1);
+        self.add_indented_string(&format!("name: {:?}", name), depth_lvl + 1);
+        self.add_indented_string("lhs:", depth_lvl + 1);
         self.format_expr(lhs, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Index { lhs, index } => {
-        format_indented!(self, "Index {", depth_lvl);
-        format_indented!(self, format!("index: {:?}", index), depth_lvl + 1);
-        format_indented!(self, "lhs:", depth_lvl + 1);
+        self.add_indented_string("Index {", depth_lvl);
+        self.add_indented_string(&format!("index: {:?}", index), depth_lvl + 1);
+        self.add_indented_string("lhs:", depth_lvl + 1);
         self.format_expr(lhs, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       VarRef { id } => {
-        format_indented!(self, "VarRef {", depth_lvl);
-        format_indented!(self, format!("id: {:?}", id), depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("VarRef {", depth_lvl);
+        self.add_indented_string(&format!("id: {:?}", id), depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       UpvarRef { closure_def_id, var_hir_id } => {
-        format_indented!(self, "UpvarRef {", depth_lvl);
-        format_indented!(self, format!("closure_def_id: {:?}", closure_def_id), depth_lvl + 1);
-        format_indented!(self, format!("var_hir_id: {:?}", var_hir_id), depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("UpvarRef {", depth_lvl);
+        self.add_indented_string(&format!("closure_def_id: {:?}", closure_def_id), depth_lvl + 1);
+        self.add_indented_string(&format!("var_hir_id: {:?}", var_hir_id), depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       Borrow { borrow_kind, arg } => {
-        format_indented!(self, "Borrow (", depth_lvl);
-        format_indented!(self, format!("borrow_kind: {:?}", borrow_kind), depth_lvl + 1);
-        format_indented!(self, "arg:", depth_lvl + 1);
+        self.add_indented_string("Borrow (", depth_lvl);
+        self.add_indented_string(&format!("borrow_kind: {:?}", borrow_kind), depth_lvl + 1);
+        self.add_indented_string("arg:", depth_lvl + 1);
         self.format_expr(arg, depth_lvl + 2);
-        format_indented!(self, ")", depth_lvl);
+        self.add_indented_string(")", depth_lvl);
       }
       Break { label, value } => {
-        format_indented!(self, "Break (", depth_lvl);
-        format_indented!(self, format!("label: {:?}", label), depth_lvl + 1);
+        self.add_indented_string("Break (", depth_lvl);
+        self.add_indented_string(&format!("label: {:?}", label), depth_lvl + 1);
 
         if let Some(value) = value {
-          format_indented!(self, "value:", depth_lvl + 1);
+          self.add_indented_string("value:", depth_lvl + 1);
           self.format_expr(value, depth_lvl + 2);
         }
 
-        format_indented!(self, ")", depth_lvl);
+        self.add_indented_string(")", depth_lvl);
       }
       Continue { label } => {
-        format_indented!(self, "Continue {", depth_lvl);
-        format_indented!(self, format!("label: {:?}", label), depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("Continue {", depth_lvl);
+        self.add_indented_string(&format!("label: {:?}", label), depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       Return { value } => {
-        format_indented!(self, "Return {", depth_lvl);
-        format_indented!(self, "value:", depth_lvl + 1);
+        self.add_indented_string("Return {", depth_lvl);
+        self.add_indented_string("value:", depth_lvl + 1);
 
         if let Some(value) = value {
           self.format_expr(value, depth_lvl + 2);
         }
 
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Repeat { value, count } => {
-        format_indented!(self, "Repeat {", depth_lvl);
-        format_indented!(self, format!("count: {:?}", count), depth_lvl + 1);
-        format_indented!(self, "value:", depth_lvl + 1);
+        self.add_indented_string("Repeat {", depth_lvl);
+        self.add_indented_string(&format!("count: {:?}", count), depth_lvl + 1);
+        self.add_indented_string("value:", depth_lvl + 1);
         self.format_expr(value, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Array { fields } => {
-        format_indented!(self, "Array {", depth_lvl);
-        format_indented!(self, "fields: [", depth_lvl + 1);
+        self.add_indented_string("Array {", depth_lvl);
+        self.add_indented_string("fields: [", depth_lvl + 1);
         for field in fields.iter() {
           self.format_expr(field, depth_lvl + 2);
         }
-        format_indented!(self, "]", depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("]", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       Tuple { fields } => {
-        format_indented!(self, "Tuple {", depth_lvl);
-        format_indented!(self, "fields: [", depth_lvl + 1);
+        self.add_indented_string("Tuple {", depth_lvl);
+        self.add_indented_string("fields: [", depth_lvl + 1);
         for field_id in fields.iter() {
           self.format_expr(field_id, depth_lvl + 2);
         }
-        format_indented!(self, "]", depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("]", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       PlaceTypeAscription { source, user_ty } => {
-        format_indented!(self, "PlaceTypeAscription {", depth_lvl);
-        format_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-        format_indented!(self, "source:", depth_lvl + 1);
+        self.add_indented_string("PlaceTypeAscription {", depth_lvl);
+        self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
+        self.add_indented_string("source:", depth_lvl + 1);
         self.format_expr(source, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       ValueTypeAscription { source, user_ty } => {
-        format_indented!(self, "ValueTypeAscription {", depth_lvl);
-        format_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-        format_indented!(self, "source:", depth_lvl + 1);
+        self.add_indented_string("ValueTypeAscription {", depth_lvl);
+        self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
+        self.add_indented_string("source:", depth_lvl + 1);
         self.format_expr(source, depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("}", depth_lvl);
       }
       Literal { lit, neg } => {
-        format_indented!(self, format!("Literal( lit: {:?}, neg: {:?})\n", lit, neg), depth_lvl);
+        self.add_indented_string(&format!("Literal( lit: {:?}, neg: {:?})\n", lit, neg), depth_lvl);
       }
       NonHirLiteral { lit, user_ty } => {
-        format_indented!(self, "NonHirLiteral {", depth_lvl);
-        format_indented!(self, format!("lit: {:?}", lit), depth_lvl + 1);
-        format_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("NonHirLiteral {", depth_lvl);
+        self.add_indented_string(&format!("lit: {:?}", lit), depth_lvl + 1);
+        self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       ZstLiteral { user_ty } => {
-        format_indented!(self, format!("ZstLiteral(user_ty: {:?})", user_ty), depth_lvl);
+        self.add_indented_string(&format!("ZstLiteral(user_ty: {:?})", user_ty), depth_lvl);
       }
       NamedConst { def_id, args, user_ty } => {
-        format_indented!(self, "NamedConst {", depth_lvl);
-        format_indented!(self, format!("def_id: {:?}", def_id), depth_lvl + 1);
-        format_indented!(self, format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-        format_indented!(self, format!("args: {:?}", args), depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("NamedConst {", depth_lvl);
+        self.add_indented_string(&format!("def_id: {:?}", def_id), depth_lvl + 1);
+        self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
+        self.add_indented_string(&format!("args: {:?}", args), depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
       ConstParam { param, def_id } => {
-        format_indented!(self, "ConstParam {", depth_lvl);
-        format_indented!(self, format!("def_id: {:?}", def_id), depth_lvl + 1);
-        format_indented!(self, format!("param: {:?}", param), depth_lvl + 1);
-        format_indented!(self, "}", depth_lvl);
+        self.add_indented_string("ConstParam {", depth_lvl);
+        self.add_indented_string(&format!("def_id: {:?}", def_id), depth_lvl + 1);
+        self.add_indented_string(&format!("param: {:?}", param), depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
       }
     }
   }
@@ -461,88 +455,88 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
   fn format_arm(&mut self, arm: &RArm<'tcx>, depth_lvl: usize) {
     let RArm { pattern, guard, body, span } = arm;
 
-    format_indented!(self, "pattern: ", depth_lvl + 1);
+    self.add_indented_string("pattern: ", depth_lvl + 1);
     self.format_pat(pattern, depth_lvl + 2);
 
     if let Some(guard) = guard {
-      format_indented!(self, "guard: ", depth_lvl + 1);
+      self.add_indented_string("guard: ", depth_lvl + 1);
       self.format_expr(guard, depth_lvl + 2);
     } else {
-      format_indented!(self, "guard: None", depth_lvl + 1);
+      self.add_indented_string("guard: None", depth_lvl + 1);
     }
 
-    format_indented!(self, "body: ", depth_lvl + 1);
+    self.add_indented_string("body: ", depth_lvl + 1);
     self.format_expr(body, depth_lvl + 2);
-    format_indented!(self, format!("span: {:?}", span), depth_lvl + 1);
-    format_indented!(self, "}", depth_lvl);
+    self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
+    self.add_indented_string("}", depth_lvl);
   }
 
   fn format_block(&mut self, block: &RBlock<'tcx>, depth_lvl: usize) {
     let RBlock { expr, stmts } = block;
 
-    format_indented!(self, "Block {", depth_lvl);
+    self.add_indented_string("Block {", depth_lvl);
 
     if stmts.len() > 0 {
-      format_indented!(self, "stmts: [", depth_lvl + 1);
+      self.add_indented_string("stmts: [", depth_lvl + 1);
       for stmt in stmts.iter() {
         self.format_stmt(stmt, depth_lvl + 2);
       }
-      format_indented!(self, "]", depth_lvl + 1);
+      self.add_indented_string("]", depth_lvl + 1);
     } else {
-      format_indented!(self, "stmts: []", depth_lvl + 1);
+      self.add_indented_string("stmts: []", depth_lvl + 1);
     }
 
     if let Some(expr) = expr {
-      format_indented!(self, "expr:", depth_lvl + 1);
+      self.add_indented_string("expr:", depth_lvl + 1);
       self.format_expr(expr, depth_lvl + 2);
     } else {
-      format_indented!(self, "expr: []", depth_lvl + 1);
+      self.add_indented_string("expr: []", depth_lvl + 1);
     }
 
-    format_indented!(self, "}", depth_lvl);
+    self.add_indented_string("}", depth_lvl);
   }
 
   fn format_stmt(&mut self, stmt: &RStmt<'tcx>, depth_lvl: usize) {
     let RStmt { kind } = stmt;
 
-    format_indented!(self, "Stmt {", depth_lvl);
+    self.add_indented_string("Stmt {", depth_lvl);
 
     match kind {
       RStmtKind::Expr { expr } => {
-        format_indented!(self, "kind: Expr {", depth_lvl + 1);
-        format_indented!(self, "expr:", depth_lvl + 2);
+        self.add_indented_string("kind: Expr {", depth_lvl + 1);
+        self.add_indented_string("expr:", depth_lvl + 2);
         self.format_expr(expr, depth_lvl + 3);
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl + 1);
       }
       RStmtKind::Let { pattern, initializer, else_block, span } => {
-        format_indented!(self, "kind: Let {", depth_lvl + 1);
+        self.add_indented_string("kind: Let {", depth_lvl + 1);
 
-        format_indented!(self, "pattern: ", depth_lvl + 2);
+        self.add_indented_string("pattern: ", depth_lvl + 2);
         self.format_pat(pattern, depth_lvl + 3);
-        format_indented!(self, ",", depth_lvl + 2);
+        self.add_indented_string(",", depth_lvl + 2);
 
         if let Some(init) = initializer {
-          format_indented!(self, "initializer: Some(", depth_lvl + 2);
+          self.add_indented_string("initializer: Some(", depth_lvl + 2);
           self.format_expr(init, depth_lvl + 3);
-          format_indented!(self, ")", depth_lvl + 2);
+          self.add_indented_string(")", depth_lvl + 2);
         } else {
-          format_indented!(self, "initializer: None", depth_lvl + 2);
+          self.add_indented_string("initializer: None", depth_lvl + 2);
         }
 
         if let Some(else_block) = else_block {
-          format_indented!(self, "else_block: Some(", depth_lvl + 2);
+          self.add_indented_string("else_block: Some(", depth_lvl + 2);
           self.format_block(else_block, depth_lvl + 3);
-          format_indented!(self, ")", depth_lvl + 2);
+          self.add_indented_string(")", depth_lvl + 2);
         } else {
-          format_indented!(self, "else_block: None", depth_lvl + 2);
+          self.add_indented_string("else_block: None", depth_lvl + 2);
         }
 
-        format_indented!(self, format!("span: {:?}", span), depth_lvl + 2);
-        format_indented!(self, "}", depth_lvl + 1);
+        self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 2);
+        self.add_indented_string("}", depth_lvl + 1);
       }
     }
 
-    format_indented!(self, "}", depth_lvl);
+    self.add_indented_string("}", depth_lvl);
   }
 }
 
