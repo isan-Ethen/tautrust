@@ -1,27 +1,30 @@
 // rustc crates
-use rustc_data_structures::steal::Steal;
 use rustc_middle::thir::*;
 
 // std crates
 // Own crates
 use crate::thir::*;
 
-#[derive(Debug)]
-pub struct ThirReducer<'a, 'tcx> {
-  thir: &'a Thir<'tcx>,
-  reduced_thir: Steal<RThir<'tcx>>,
+pub fn get_reduced_thir(thir: Thir) -> RThir {
+  let mut reducer = ThirReducer::new(thir);
+  reducer.reduce();
+  reducer.reduced_thir
 }
 
-impl<'a, 'tcx> ThirReducer<'a, 'tcx> {
-  pub fn new(thir: &'a Thir<'tcx>) -> Self { Self { thir, reduced_thir: Steal::new(RThir::new()) } }
+#[derive(Debug)]
+struct ThirReducer<'tcx> {
+  thir: Thir<'tcx>,
+  reduced_thir: RThir<'tcx>,
+}
 
-  pub fn get_reduced_thir(&mut self) -> RThir<'tcx> { self.reduced_thir.steal() }
+impl<'tcx> ThirReducer<'tcx> {
+  fn new(thir: Thir<'tcx>) -> Self { Self { thir, reduced_thir: RThir::new() } }
 
-  pub fn reduce(&mut self) {
+  fn reduce(&mut self) {
     let new_params = self.reduce_params();
-    self.reduced_thir.get_mut().set_params(new_params);
+    self.reduced_thir.set_params(new_params);
     let new_body = self.reduce_body();
-    self.reduced_thir.get_mut().set_body(new_body);
+    self.reduced_thir.set_body(new_body);
   }
 
   fn reduce_params(&self) -> Vec<RParam<'tcx>> {
