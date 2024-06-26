@@ -1,4 +1,5 @@
 // rustc crates
+use rustc_errors::ErrorGuaranteed;
 use rustc_middle::ty::TyCtxt;
 use rustc_span::def_id::LocalDefId;
 
@@ -9,7 +10,7 @@ mod thir_printer;
 mod thir_reducer;
 pub use rthir::*;
 use thir_printer::ThirPrinter;
-use thir_reducer::ThirReducer;
+use thir_reducer::*;
 
 pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
   match tcx.thir_body(owner_def) {
@@ -25,16 +26,8 @@ pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
 
 pub fn reduced_thir<'tcx>(
   tcx: &TyCtxt<'tcx>, owner_def: LocalDefId,
-) -> Result<RThir<'tcx>, String> {
-  match tcx.thir_body(owner_def) {
-    Ok((thir, _)) => {
-      let thir = thir.steal();
-      let mut reducer = ThirReducer::new(&thir);
-      reducer.reduce();
-      let reduced_thir = reducer.get_reduced_thir();
-
-      Ok(reduced_thir)
-    }
-    Err(_) => Err("error".into()),
-  }
+) -> Result<RThir<'tcx>, ErrorGuaranteed> {
+  let (thir, _) = tcx.thir_body(owner_def)?;
+  let thir = thir.steal();
+  Ok(get_reduced_thir(thir))
 }
