@@ -1,4 +1,4 @@
-fn test(n: i32) {
+fn match_expr(n: i32) {
   match n {
     0..5 => {
       n += 1;

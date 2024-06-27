@@ -1,0 +1,76 @@
+params: [
+  Param {
+    param: Some(
+      Pat {
+        span: sample/nmuln.rs:1:10: 1:11 (#0)
+        kind: PatKind {
+          Binding {
+            name: "n"
+            mode: BindingMode(No, Not)
+            var: LocalVarId(HirId(DefId(0:3 ~ nmuln[dc41]::nmuln).2))
+            ty: i32
+            is_primary: true
+            subpattern: None
+          }
+        }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/nmuln.rs:1:18: 1:36 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Let {
+              pattern: 
+                Pat {
+                  span: sample/nmuln.rs:1:24: 1:25 (#0)
+                  kind: PatKind {
+                    Binding {
+                      name: "m"
+                      mode: BindingMode(No, Not)
+                      var: LocalVarId(HirId(DefId(0:3 ~ nmuln[dc41]::nmuln).10))
+                      ty: i32
+                      is_primary: true
+                      subpattern: None
+                    }
+                  }
+                }
+              ,
+              initializer: Some(
+                Expr {
+                  span: sample/nmuln.rs:1:28: 1:33 (#0)
+                  kind: 
+                    Binary {
+                      op: Mul
+                      lhs:
+                        Expr {
+                          span: sample/nmuln.rs:1:28: 1:29 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:3 ~ nmuln[dc41]::nmuln).2))
+                            }
+                        }
+                      rhs:
+                        Expr {
+                          span: sample/nmuln.rs:1:32: 1:33 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:3 ~ nmuln[dc41]::nmuln).2))
+                            }
+                        }
+                    }
+                }
+              )
+              else_block: None
+              span: sample/nmuln.rs:1:20: 1:33 (#0)
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+
