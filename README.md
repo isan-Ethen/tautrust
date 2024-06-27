@@ -4,11 +4,11 @@ Verifier written in Rust
 ## Usage
 1. Clone this repository
 ```
-git clone git@github.com:isan-Ethen/Tautrust.git
+git@github.com:isan-Ethen/tautrust.git
 ```
 2. cd to this repository.
 ```
-cd Tautrust
+cd tautrust
 ```
 3. Execute Makefile
 ```
