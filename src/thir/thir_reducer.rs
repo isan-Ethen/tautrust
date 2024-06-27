@@ -57,6 +57,7 @@ impl<'tcx> ThirReducer<'tcx> {
     };
 
     match pat_kind {
+      PatKind::Wild => RPatKind::Wild,
       PatKind::AscribeUserType { ascription, subpattern } => RPatKind::AscribeUserType {
         ascription: ascription.clone(),
         subpattern: Box::new(self.reduce_pattern(subpattern)),

@@ -1,0 +1,75 @@
+params: [
+  Param {
+    param: Some(
+      Pat {
+        span: sample/let_m.rs:1:10: 1:11 (#0)
+        kind: PatKind {
+          Binding {
+            name: "n"
+            mode: BindingMode(No, Not)
+            var: LocalVarId(HirId(DefId(0:3 ~ let_m[4cf1]::let_m).2))
+            ty: i32
+            is_primary: true
+            subpattern: None
+          }
+        }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/let_m.rs:1:18: 1:36 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Let {
+              pattern: 
+                Pat {
+                  span: sample/let_m.rs:1:24: 1:25 (#0)
+                  kind: PatKind {
+                    Binding {
+                      name: "m"
+                      mode: BindingMode(No, Not)
+                      var: LocalVarId(HirId(DefId(0:3 ~ let_m[4cf1]::let_m).9))
+                      ty: i32
+                      is_primary: true
+                      subpattern: None
+                    }
+                  }
+                }
+              ,
+              initializer: Some(
+                Expr {
+                  span: sample/let_m.rs:1:28: 1:33 (#0)
+                  kind: 
+                    Binary {
+                      op: Add
+                      lhs:
+                        Expr {
+                          span: sample/let_m.rs:1:28: 1:29 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:3 ~ let_m[4cf1]::let_m).2))
+                            }
+                        }
+                      rhs:
+                        Expr {
+                          span: sample/let_m.rs:1:32: 1:33 (#0)
+                          kind: 
+                            Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/let_m.rs:1:32: 1:33 (#0) }, neg: false)
+
+                        }
+                    }
+                }
+              )
+              else_block: None
+              span: sample/let_m.rs:1:20: 1:33 (#0)
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+
