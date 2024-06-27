@@ -110,6 +110,9 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
     self.add_indented_string("kind: PatKind {", depth_lvl);
 
     match pat_kind {
+      RPatKind::Wild => {
+        self.add_indented_string("Wild", depth_lvl + 1);
+      }
       RPatKind::Never => {
         self.add_indented_string("Never", depth_lvl + 1);
       }
@@ -557,6 +560,8 @@ impl<'tcx> RPat<'tcx> {
 
 #[derive(Clone, Debug)]
 pub enum RPatKind<'tcx> {
+  Wild,
+
   AscribeUserType {
     ascription: Ascription<'tcx>,
     subpattern: Box<RPat<'tcx>>,
