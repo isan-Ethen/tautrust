@@ -1,0 +1,125 @@
+params: [
+  Param {
+    param: Some(
+      Pat {
+        span: sample/match.rs:1:15: 1:16 (#0)
+        kind: PatKind {
+          Binding {
+            name: "n"
+            mode: BindingMode(No, Not)
+            var: LocalVarId(HirId(DefId(0:3 ~ match[4a7a]::match_expr).2))
+            ty: i32
+            is_primary: true
+            subpattern: None
+          }
+        }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/match.rs:1:23: 8:2 (#0)
+    kind: 
+      Block {
+        stmts: []
+        expr:
+          Expr {
+            span: sample/match.rs:2:3: 7:4 (#0)
+            kind: 
+              Match {
+                scrutinee:
+                  Expr {
+                    span: sample/match.rs:2:9: 2:10 (#0)
+                    kind: 
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:3 ~ match[4a7a]::match_expr).2))
+                      }
+                  }
+                arms: [
+                    pattern: 
+                      Pat {
+                        span: sample/match.rs:3:5: 3:9 (#0)
+                        kind: PatKind {
+                          Range ( PatRange { lo: Finite(Ty(i32, 0_i32)), hi: Finite(Ty(i32, 5_i32)), end: Excluded, ty: i32 } )
+                        }
+                      }
+                    guard: None
+                    body: 
+                      Expr {
+                        span: sample/match.rs:3:13: 5:6 (#0)
+                        kind: 
+                          Block {
+                            stmts: [
+                              Stmt {
+                                kind: Expr {
+                                  expr:
+                                    Expr {
+                                      span: sample/match.rs:4:7: 4:13 (#0)
+                                      kind: 
+                                        AssignOp {
+                                          op: Add
+                                          lhs:
+                                            Expr {
+                                              span: sample/match.rs:4:7: 4:8 (#0)
+                                              kind: 
+                                                VarRef {
+                                                  id: LocalVarId(HirId(DefId(0:3 ~ match[4a7a]::match_expr).2))
+                                                }
+                                            }
+                                          rhs:
+                                            Expr {
+                                              span: sample/match.rs:4:12: 4:13 (#0)
+                                              kind: 
+                                                Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/match.rs:4:12: 4:13 (#0) }, neg: false)
+
+                                            }
+                                        }
+                                    }
+                                }
+                              }
+                            ]
+                            expr: []
+                          }
+                      }
+                    span: sample/match.rs:3:5: 5:6 (#0)
+                  }
+                    pattern: 
+                      Pat {
+                        span: sample/match.rs:6:5: 6:6 (#0)
+                        kind: PatKind {
+                          Wild
+                        }
+                      }
+                    guard: None
+                    body: 
+                      Expr {
+                        span: sample/match.rs:6:10: 6:16 (#0)
+                        kind: 
+                          AssignOp {
+                            op: Add
+                            lhs:
+                              Expr {
+                                span: sample/match.rs:6:10: 6:11 (#0)
+                                kind: 
+                                  VarRef {
+                                    id: LocalVarId(HirId(DefId(0:3 ~ match[4a7a]::match_expr).2))
+                                  }
+                              }
+                            rhs:
+                              Expr {
+                                span: sample/match.rs:6:15: 6:16 (#0)
+                                kind: 
+                                  Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/match.rs:6:15: 6:16 (#0) }, neg: false)
+
+                              }
+                          }
+                      }
+                    span: sample/match.rs:6:5: 6:16 (#0)
+                  }
+                ]
+              }
+          }
+      }
+  }
+
