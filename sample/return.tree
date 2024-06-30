@@ -1,0 +1,101 @@
+params: [
+  Param {
+    param: Some(
+      Pat {
+        span: sample/return.rs:1:16: 1:17 (#0)
+        kind: PatKind {
+          Binding {
+            name: "n"
+            mode: BindingMode(No, Not)
+            var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).2))
+            ty: usize
+            is_primary: true
+            subpattern: None
+          }
+        }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/return.rs:1:35: 4:2 (#0)
+    kind: 
+      NeverToAny {
+        source:
+          Expr {
+            span: sample/return.rs:1:35: 4:2 (#0)
+            kind: 
+              Block {
+                stmts: [
+                  Stmt {
+                    kind: Let {
+                      pattern: 
+                        Pat {
+                          span: sample/return.rs:2:7: 2:8 (#0)
+                          kind: PatKind {
+                            Binding {
+                              name: "m"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
+                              ty: usize
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                      ,
+                      initializer: Some(
+                        Expr {
+                          span: sample/return.rs:2:11: 2:16 (#0)
+                          kind: 
+                            Binary {
+                              op: Add
+                              lhs:
+                                Expr {
+                                  span: sample/return.rs:2:11: 2:12 (#0)
+                                  kind: 
+                                    VarRef {
+                                      id: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).2))
+                                    }
+                                }
+                              rhs:
+                                Expr {
+                                  span: sample/return.rs:2:15: 2:16 (#0)
+                                  kind: 
+                                    Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/return.rs:2:15: 2:16 (#0) }, neg: false)
+
+                                }
+                            }
+                        }
+                      )
+                      else_block: None
+                      span: sample/return.rs:2:3: 2:16 (#0)
+                    }
+                  }
+                  Stmt {
+                    kind: Expr {
+                      expr:
+                        Expr {
+                          span: sample/return.rs:3:3: 3:11 (#0)
+                          kind: 
+                            Return {
+                              value:
+                                Expr {
+                                  span: sample/return.rs:3:10: 3:11 (#0)
+                                  kind: 
+                                    VarRef {
+                                      id: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                  }
+                ]
+                expr: []
+              }
+          }
+      }
+  }
+
