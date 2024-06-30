@@ -12,6 +12,7 @@ pub use rthir::*;
 use thir_printer::ThirPrinter;
 use thir_reducer::*;
 
+#[allow(unused)]
 pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
   match tcx.thir_body(owner_def) {
     Ok((thir, _)) => {
