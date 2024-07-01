@@ -267,18 +267,6 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         self.format_expr(source, depth_lvl + 2);
         self.add_indented_string("}", depth_lvl);
       }
-      Use { source } => {
-        self.add_indented_string("Use {", depth_lvl);
-        self.add_indented_string("source:", depth_lvl + 1);
-        self.format_expr(source, depth_lvl + 2);
-        self.add_indented_string("}", depth_lvl);
-      }
-      NeverToAny { source } => {
-        self.add_indented_string("NeverToAny {", depth_lvl);
-        self.add_indented_string("source:", depth_lvl + 1);
-        self.format_expr(source, depth_lvl + 2);
-        self.add_indented_string("}", depth_lvl);
-      }
       PointerCoercion { cast, source } => {
         self.add_indented_string("Pointer {", depth_lvl);
         self.add_indented_string(&format!("cast: {:?}", cast), depth_lvl + 1);
@@ -647,12 +635,6 @@ pub enum RExprKind<'tcx> {
     arg: RExpr<'tcx>,
   },
   Cast {
-    source: RExpr<'tcx>,
-  },
-  Use {
-    source: RExpr<'tcx>,
-  },
-  NeverToAny {
     source: RExpr<'tcx>,
   },
   PointerCoercion {
