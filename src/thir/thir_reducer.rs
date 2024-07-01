@@ -135,8 +135,8 @@ impl<'tcx> ThirReducer<'tcx> {
       }
       Unary { op, arg } => RExprKind::Unary { op: *op, arg: self.reduce_expr(arg) },
       Cast { source } => RExprKind::Cast { source: self.reduce_expr(source) },
-      Use { source } => RExprKind::Use { source: self.reduce_expr(source) },
-      NeverToAny { source } => RExprKind::NeverToAny { source: self.reduce_expr(source) },
+      Use { source } => self.handle_use(source),
+      NeverToAny { source } => self.handle_never_to_any(source),
       PointerCoercion { cast, source } => {
         RExprKind::PointerCoercion { cast: *cast, source: self.reduce_expr(source) }
       }
@@ -202,6 +202,16 @@ impl<'tcx> ThirReducer<'tcx> {
   fn handle_scope(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
     let scope = &self.thir[*expr_id];
     self.reduce_expr_kind(&scope.kind)
+  }
+
+  fn handle_use(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
+    let use_expr = &self.thir[*expr_id];
+    self.reduce_expr_kind(&use_expr.kind)
+  }
+
+  fn handle_never_to_any(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
+    let never_to_any = &self.thir[*expr_id];
+    self.reduce_expr_kind(&never_to_any.kind)
   }
 
   fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
