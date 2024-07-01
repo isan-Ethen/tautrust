@@ -1,0 +1,193 @@
+params: [
+  Param {
+    param: Some(
+      Pat {
+        span: sample/multiple_condition.rs:1:9: 1:10 (#0)
+        kind: PatKind {
+          Binding {
+            name: "n"
+            mode: BindingMode(No, Not)
+            var: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::test).2))
+            ty: usize
+            is_primary: true
+            subpattern: None
+          }
+        }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/multiple_condition.rs:1:19: 7:2 (#0)
+    kind: 
+      Block {
+        stmts: []
+        expr:
+          Expr {
+            span: sample/multiple_condition.rs:2:3: 6:4 (#0)
+            kind: 
+              If {
+                cond:
+                  Expr {
+                    span: sample/multiple_condition.rs:2:6: 2:30 (#4)
+                    kind: 
+                      LogicalOp {
+                        op: And
+                        lhs:
+                          Expr {
+                            span: sample/multiple_condition.rs:2:6: 2:16 (#0)
+                            kind: 
+                              Binary {
+                                op: Eq
+                                lhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:2:6: 2:11 (#0)
+                                    kind: 
+                                      Binary {
+                                        op: Rem
+                                        lhs:
+                                          Expr {
+                                            span: sample/multiple_condition.rs:2:6: 2:7 (#0)
+                                            kind: 
+                                              VarRef {
+                                                id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::test).2))
+                                              }
+                                          }
+                                        rhs:
+                                          Expr {
+                                            span: sample/multiple_condition.rs:2:10: 2:11 (#0)
+                                            kind: 
+                                              Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/multiple_condition.rs:2:10: 2:11 (#0) }, neg: false)
+
+                                          }
+                                      }
+                                  }
+                                rhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:2:15: 2:16 (#0)
+                                    kind: 
+                                      Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/multiple_condition.rs:2:15: 2:16 (#0) }, neg: false)
+
+                                  }
+                              }
+                          }
+                        rhs:
+                          Expr {
+                            span: sample/multiple_condition.rs:2:20: 2:30 (#0)
+                            kind: 
+                              Binary {
+                                op: Eq
+                                lhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:2:20: 2:25 (#0)
+                                    kind: 
+                                      Binary {
+                                        op: Rem
+                                        lhs:
+                                          Expr {
+                                            span: sample/multiple_condition.rs:2:20: 2:21 (#0)
+                                            kind: 
+                                              VarRef {
+                                                id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::test).2))
+                                              }
+                                          }
+                                        rhs:
+                                          Expr {
+                                            span: sample/multiple_condition.rs:2:24: 2:25 (#0)
+                                            kind: 
+                                              Literal( lit: Spanned { node: Int(Pu128(3), Unsuffixed), span: sample/multiple_condition.rs:2:24: 2:25 (#0) }, neg: false)
+
+                                          }
+                                      }
+                                  }
+                                rhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:2:29: 2:30 (#0)
+                                    kind: 
+                                      Literal( lit: Spanned { node: Int(Pu128(0), Unsuffixed), span: sample/multiple_condition.rs:2:29: 2:30 (#0) }, neg: false)
+
+                                  }
+                              }
+                          }
+                      }
+                  }
+                then:
+                  Expr {
+                    span: sample/multiple_condition.rs:2:31: 4:4 (#0)
+                    kind: 
+                      Block {
+                        stmts: [
+                          Stmt {
+                            kind: Expr {
+                              expr:
+                                Expr {
+                                  span: sample/multiple_condition.rs:3:5: 3:11 (#0)
+                                  kind: 
+                                    AssignOp {
+                                      op: Add
+                                      lhs:
+                                        Expr {
+                                          span: sample/multiple_condition.rs:3:5: 3:6 (#0)
+                                          kind: 
+                                            VarRef {
+                                              id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::test).2))
+                                            }
+                                        }
+                                      rhs:
+                                        Expr {
+                                          span: sample/multiple_condition.rs:3:10: 3:11 (#0)
+                                          kind: 
+                                            Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/multiple_condition.rs:3:10: 3:11 (#0) }, neg: false)
+
+                                        }
+                                    }
+                                }
+                            }
+                          }
+                        ]
+                        expr: []
+                      }
+                  }
+                else:
+                  Expr {
+                    span: sample/multiple_condition.rs:4:10: 6:4 (#0)
+                    kind: 
+                      Block {
+                        stmts: [
+                          Stmt {
+                            kind: Expr {
+                              expr:
+                                Expr {
+                                  span: sample/multiple_condition.rs:5:5: 5:11 (#0)
+                                  kind: 
+                                    AssignOp {
+                                      op: Add
+                                      lhs:
+                                        Expr {
+                                          span: sample/multiple_condition.rs:5:5: 5:6 (#0)
+                                          kind: 
+                                            VarRef {
+                                              id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::test).2))
+                                            }
+                                        }
+                                      rhs:
+                                        Expr {
+                                          span: sample/multiple_condition.rs:5:10: 5:11 (#0)
+                                          kind: 
+                                            Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/multiple_condition.rs:5:10: 5:11 (#0) }, neg: false)
+
+                                        }
+                                    }
+                                }
+                            }
+                          }
+                        ]
+                        expr: []
+                      }
+                  }
+              }
+          }
+      }
+  }
+

@@ -32,44 +32,37 @@ body:
                   Expr {
                     span: sample/if.rs:2:6: 2:16 (#4)
                     kind: 
-                      Use {
-                        source:
+                      Binary {
+                        op: Eq
+                        lhs:
                           Expr {
-                            span: sample/if.rs:2:6: 2:16 (#0)
+                            span: sample/if.rs:2:6: 2:11 (#0)
                             kind: 
                               Binary {
-                                op: Eq
+                                op: Rem
                                 lhs:
                                   Expr {
-                                    span: sample/if.rs:2:6: 2:11 (#0)
+                                    span: sample/if.rs:2:6: 2:7 (#0)
                                     kind: 
-                                      Binary {
-                                        op: Rem
-                                        lhs:
-                                          Expr {
-                                            span: sample/if.rs:2:6: 2:7 (#0)
-                                            kind: 
-                                              VarRef {
-                                                id: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
-                                              }
-                                          }
-                                        rhs:
-                                          Expr {
-                                            span: sample/if.rs:2:10: 2:11 (#0)
-                                            kind: 
-                                              Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/if.rs:2:10: 2:11 (#0) }, neg: false)
-
-                                          }
+                                      VarRef {
+                                        id: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
                                       }
                                   }
                                 rhs:
                                   Expr {
-                                    span: sample/if.rs:2:15: 2:16 (#0)
+                                    span: sample/if.rs:2:10: 2:11 (#0)
                                     kind: 
-                                      Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/if.rs:2:15: 2:16 (#0) }, neg: false)
+                                      Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/if.rs:2:10: 2:11 (#0) }, neg: false)
 
                                   }
                               }
+                          }
+                        rhs:
+                          Expr {
+                            span: sample/if.rs:2:15: 2:16 (#0)
+                            kind: 
+                              Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/if.rs:2:15: 2:16 (#0) }, neg: false)
+
                           }
                       }
                   }
