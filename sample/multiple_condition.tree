@@ -1,18 +1,21 @@
 params: [
   Param {
     param: Some(
-      Pat {
+      Expr {
         span: sample/multiple_condition.rs:1:9: 1:10 (#0)
-        kind: PatKind {
-          Binding {
-            name: "n"
-            mode: BindingMode(No, Not)
-            var: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::test).2))
-            ty: usize
-            is_primary: true
-            subpattern: None
+        kind: 
+          Pat {
+            kind: PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::test).2))
+                ty: usize
+                is_primary: true
+                subpattern: None
+              }
+            }
           }
-        }
       }
     )
   }

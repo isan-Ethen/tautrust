@@ -1,18 +1,21 @@
 params: [
   Param {
     param: Some(
-      Pat {
+      Expr {
         span: sample/match.rs:1:15: 1:16 (#0)
-        kind: PatKind {
-          Binding {
-            name: "n"
-            mode: BindingMode(No, Not)
-            var: LocalVarId(HirId(DefId(0:3 ~ match[4a7a]::match_expr).2))
-            ty: i32
-            is_primary: true
-            subpattern: None
+        kind: 
+          Pat {
+            kind: PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:3 ~ match[4a7a]::match_expr).2))
+                ty: i32
+                is_primary: true
+                subpattern: None
+              }
+            }
           }
-        }
       }
     )
   }
@@ -38,11 +41,14 @@ body:
                   }
                 arms: [
                     pattern: 
-                      Pat {
+                      Expr {
                         span: sample/match.rs:3:5: 3:9 (#0)
-                        kind: PatKind {
-                          Range ( PatRange { lo: Finite(Ty(i32, 0_i32)), hi: Finite(Ty(i32, 5_i32)), end: Excluded, ty: i32 } )
-                        }
+                        kind: 
+                          Pat {
+                            kind: PatKind {
+                              Range ( PatRange { lo: Finite(Ty(i32, 0_i32)), hi: Finite(Ty(i32, 5_i32)), end: Excluded, ty: i32 } )
+                            }
+                          }
                       }
                     guard: None
                     body: 
@@ -85,11 +91,14 @@ body:
                     span: sample/match.rs:3:5: 5:6 (#0)
                   }
                     pattern: 
-                      Pat {
+                      Expr {
                         span: sample/match.rs:6:5: 6:6 (#0)
-                        kind: PatKind {
-                          Wild
-                        }
+                        kind: 
+                          Pat {
+                            kind: PatKind {
+                              Wild
+                            }
+                          }
                       }
                     guard: None
                     body: 

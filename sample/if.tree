@@ -1,18 +1,21 @@
 params: [
   Param {
     param: Some(
-      Pat {
+      Expr {
         span: sample/if.rs:1:12: 1:13 (#0)
-        kind: PatKind {
-          Binding {
-            name: "n"
-            mode: BindingMode(No, Not)
-            var: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
-            ty: i32
-            is_primary: true
-            subpattern: None
+        kind: 
+          Pat {
+            kind: PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
+                ty: i32
+                is_primary: true
+                subpattern: None
+              }
+            }
           }
-        }
       }
     )
   }

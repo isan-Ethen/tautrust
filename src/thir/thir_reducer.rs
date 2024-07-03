@@ -81,11 +81,8 @@ impl<'tcx> ThirReducer<'tcx> {
         subpattern: Box::new(self.reduce_pattern(subpattern)),
         mutability: *mutability,
       },
-      PatKind::Constant { value } => RPatKind::Constant { value: *value },
       PatKind::Range(patrange) => RPatKind::Range(patrange.clone()),
       PatKind::Or { pats } => RPatKind::Or { pats: boxed_slice_to_new(pats) },
-      PatKind::Never => RPatKind::Never,
-      PatKind::Error(err) => RPatKind::Error(*err),
       _ => unimplemented!(),
     }
   }
@@ -113,7 +110,6 @@ impl<'tcx> ThirReducer<'tcx> {
 
     match expr_kind {
       Scope { value, .. } => self.handle_scope(value),
-      Box { value } => RExprKind::Box { value: self.reduce_expr(value) },
       If { cond, then, else_opt, .. } => RExprKind::If {
         cond: self.reduce_expr(cond),
         then: self.reduce_expr(then),
