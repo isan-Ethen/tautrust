@@ -1,18 +1,21 @@
 params: [
   Param {
     param: Some(
-      Pat {
+      Expr {
         span: sample/return.rs:1:16: 1:17 (#0)
-        kind: PatKind {
-          Binding {
-            name: "n"
-            mode: BindingMode(No, Not)
-            var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).2))
-            ty: usize
-            is_primary: true
-            subpattern: None
+        kind: 
+          Pat {
+            kind: PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).2))
+                ty: usize
+                is_primary: true
+                subpattern: None
+              }
+            }
           }
-        }
       }
     )
   }
@@ -26,18 +29,21 @@ body:
           Stmt {
             kind: Let {
               pattern: 
-                Pat {
+                Expr {
                   span: sample/return.rs:2:7: 2:8 (#0)
-                  kind: PatKind {
-                    Binding {
-                      name: "m"
-                      mode: BindingMode(No, Not)
-                      var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
-                      ty: usize
-                      is_primary: true
-                      subpattern: None
+                  kind: 
+                    Pat {
+                      kind: PatKind {
+                        Binding {
+                          name: "m"
+                          mode: BindingMode(No, Not)
+                          var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
+                          ty: usize
+                          is_primary: true
+                          subpattern: None
+                        }
+                      }
                     }
-                  }
                 }
               ,
               initializer: Some(

@@ -1,10 +1,8 @@
 // rustc crates
-use rustc_errors::ErrorGuaranteed;
 use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_hir::BindingMode;
 use rustc_middle::middle::region;
-use rustc_middle::mir;
 use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
 use rustc_middle::thir::*;
 use rustc_middle::ty::adjustment::PointerCoercion;
@@ -104,9 +102,6 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
       RPatKind::Wild => {
         self.add_indented_string("Wild", depth_lvl + 1);
       }
-      RPatKind::Never => {
-        self.add_indented_string("Never", depth_lvl + 1);
-      }
       RPatKind::AscribeUserType { ascription, subpattern } => {
         self.add_indented_string("AscribeUserType: {", depth_lvl + 1);
         self.add_indented_string(&format!("ascription: {:?}", ascription), depth_lvl + 2);
@@ -145,11 +140,6 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         self.format_expr(subpattern, depth_lvl + 2);
         self.add_indented_string("}", depth_lvl + 1);
       }
-      RPatKind::Constant { value } => {
-        self.add_indented_string("Constant {", depth_lvl + 1);
-        self.add_indented_string(&format!("value: {:?}", value), depth_lvl + 2);
-        self.add_indented_string("}", depth_lvl + 1);
-      }
       RPatKind::Range(pat_range) => {
         self.add_indented_string(&format!("Range ( {:?} )", pat_range), depth_lvl + 1);
       }
@@ -161,9 +151,6 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         }
         self.add_indented_string("]", depth_lvl + 2);
         self.add_indented_string("}", depth_lvl + 1);
-      }
-      RPatKind::Error(_) => {
-        self.add_indented_string("Error", depth_lvl + 1);
       }
     }
 
@@ -186,11 +173,6 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
       Pat { kind } => {
         self.add_indented_string("Pat {", depth_lvl);
         self.format_pat_kind(kind, depth_lvl + 1);
-        self.add_indented_string("}", depth_lvl);
-      }
-      Box { value } => {
-        self.add_indented_string("Box {", depth_lvl);
-        self.format_expr(value, depth_lvl + 1);
         self.add_indented_string("}", depth_lvl);
       }
       If { cond, then, else_opt } => {
@@ -559,19 +541,11 @@ pub enum RPatKind<'tcx> {
     mutability: hir::Mutability,
   },
 
-  Constant {
-    value: mir::Const<'tcx>,
-  },
-
   Range(Box<PatRange<'tcx>>),
 
   Or {
     pats: Box<[Box<RExpr<'tcx>>]>,
   },
-
-  Never,
-
-  Error(ErrorGuaranteed),
 }
 
 #[derive(Clone, Debug)]
@@ -588,9 +562,6 @@ type UserTy<'tcx> = Option<Box<CanonicalUserType<'tcx>>>;
 
 #[derive(Clone, Debug)]
 pub enum RExprKind<'tcx> {
-  Box {
-    value: RExpr<'tcx>,
-  },
   If {
     cond: RExpr<'tcx>,
     then: RExpr<'tcx>,
