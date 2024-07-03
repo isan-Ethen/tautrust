@@ -42,9 +42,9 @@ impl<'tcx> ThirReducer<'tcx> {
     }
   }
 
-  fn reduce_pattern(&self, pat: &Box<Pat<'tcx>>) -> RPat<'tcx> {
+  fn reduce_pattern(&self, pat: &Box<Pat<'tcx>>) -> RExpr<'tcx> {
     let Pat { span, kind, .. } = &**pat;
-    RPat { kind: self.reduce_pattern_kind(kind), span: *span }
+    RExpr { span: *span, kind: Box::new(RExprKind::Pat { kind: self.reduce_pattern_kind(kind) }) }
   }
 
   fn reduce_pattern_kind(&self, pat_kind: &PatKind<'tcx>) -> RPatKind<'tcx> {
@@ -52,7 +52,7 @@ impl<'tcx> ThirReducer<'tcx> {
       boxed_slice
         .iter()
         .map(|pat| Box::new(self.reduce_pattern(pat)))
-        .collect::<Vec<Box<RPat<'tcx>>>>()
+        .collect::<Vec<Box<RExpr<'tcx>>>>()
         .into_boxed_slice()
     };
 
@@ -141,7 +141,10 @@ impl<'tcx> ThirReducer<'tcx> {
         RExprKind::PointerCoercion { cast: *cast, source: self.reduce_expr(source) }
       }
       Loop { body } => RExprKind::Loop { body: self.reduce_expr(body) },
-      Let { expr, pat } => RExprKind::Let { expr: self.reduce_expr(expr), pat: pat.clone() },
+      Let { expr, pat } => RExprKind::Let {
+        expr: self.reduce_expr(expr),
+        pat: std::boxed::Box::new(self.reduce_pattern(pat)),
+      },
       Match { scrutinee, arms, .. } => RExprKind::Match {
         scrutinee: self.reduce_expr(scrutinee),
         arms: arms.iter().map(|arm| self.handle_arm(arm)).collect(),

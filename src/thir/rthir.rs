@@ -88,21 +88,12 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
     if let Some(pat) = pat {
       self.add_indented_string("param: Some(", depth_lvl + 1);
-      self.format_pat(pat, depth_lvl + 2);
+      self.format_expr(pat, depth_lvl + 2);
       self.add_indented_string(")", depth_lvl + 1);
     } else {
       self.add_indented_string("param: None", depth_lvl + 1);
     }
 
-    self.add_indented_string("}", depth_lvl);
-  }
-
-  fn format_pat(&mut self, pat: &RPat<'tcx>, depth_lvl: usize) {
-    let RPat { kind, span } = pat;
-
-    self.add_indented_string("Pat {", depth_lvl);
-    self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
-    self.format_pat_kind(kind, depth_lvl + 1);
     self.add_indented_string("}", depth_lvl);
   }
 
@@ -120,7 +111,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         self.add_indented_string("AscribeUserType: {", depth_lvl + 1);
         self.add_indented_string(&format!("ascription: {:?}", ascription), depth_lvl + 2);
         self.add_indented_string("subpattern: ", depth_lvl + 2);
-        self.format_pat(subpattern, depth_lvl + 3);
+        self.format_expr(subpattern, depth_lvl + 3);
         self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::Binding { name, mode, var, ty, subpattern, is_primary } => {
@@ -133,7 +124,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
         if let Some(subpattern) = subpattern {
           self.add_indented_string("subpattern: Some( ", depth_lvl + 2);
-          self.format_pat(subpattern, depth_lvl + 3);
+          self.format_expr(subpattern, depth_lvl + 3);
           self.add_indented_string(")", depth_lvl + 2);
         } else {
           self.add_indented_string("subpattern: None", depth_lvl + 2);
@@ -144,14 +135,14 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
       RPatKind::Deref { subpattern } => {
         self.add_indented_string("Deref { ", depth_lvl + 1);
         self.add_indented_string("subpattern:", depth_lvl + 2);
-        self.format_pat(subpattern, depth_lvl + 2);
+        self.format_expr(subpattern, depth_lvl + 2);
         self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::DerefPattern { subpattern, mutability } => {
         self.add_indented_string("DerefPattern { ", depth_lvl + 1);
         self.add_indented_string(&format!("mutability: {:?}", mutability), depth_lvl + 2);
         self.add_indented_string("subpattern:", depth_lvl + 2);
-        self.format_pat(subpattern, depth_lvl + 2);
+        self.format_expr(subpattern, depth_lvl + 2);
         self.add_indented_string("}", depth_lvl + 1);
       }
       RPatKind::Constant { value } => {
@@ -166,7 +157,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         self.add_indented_string("Or {", depth_lvl + 1);
         self.add_indented_string("pats: [", depth_lvl + 2);
         for pat in pats.iter() {
-          self.format_pat(pat, depth_lvl + 3);
+          self.format_expr(pat, depth_lvl + 3);
         }
         self.add_indented_string("]", depth_lvl + 2);
         self.add_indented_string("}", depth_lvl + 1);
@@ -192,6 +183,11 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
     use RExprKind::*;
 
     match expr_kind {
+      Pat { kind } => {
+        self.add_indented_string("Pat {", depth_lvl);
+        self.format_pat_kind(kind, depth_lvl + 1);
+        self.add_indented_string("}", depth_lvl);
+      }
       Box { value } => {
         self.add_indented_string("Box {", depth_lvl);
         self.format_expr(value, depth_lvl + 1);
@@ -447,7 +443,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
     let RArm { pattern, guard, body, span } = arm;
 
     self.add_indented_string("pattern: ", depth_lvl + 1);
-    self.format_pat(pattern, depth_lvl + 2);
+    self.format_expr(pattern, depth_lvl + 2);
 
     if let Some(guard) = guard {
       self.add_indented_string("guard: ", depth_lvl + 1);
@@ -503,7 +499,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         self.add_indented_string("kind: Let {", depth_lvl + 1);
 
         self.add_indented_string("pattern: ", depth_lvl + 2);
-        self.format_pat(pattern, depth_lvl + 3);
+        self.format_expr(pattern, depth_lvl + 3);
         self.add_indented_string(",", depth_lvl + 2);
 
         if let Some(init) = initializer {
@@ -533,17 +529,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
 #[derive(Clone, Debug)]
 pub struct RParam<'tcx> {
-  pub pat: Option<Box<RPat<'tcx>>>,
-}
-
-#[derive(Clone, Debug)]
-pub struct RPat<'tcx> {
-  pub kind: RPatKind<'tcx>,
-  pub span: Span,
-}
-
-impl<'tcx> RPat<'tcx> {
-  pub fn new(kind: RPatKind<'tcx>, span: Span) -> Self { Self { kind, span } }
+  pub pat: Option<Box<RExpr<'tcx>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -552,7 +538,7 @@ pub enum RPatKind<'tcx> {
 
   AscribeUserType {
     ascription: Ascription<'tcx>,
-    subpattern: Box<RPat<'tcx>>,
+    subpattern: Box<RExpr<'tcx>>,
   },
 
   Binding {
@@ -560,16 +546,16 @@ pub enum RPatKind<'tcx> {
     mode: BindingMode,
     var: LocalVarId,
     ty: Ty<'tcx>,
-    subpattern: Option<Box<RPat<'tcx>>>,
+    subpattern: Option<Box<RExpr<'tcx>>>,
     is_primary: bool,
   },
 
   Deref {
-    subpattern: Box<RPat<'tcx>>,
+    subpattern: Box<RExpr<'tcx>>,
   },
 
   DerefPattern {
-    subpattern: Box<RPat<'tcx>>,
+    subpattern: Box<RExpr<'tcx>>,
     mutability: hir::Mutability,
   },
 
@@ -580,7 +566,7 @@ pub enum RPatKind<'tcx> {
   Range(Box<PatRange<'tcx>>),
 
   Or {
-    pats: Box<[Box<RPat<'tcx>>]>,
+    pats: Box<[Box<RExpr<'tcx>>]>,
   },
 
   Never,
@@ -646,7 +632,10 @@ pub enum RExprKind<'tcx> {
   },
   Let {
     expr: RExpr<'tcx>,
-    pat: Box<Pat<'tcx>>,
+    pat: Box<RExpr<'tcx>>,
+  },
+  Pat {
+    kind: RPatKind<'tcx>,
   },
   Match {
     scrutinee: RExpr<'tcx>,
@@ -736,7 +725,7 @@ pub enum RExprKind<'tcx> {
 
 #[derive(Clone, Debug)]
 pub struct RArm<'tcx> {
-  pub pattern: RPat<'tcx>,
+  pub pattern: RExpr<'tcx>,
   pub guard: Option<RExpr<'tcx>>,
   pub body: RExpr<'tcx>,
   pub span: Span,
@@ -759,7 +748,7 @@ pub enum RStmtKind<'tcx> {
     expr: RExpr<'tcx>,
   },
   Let {
-    pattern: Box<RPat<'tcx>>,
+    pattern: Box<RExpr<'tcx>>,
     initializer: Option<RExpr<'tcx>>,
     else_block: Option<RBlock<'tcx>>,
     span: Span,
