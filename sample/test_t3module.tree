@@ -1,0 +1,121 @@
+params: [
+  Param {
+    param: Some(
+      Expr {
+        span: sample/test_t3module.rs:4:19: 4:20 (#0)
+        kind: 
+          Pat {
+            kind: PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:5 ~ test_t3module[23d4]::test_t3modules).2))
+                ty: isize
+                is_primary: true
+                subpattern: None
+              }
+            }
+          }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/test_t3module.rs:4:29: 7:2 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/test_t3module.rs:5:3: 5:19 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(20:4 ~ t3modules[ddc1]::t3assume), [])
+                      from_hir_call: true
+                      fn_span: sample/test_t3module.rs:5:3: 5:19 (#0)
+                      fun:
+                        Expr {
+                          span: sample/test_t3module.rs:5:3: 5:11 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/test_t3module.rs:5:12: 5:18 (#0)
+                          kind: 
+                            Binary {
+                              op: Ge
+                              lhs:
+                                Expr {
+                                  span: sample/test_t3module.rs:5:12: 5:13 (#0)
+                                  kind: 
+                                    VarRef {
+                                      id: LocalVarId(HirId(DefId(0:5 ~ test_t3module[23d4]::test_t3modules).2))
+                                    }
+                                }
+                              rhs:
+                                Expr {
+                                  span: sample/test_t3module.rs:5:17: 5:18 (#0)
+                                  kind: 
+                                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/test_t3module.rs:5:17: 5:18 (#0) }, neg: false)
+
+                                }
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/test_t3module.rs:6:3: 6:18 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(20:3 ~ t3modules[ddc1]::t3assert), [])
+                      from_hir_call: true
+                      fn_span: sample/test_t3module.rs:6:3: 6:18 (#0)
+                      fun:
+                        Expr {
+                          span: sample/test_t3module.rs:6:3: 6:11 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/test_t3module.rs:6:12: 6:17 (#0)
+                          kind: 
+                            Binary {
+                              op: Gt
+                              lhs:
+                                Expr {
+                                  span: sample/test_t3module.rs:6:12: 6:13 (#0)
+                                  kind: 
+                                    VarRef {
+                                      id: LocalVarId(HirId(DefId(0:5 ~ test_t3module[23d4]::test_t3modules).2))
+                                    }
+                                }
+                              rhs:
+                                Expr {
+                                  span: sample/test_t3module.rs:6:16: 6:17 (#0)
+                                  kind: 
+                                    Literal( lit: Spanned { node: Int(Pu128(0), Unsuffixed), span: sample/test_t3module.rs:6:16: 6:17 (#0) }, neg: false)
+
+                                }
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+
