@@ -11,8 +11,10 @@ pub fn drive_tautrust(tcx: TyCtxt) -> Result<()> {
   if let Some((main_id, ..)) = tcx.entry_fn(()) {
     let rthirv = get_fn_map(&tcx);
     for rthir in rthirv {
-      println!("{:?}", rthir.0);
+      println!("{:?}", rthir);
     }
+  } else {
+    panic!("No main function!")
   }
   Ok(())
 }
