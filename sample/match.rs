@@ -6,3 +6,8 @@ fn match_expr(n: i32) {
     _ => n += 2,
   }
 }
+
+fn main() {
+  let x = 5;
+  match_expr(x);
+}
