@@ -3,9 +3,9 @@ use rustc_middle::thir::*;
 
 // std crates
 // Own crates
-use crate::thir::*;
+use crate::thir::rthir::*;
 
-pub fn get_reduced_thir(thir: Thir) -> RThir {
+pub fn reduce_thir(thir: Thir) -> RThir {
   let mut reducer = ThirReducer::new(thir);
   reducer.reduce();
   reducer.reduced_thir

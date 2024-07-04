@@ -5,10 +5,10 @@ use rustc_span::def_id::LocalDefId;
 
 // std crates
 // Own crates
-mod rthir;
+pub mod rthir;
 mod thir_printer;
 mod thir_reducer;
-pub use rthir::*;
+use rthir::*;
 use thir_printer::ThirPrinter;
 use thir_reducer::*;
 
@@ -25,10 +25,10 @@ pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
   }
 }
 
-pub fn reduced_thir<'tcx>(
+pub fn generate_rthir<'tcx>(
   tcx: &TyCtxt<'tcx>, owner_def: LocalDefId,
 ) -> Result<RThir<'tcx>, ErrorGuaranteed> {
   let (thir, _) = tcx.thir_body(owner_def)?;
   let thir = thir.steal();
-  Ok(get_reduced_thir(thir))
+  Ok(reduce_thir(thir))
 }

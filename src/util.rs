@@ -1,15 +1,18 @@
 // rustc crates
 use rustc_middle::ty::TyCtxt;
+use rustc_span::def_id::LocalDefId;
 
 // std crates
-// Own crates
-use crate::thir::*;
+use std::collections::HashMap as Map;
 
-pub fn enumerate_rthir<'tcx>(tcx: &TyCtxt<'tcx>) -> Vec<RThir<'tcx>> {
-  let mut vec = Vec::new();
+// Own crates
+use crate::thir::{rthir::*, *};
+
+pub fn get_fn_map<'tcx>(tcx: &TyCtxt<'tcx>) -> Map<LocalDefId, RThir<'tcx>> {
+  let mut map: Map<LocalDefId, RThir<'tcx>> = Map::new();
   tcx.mir_keys(()).iter().for_each(|&key| {
-    let rthir = reduced_thir(&tcx, key).expect("Generate ReducedTHIR failed");
-    vec.push(rthir);
+    let rthir = generate_rthir(&tcx, key).expect("Generate ReducedTHIR failed");
+    map.insert(key, rthir);
   });
-  vec
+  map
 }
