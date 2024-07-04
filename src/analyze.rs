@@ -6,8 +6,8 @@ use std::collections::HashMap as Map;
 
 // Own crates
 use crate::thir::rthir::*;
+mod lir;
 
 pub fn analyze<'tcx>(main_id: LocalDefId, fn_map: Map<LocalDefId, RThir<'tcx>>) {
   let main = fn_map.get(&main_id);
-  println!("{:?}", main);
 }
