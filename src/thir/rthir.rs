@@ -62,7 +62,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
     }
   }
 
-  pub fn format(&mut self) {
+  fn format(&mut self) {
     self.add_indented_string("params: [", 0);
 
     for param in self.rthir.params.iter() {
