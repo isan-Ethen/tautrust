@@ -1,0 +1,301 @@
+(DefId(0:5 ~ multiple_functions[e92e]::func1), params: [
+  Param {
+    param: Some(
+      Expr {
+        span: sample/multiple_functions.rs:4:10: 4:11 (#0)
+        kind: 
+          Pat {
+            kind: PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:5 ~ multiple_functions[e92e]::func1).2))
+                ty: isize
+                is_primary: true
+                subpattern: None
+              }
+            }
+          }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/multiple_functions.rs:4:20: 4:41 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/multiple_functions.rs:4:22: 4:38 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(20:3 ~ t3modules[ddc1]::t3assert), [])
+                      from_hir_call: true
+                      fn_span: sample/multiple_functions.rs:4:22: 4:38 (#0)
+                      fun:
+                        Expr {
+                          span: sample/multiple_functions.rs:4:22: 4:30 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/multiple_functions.rs:4:31: 4:37 (#0)
+                          kind: 
+                            Binary {
+                              op: Ge
+                              lhs:
+                                Expr {
+                                  span: sample/multiple_functions.rs:4:31: 4:32 (#0)
+                                  kind: 
+                                    VarRef {
+                                      id: LocalVarId(HirId(DefId(0:5 ~ multiple_functions[e92e]::func1).2))
+                                    }
+                                }
+                              rhs:
+                                Expr {
+                                  span: sample/multiple_functions.rs:4:36: 4:37 (#0)
+                                  kind: 
+                                    Literal( lit: Spanned { node: Int(Pu128(0), Unsuffixed), span: sample/multiple_functions.rs:4:36: 4:37 (#0) }, neg: false)
+
+                                }
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+)
+(DefId(0:7 ~ multiple_functions[e92e]::main), params: [
+]
+body:
+  Expr {
+    span: sample/multiple_functions.rs:11:11: 15:2 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Let {
+              pattern: 
+                Expr {
+                  span: sample/multiple_functions.rs:12:7: 12:8 (#0)
+                  kind: 
+                    Pat {
+                      kind: PatKind {
+                        Binding {
+                          name: "n"
+                          mode: BindingMode(No, Not)
+                          var: LocalVarId(HirId(DefId(0:7 ~ multiple_functions[e92e]::main).5))
+                          ty: isize
+                          is_primary: true
+                          subpattern: None
+                        }
+                      }
+                    }
+                }
+              ,
+              initializer: Some(
+                Expr {
+                  span: sample/multiple_functions.rs:12:11: 12:13 (#0)
+                  kind: 
+                    Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/multiple_functions.rs:12:12: 12:13 (#0) }, neg: true)
+
+                }
+              )
+              else_block: None
+              span: sample/multiple_functions.rs:12:3: 12:13 (#0)
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/multiple_functions.rs:13:3: 13:11 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(0:5 ~ multiple_functions[e92e]::func1), [])
+                      from_hir_call: true
+                      fn_span: sample/multiple_functions.rs:13:3: 13:11 (#0)
+                      fun:
+                        Expr {
+                          span: sample/multiple_functions.rs:13:3: 13:8 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/multiple_functions.rs:13:9: 13:10 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:7 ~ multiple_functions[e92e]::main).5))
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/multiple_functions.rs:14:3: 14:11 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(0:6 ~ multiple_functions[e92e]::func2), [])
+                      from_hir_call: true
+                      fn_span: sample/multiple_functions.rs:14:3: 14:11 (#0)
+                      fun:
+                        Expr {
+                          span: sample/multiple_functions.rs:14:3: 14:8 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/multiple_functions.rs:14:9: 14:10 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:7 ~ multiple_functions[e92e]::main).5))
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+)
+(DefId(0:6 ~ multiple_functions[e92e]::func2), params: [
+  Param {
+    param: Some(
+      Expr {
+        span: sample/multiple_functions.rs:6:10: 6:11 (#0)
+        kind: 
+          Pat {
+            kind: PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:6 ~ multiple_functions[e92e]::func2).2))
+                ty: isize
+                is_primary: true
+                subpattern: None
+              }
+            }
+          }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: sample/multiple_functions.rs:6:20: 9:2 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/multiple_functions.rs:7:3: 7:19 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(20:4 ~ t3modules[ddc1]::t3assume), [])
+                      from_hir_call: true
+                      fn_span: sample/multiple_functions.rs:7:3: 7:19 (#0)
+                      fun:
+                        Expr {
+                          span: sample/multiple_functions.rs:7:3: 7:11 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/multiple_functions.rs:7:12: 7:18 (#0)
+                          kind: 
+                            Binary {
+                              op: Le
+                              lhs:
+                                Expr {
+                                  span: sample/multiple_functions.rs:7:12: 7:13 (#0)
+                                  kind: 
+                                    VarRef {
+                                      id: LocalVarId(HirId(DefId(0:6 ~ multiple_functions[e92e]::func2).2))
+                                    }
+                                }
+                              rhs:
+                                Expr {
+                                  span: sample/multiple_functions.rs:7:17: 7:18 (#0)
+                                  kind: 
+                                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/multiple_functions.rs:7:17: 7:18 (#0) }, neg: false)
+
+                                }
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/multiple_functions.rs:8:3: 8:19 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(20:3 ~ t3modules[ddc1]::t3assert), [])
+                      from_hir_call: true
+                      fn_span: sample/multiple_functions.rs:8:3: 8:19 (#0)
+                      fun:
+                        Expr {
+                          span: sample/multiple_functions.rs:8:3: 8:11 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/multiple_functions.rs:8:12: 8:18 (#0)
+                          kind: 
+                            Binary {
+                              op: Le
+                              lhs:
+                                Expr {
+                                  span: sample/multiple_functions.rs:8:12: 8:13 (#0)
+                                  kind: 
+                                    VarRef {
+                                      id: LocalVarId(HirId(DefId(0:6 ~ multiple_functions[e92e]::func2).2))
+                                    }
+                                }
+                              rhs:
+                                Expr {
+                                  span: sample/multiple_functions.rs:8:17: 8:18 (#0)
+                                  kind: 
+                                    Literal( lit: Spanned { node: Int(Pu128(0), Unsuffixed), span: sample/multiple_functions.rs:8:17: 8:18 (#0) }, neg: false)
+
+                                }
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+)
