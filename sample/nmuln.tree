@@ -1,4 +1,78 @@
-params: [
+(DefId(0:4 ~ nmuln[dc41]::main), params: [
+]
+body:
+  Expr {
+    span: sample/nmuln.rs:3:11: 6:2 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Let {
+              pattern: 
+                Expr {
+                  span: sample/nmuln.rs:4:7: 4:8 (#0)
+                  kind: 
+                    Pat {
+                      kind: PatKind {
+                        Binding {
+                          name: "x"
+                          mode: BindingMode(No, Not)
+                          var: LocalVarId(HirId(DefId(0:4 ~ nmuln[dc41]::main).4))
+                          ty: i32
+                          is_primary: true
+                          subpattern: None
+                        }
+                      }
+                    }
+                }
+              ,
+              initializer: Some(
+                Expr {
+                  span: sample/nmuln.rs:4:11: 4:12 (#0)
+                  kind: 
+                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/nmuln.rs:4:11: 4:12 (#0) }, neg: false)
+
+                }
+              )
+              else_block: None
+              span: sample/nmuln.rs:4:3: 4:12 (#0)
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/nmuln.rs:5:3: 5:11 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(0:3 ~ nmuln[dc41]::nmuln), [])
+                      from_hir_call: true
+                      fn_span: sample/nmuln.rs:5:3: 5:11 (#0)
+                      fun:
+                        Expr {
+                          span: sample/nmuln.rs:5:3: 5:8 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/nmuln.rs:5:9: 5:10 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:4 ~ nmuln[dc41]::main).4))
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+)
+(DefId(0:3 ~ nmuln[dc41]::nmuln), params: [
   Param {
     param: Some(
       Expr {
@@ -79,4 +153,4 @@ body:
         expr: []
       }
   }
-
+)

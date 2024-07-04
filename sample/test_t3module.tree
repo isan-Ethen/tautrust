@@ -1,4 +1,4 @@
-params: [
+(DefId(0:5 ~ test_t3module[23d4]::test_t3modules), params: [
   Param {
     param: Some(
       Expr {
@@ -118,4 +118,78 @@ body:
         expr: []
       }
   }
+)
+(DefId(0:6 ~ test_t3module[23d4]::main), params: [
+]
+body:
+  Expr {
+    span: sample/test_t3module.rs:9:11: 12:2 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Let {
+              pattern: 
+                Expr {
+                  span: sample/test_t3module.rs:10:7: 10:8 (#0)
+                  kind: 
+                    Pat {
+                      kind: PatKind {
+                        Binding {
+                          name: "x"
+                          mode: BindingMode(No, Not)
+                          var: LocalVarId(HirId(DefId(0:6 ~ test_t3module[23d4]::main).4))
+                          ty: isize
+                          is_primary: true
+                          subpattern: None
+                        }
+                      }
+                    }
+                }
+              ,
+              initializer: Some(
+                Expr {
+                  span: sample/test_t3module.rs:10:11: 10:12 (#0)
+                  kind: 
+                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/test_t3module.rs:10:11: 10:12 (#0) }, neg: false)
 
+                }
+              )
+              else_block: None
+              span: sample/test_t3module.rs:10:3: 10:12 (#0)
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/test_t3module.rs:11:3: 11:20 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(0:5 ~ test_t3module[23d4]::test_t3modules), [])
+                      from_hir_call: true
+                      fn_span: sample/test_t3module.rs:11:3: 11:20 (#0)
+                      fun:
+                        Expr {
+                          span: sample/test_t3module.rs:11:3: 11:17 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/test_t3module.rs:11:18: 11:19 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:6 ~ test_t3module[23d4]::main).4))
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+)

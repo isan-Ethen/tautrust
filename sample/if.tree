@@ -1,4 +1,4 @@
-params: [
+(DefId(0:3 ~ if[30c5]::if_expr), params: [
   Param {
     param: Some(
       Expr {
@@ -147,4 +147,78 @@ body:
           }
       }
   }
+)
+(DefId(0:4 ~ if[30c5]::main), params: [
+]
+body:
+  Expr {
+    span: sample/if.rs:9:11: 12:2 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Let {
+              pattern: 
+                Expr {
+                  span: sample/if.rs:10:7: 10:8 (#0)
+                  kind: 
+                    Pat {
+                      kind: PatKind {
+                        Binding {
+                          name: "x"
+                          mode: BindingMode(No, Not)
+                          var: LocalVarId(HirId(DefId(0:4 ~ if[30c5]::main).4))
+                          ty: i32
+                          is_primary: true
+                          subpattern: None
+                        }
+                      }
+                    }
+                }
+              ,
+              initializer: Some(
+                Expr {
+                  span: sample/if.rs:10:11: 10:12 (#0)
+                  kind: 
+                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/if.rs:10:11: 10:12 (#0) }, neg: false)
 
+                }
+              )
+              else_block: None
+              span: sample/if.rs:10:3: 10:12 (#0)
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/if.rs:11:3: 11:13 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(0:3 ~ if[30c5]::if_expr), [])
+                      from_hir_call: true
+                      fn_span: sample/if.rs:11:3: 11:13 (#0)
+                      fun:
+                        Expr {
+                          span: sample/if.rs:11:3: 11:10 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/if.rs:11:11: 11:12 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:4 ~ if[30c5]::main).4))
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+)

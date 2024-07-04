@@ -1,4 +1,78 @@
-params: [
+(DefId(0:4 ~ match[4a7a]::main), params: [
+]
+body:
+  Expr {
+    span: sample/match.rs:10:11: 13:2 (#0)
+    kind: 
+      Block {
+        stmts: [
+          Stmt {
+            kind: Let {
+              pattern: 
+                Expr {
+                  span: sample/match.rs:11:7: 11:8 (#0)
+                  kind: 
+                    Pat {
+                      kind: PatKind {
+                        Binding {
+                          name: "x"
+                          mode: BindingMode(No, Not)
+                          var: LocalVarId(HirId(DefId(0:4 ~ match[4a7a]::main).4))
+                          ty: i32
+                          is_primary: true
+                          subpattern: None
+                        }
+                      }
+                    }
+                }
+              ,
+              initializer: Some(
+                Expr {
+                  span: sample/match.rs:11:11: 11:12 (#0)
+                  kind: 
+                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/match.rs:11:11: 11:12 (#0) }, neg: false)
+
+                }
+              )
+              else_block: None
+              span: sample/match.rs:11:3: 11:12 (#0)
+            }
+          }
+          Stmt {
+            kind: Expr {
+              expr:
+                Expr {
+                  span: sample/match.rs:12:3: 12:16 (#0)
+                  kind: 
+                    Call {
+                      ty: FnDef(DefId(0:3 ~ match[4a7a]::match_expr), [])
+                      from_hir_call: true
+                      fn_span: sample/match.rs:12:3: 12:16 (#0)
+                      fun:
+                        Expr {
+                          span: sample/match.rs:12:3: 12:13 (#0)
+                          kind: 
+                            ZstLiteral(user_ty: None)
+                        }
+                      args: [
+                        Expr {
+                          span: sample/match.rs:12:14: 12:15 (#0)
+                          kind: 
+                            VarRef {
+                              id: LocalVarId(HirId(DefId(0:4 ~ match[4a7a]::main).4))
+                            }
+                        }
+                      ]
+                    }
+                }
+            }
+          }
+        ]
+        expr: []
+      }
+  }
+)
+(DefId(0:3 ~ match[4a7a]::match_expr), params: [
   Param {
     param: Some(
       Expr {
@@ -131,4 +205,4 @@ body:
           }
       }
   }
-
+)
