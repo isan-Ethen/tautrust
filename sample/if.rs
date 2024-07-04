@@ -5,3 +5,8 @@ fn if_expr(n: i32) {
     n /= 2;
   }
 }
+
+fn main() {
+  let x = 5;
+  if_expr(x);
+}

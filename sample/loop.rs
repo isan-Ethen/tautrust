@@ -6,3 +6,8 @@ fn loop_expr(n: i32) {
     n += 1;
   }
 }
+
+fn main() {
+  let x = 5;
+  loop_expr(x);
+}
