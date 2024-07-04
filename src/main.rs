@@ -20,7 +20,6 @@ extern crate rustc_target;
 mod util;
 mod analyze;
 mod drive;
-mod lir;
 mod run;
 mod thir;
 
