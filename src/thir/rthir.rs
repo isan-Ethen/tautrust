@@ -12,22 +12,22 @@ use rustc_target::abi::{FieldIdx, VariantIdx};
 
 // std crates
 use std::fmt;
+use std::rc::Rc;
+
 // Own crates
 
 // R: Reduced
 pub struct RThir<'tcx> {
     pub params: Vec<RParam<'tcx>>,
-    pub body: Option<RExpr<'tcx>>,
+    pub body: Option<Rc<RExpr<'tcx>>>,
 }
 
 impl<'tcx> RThir<'tcx> {
     pub fn new() -> Self { Self { params: Vec::new(), body: None } }
 
-    pub fn set_params(&mut self, new_params: Vec<RParam<'tcx>>) {
-        self.params = new_params.clone();
-    }
+    pub fn set_params(&mut self, new_params: Vec<RParam<'tcx>>) { self.params = new_params; }
 
-    pub fn set_body(&mut self, new_body: Option<RExpr<'tcx>>) { self.body = new_body; }
+    pub fn set_body(&mut self, new_body: Option<Rc<RExpr<'tcx>>>) { self.body = new_body; }
 }
 
 impl<'tcx> fmt::Debug for RThir<'tcx> {
@@ -159,12 +159,12 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         self.add_indented_string("}", depth_lvl);
     }
 
-    fn format_expr(&mut self, expr: &RExpr<'tcx>, depth_lvl: usize) {
-        let RExpr { span, kind } = expr;
+    fn format_expr(&mut self, expr: &Rc<RExpr<'tcx>>, depth_lvl: usize) {
+        let RExpr { span, kind } = &**expr;
         self.add_indented_string("Expr {", depth_lvl);
         self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
         self.add_indented_string("kind: ", depth_lvl + 1);
-        self.format_expr_kind(kind, depth_lvl + 2);
+        self.format_expr_kind(&kind, depth_lvl + 2);
         self.add_indented_string("}", depth_lvl);
     }
 
@@ -525,7 +525,11 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
 #[derive(Clone, Debug)]
 pub struct RParam<'tcx> {
-    pub pat: Option<Box<RExpr<'tcx>>>,
+    pub pat: Option<Rc<RExpr<'tcx>>>,
+}
+
+impl<'tcx> RParam<'tcx> {
+    pub fn new(pat: Option<Rc<RExpr<'tcx>>>) -> Self { Self { pat } }
 }
 
 #[derive(Clone, Debug)]
@@ -534,7 +538,7 @@ pub enum RPatKind<'tcx> {
 
     AscribeUserType {
         ascription: Ascription<'tcx>,
-        subpattern: Box<RExpr<'tcx>>,
+        subpattern: Rc<RExpr<'tcx>>,
     },
 
     Binding {
@@ -542,34 +546,34 @@ pub enum RPatKind<'tcx> {
         mode: BindingMode,
         var: LocalVarId,
         ty: Ty<'tcx>,
-        subpattern: Option<Box<RExpr<'tcx>>>,
+        subpattern: Option<Rc<RExpr<'tcx>>>,
         is_primary: bool,
     },
 
     Deref {
-        subpattern: Box<RExpr<'tcx>>,
+        subpattern: Rc<RExpr<'tcx>>,
     },
 
     DerefPattern {
-        subpattern: Box<RExpr<'tcx>>,
+        subpattern: Rc<RExpr<'tcx>>,
         mutability: hir::Mutability,
     },
 
     Range(Box<PatRange<'tcx>>),
 
     Or {
-        pats: Box<[Box<RExpr<'tcx>>]>,
+        pats: Box<[Rc<RExpr<'tcx>>]>,
     },
 }
 
 #[derive(Clone, Debug)]
 pub struct RExpr<'tcx> {
-    pub kind: Box<RExprKind<'tcx>>,
+    pub kind: RExprKind<'tcx>,
     pub span: Span,
 }
 
 impl<'tcx> RExpr<'tcx> {
-    pub fn new(kind: RExprKind<'tcx>, span: Span) -> Self { Self { kind: Box::new(kind), span } }
+    pub fn new(kind: RExprKind<'tcx>, span: Span) -> Self { Self { kind, span } }
 }
 
 type UserTy<'tcx> = Option<Box<CanonicalUserType<'tcx>>>;
@@ -577,75 +581,75 @@ type UserTy<'tcx> = Option<Box<CanonicalUserType<'tcx>>>;
 #[derive(Clone, Debug)]
 pub enum RExprKind<'tcx> {
     If {
-        cond: RExpr<'tcx>,
-        then: RExpr<'tcx>,
-        else_opt: Option<RExpr<'tcx>>,
+        cond: Rc<RExpr<'tcx>>,
+        then: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>,
     },
     Call {
         ty: Ty<'tcx>,
-        fun: RExpr<'tcx>,
-        args: Box<[RExpr<'tcx>]>,
+        fun: Rc<RExpr<'tcx>>,
+        args: Box<[Rc<RExpr<'tcx>>]>,
         from_hir_call: bool,
         fn_span: Span,
     },
     Deref {
-        arg: RExpr<'tcx>,
+        arg: Rc<RExpr<'tcx>>,
     },
     Binary {
         op: BinOp,
-        lhs: RExpr<'tcx>,
-        rhs: RExpr<'tcx>,
+        lhs: Rc<RExpr<'tcx>>,
+        rhs: Rc<RExpr<'tcx>>,
     },
     LogicalOp {
         op: LogicalOp,
-        lhs: RExpr<'tcx>,
-        rhs: RExpr<'tcx>,
+        lhs: Rc<RExpr<'tcx>>,
+        rhs: Rc<RExpr<'tcx>>,
     },
     Unary {
         op: UnOp,
-        arg: RExpr<'tcx>,
+        arg: Rc<RExpr<'tcx>>,
     },
     Cast {
-        source: RExpr<'tcx>,
+        source: Rc<RExpr<'tcx>>,
     },
     PointerCoercion {
         cast: PointerCoercion,
-        source: RExpr<'tcx>,
+        source: Rc<RExpr<'tcx>>,
     },
     Loop {
-        body: RExpr<'tcx>,
+        body: Rc<RExpr<'tcx>>,
     },
     Let {
-        expr: RExpr<'tcx>,
-        pat: Box<RExpr<'tcx>>,
+        expr: Rc<RExpr<'tcx>>,
+        pat: Rc<RExpr<'tcx>>,
     },
     Pat {
         kind: RPatKind<'tcx>,
     },
     Match {
-        scrutinee: RExpr<'tcx>,
+        scrutinee: Rc<RExpr<'tcx>>,
         arms: Vec<RArm<'tcx>>,
     },
     Block {
         block: RBlock<'tcx>,
     },
     Assign {
-        lhs: RExpr<'tcx>,
-        rhs: RExpr<'tcx>,
+        lhs: Rc<RExpr<'tcx>>,
+        rhs: Rc<RExpr<'tcx>>,
     },
     AssignOp {
         op: BinOp,
-        lhs: RExpr<'tcx>,
-        rhs: RExpr<'tcx>,
+        lhs: Rc<RExpr<'tcx>>,
+        rhs: Rc<RExpr<'tcx>>,
     },
     Field {
-        lhs: RExpr<'tcx>,
+        lhs: Rc<RExpr<'tcx>>,
         variant_index: VariantIdx,
         name: FieldIdx,
     },
     Index {
-        lhs: RExpr<'tcx>,
-        index: RExpr<'tcx>,
+        lhs: Rc<RExpr<'tcx>>,
+        index: Rc<RExpr<'tcx>>,
     },
     VarRef {
         id: LocalVarId,
@@ -656,34 +660,34 @@ pub enum RExprKind<'tcx> {
     },
     Borrow {
         borrow_kind: BorrowKind,
-        arg: RExpr<'tcx>,
+        arg: Rc<RExpr<'tcx>>,
     },
     Break {
         label: region::Scope,
-        value: Option<RExpr<'tcx>>,
+        value: Option<Rc<RExpr<'tcx>>>,
     },
     Continue {
         label: region::Scope,
     },
     Return {
-        value: Option<RExpr<'tcx>>,
+        value: Option<Rc<RExpr<'tcx>>>,
     },
     Repeat {
-        value: RExpr<'tcx>,
+        value: Rc<RExpr<'tcx>>,
         count: ty::Const<'tcx>,
     },
     Array {
-        fields: Box<[RExpr<'tcx>]>,
+        fields: Box<[Rc<RExpr<'tcx>>]>,
     },
     Tuple {
-        fields: Box<[RExpr<'tcx>]>,
+        fields: Box<[Rc<RExpr<'tcx>>]>,
     },
     PlaceTypeAscription {
-        source: RExpr<'tcx>,
+        source: Rc<RExpr<'tcx>>,
         user_ty: UserTy<'tcx>,
     },
     ValueTypeAscription {
-        source: RExpr<'tcx>,
+        source: Rc<RExpr<'tcx>>,
         user_ty: UserTy<'tcx>,
     },
     Literal {
@@ -710,16 +714,30 @@ pub enum RExprKind<'tcx> {
 
 #[derive(Clone, Debug)]
 pub struct RArm<'tcx> {
-    pub pattern: RExpr<'tcx>,
-    pub guard: Option<RExpr<'tcx>>,
-    pub body: RExpr<'tcx>,
+    pub pattern: Rc<RExpr<'tcx>>,
+    pub guard: Option<Rc<RExpr<'tcx>>>,
+    pub body: Rc<RExpr<'tcx>>,
     pub span: Span,
+}
+
+impl<'tcx> RArm<'tcx> {
+    pub fn new(
+        pattern: Rc<RExpr<'tcx>>, guard: Option<Rc<RExpr<'tcx>>>, body: Rc<RExpr<'tcx>>, span: Span,
+    ) -> Self {
+        Self { pattern, guard, body, span }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct RBlock<'tcx> {
     pub stmts: Vec<RStmt<'tcx>>,
-    pub expr: Option<RExpr<'tcx>>,
+    pub expr: Option<Rc<RExpr<'tcx>>>,
+}
+
+impl<'tcx> RBlock<'tcx> {
+    pub fn new(stmts: Vec<RStmt<'tcx>>, expr: Option<Rc<RExpr<'tcx>>>) -> Self {
+        Self { stmts, expr }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -727,14 +745,18 @@ pub struct RStmt<'tcx> {
     pub kind: RStmtKind<'tcx>,
 }
 
+impl<'tcx> RStmt<'tcx> {
+    pub fn new(kind: RStmtKind<'tcx>) -> Self { Self { kind } }
+}
+
 #[derive(Clone, Debug)]
 pub enum RStmtKind<'tcx> {
     Expr {
-        expr: RExpr<'tcx>,
+        expr: Rc<RExpr<'tcx>>,
     },
     Let {
-        pattern: Box<RExpr<'tcx>>,
-        initializer: Option<RExpr<'tcx>>,
+        pattern: Rc<RExpr<'tcx>>,
+        initializer: Option<Rc<RExpr<'tcx>>>,
         else_block: Option<RBlock<'tcx>>,
         span: Span,
     },

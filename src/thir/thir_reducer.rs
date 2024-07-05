@@ -2,6 +2,8 @@
 use rustc_middle::thir::*;
 
 // std crates
+use std::rc::Rc;
+
 // Own crates
 use crate::thir::rthir::*;
 
@@ -37,25 +39,20 @@ impl<'tcx> ThirReducer<'tcx> {
 
     fn reduce_param(&self, param: &Param<'tcx>) -> RParam<'tcx> {
         let Param { pat, .. } = param;
-        RParam {
-            pat: if let Some(pat) = pat { Some(Box::new(self.reduce_pattern(pat))) } else { None },
-        }
+        RParam::new(if let Some(pat) = pat { Some(self.reduce_pattern(pat)) } else { None })
     }
 
-    fn reduce_pattern(&self, pat: &Box<Pat<'tcx>>) -> RExpr<'tcx> {
+    fn reduce_pattern(&self, pat: &Box<Pat<'tcx>>) -> Rc<RExpr<'tcx>> {
         let Pat { span, kind, .. } = &**pat;
-        RExpr {
-            span: *span,
-            kind: Box::new(RExprKind::Pat { kind: self.reduce_pattern_kind(kind) }),
-        }
+        Rc::new(RExpr::new(RExprKind::Pat { kind: self.reduce_pattern_kind(kind) }, *span))
     }
 
     fn reduce_pattern_kind(&self, pat_kind: &PatKind<'tcx>) -> RPatKind<'tcx> {
         let boxed_slice_to_new = |boxed_slice: &Box<[Box<Pat<'tcx>>]>| {
             boxed_slice
                 .iter()
-                .map(|pat| Box::new(self.reduce_pattern(pat)))
-                .collect::<Vec<Box<RExpr<'tcx>>>>()
+                .map(|pat| self.reduce_pattern(pat))
+                .collect::<Vec<Rc<RExpr<'tcx>>>>()
                 .into_boxed_slice()
         };
 
@@ -63,7 +60,7 @@ impl<'tcx> ThirReducer<'tcx> {
             PatKind::Wild => RPatKind::Wild,
             PatKind::AscribeUserType { ascription, subpattern } => RPatKind::AscribeUserType {
                 ascription: ascription.clone(),
-                subpattern: Box::new(self.reduce_pattern(subpattern)),
+                subpattern: self.reduce_pattern(subpattern),
             },
             PatKind::Binding { name, mode, var, ty, subpattern, is_primary } => RPatKind::Binding {
                 name: *name,
@@ -71,17 +68,17 @@ impl<'tcx> ThirReducer<'tcx> {
                 var: *var,
                 ty: *ty,
                 subpattern: if let Some(pat) = subpattern {
-                    Some(Box::new(self.reduce_pattern(pat)))
+                    Some(self.reduce_pattern(pat))
                 } else {
                     None
                 },
                 is_primary: *is_primary,
             },
             PatKind::Deref { subpattern } => {
-                RPatKind::Deref { subpattern: Box::new(self.reduce_pattern(subpattern)) }
+                RPatKind::Deref { subpattern: self.reduce_pattern(subpattern) }
             }
             PatKind::DerefPattern { subpattern, mutability } => RPatKind::DerefPattern {
-                subpattern: Box::new(self.reduce_pattern(subpattern)),
+                subpattern: self.reduce_pattern(subpattern),
                 mutability: *mutability,
             },
             PatKind::Range(patrange) => RPatKind::Range(patrange.clone()),
@@ -90,15 +87,15 @@ impl<'tcx> ThirReducer<'tcx> {
         }
     }
 
-    fn reduce_body(&self) -> Option<RExpr<'tcx>> {
+    fn reduce_body(&self) -> Option<Rc<RExpr<'tcx>>> {
         let expr_id = ExprId::from_usize(self.thir.exprs.len() - 1);
         Some(self.reduce_expr(&expr_id))
     }
 
-    fn reduce_expr(&self, expr_id: &ExprId) -> RExpr<'tcx> {
+    fn reduce_expr(&self, expr_id: &ExprId) -> Rc<RExpr<'tcx>> {
         let expr = &self.thir[*expr_id];
         let rexprkind = self.reduce_expr_kind(&expr.kind);
-        RExpr::new(rexprkind, expr.span)
+        Rc::new(RExpr::new(rexprkind, expr.span))
     }
 
     fn reduce_expr_kind(&self, expr_kind: &ExprKind<'tcx>) -> RExprKind<'tcx> {
@@ -144,10 +141,9 @@ impl<'tcx> ThirReducer<'tcx> {
                 RExprKind::PointerCoercion { cast: *cast, source: self.reduce_expr(source) }
             }
             Loop { body } => RExprKind::Loop { body: self.reduce_expr(body) },
-            Let { expr, pat } => RExprKind::Let {
-                expr: self.reduce_expr(expr),
-                pat: std::boxed::Box::new(self.reduce_pattern(pat)),
-            },
+            Let { expr, pat } => {
+                RExprKind::Let { expr: self.reduce_expr(expr), pat: self.reduce_pattern(pat) }
+            }
             Match { scrutinee, arms, .. } => RExprKind::Match {
                 scrutinee: self.reduce_expr(scrutinee),
                 arms: arms.iter().map(|arm| self.handle_arm(arm)).collect(),
@@ -230,16 +226,12 @@ impl<'tcx> ThirReducer<'tcx> {
 
     fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
         let arm = &self.thir.arms[*arm_id];
-        RArm {
-            pattern: self.reduce_pattern(&arm.pattern),
-            guard: if let Some(expr_id) = arm.guard {
-                Some(self.reduce_expr(&expr_id))
-            } else {
-                None
-            },
-            body: self.reduce_expr(&arm.body),
-            span: arm.span,
-        }
+        RArm::new(
+            self.reduce_pattern(&arm.pattern),
+            if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
+            self.reduce_expr(&arm.body),
+            arm.span,
+        )
     }
 
     fn handle_block(&self, block_id: &BlockId) -> RBlock<'tcx> {
@@ -250,25 +242,21 @@ impl<'tcx> ThirReducer<'tcx> {
             stmtv.push(self.handle_stmt(*stmt));
         }
 
-        RBlock {
-            stmts: stmtv,
-            expr: if let Some(expr_id) = block.expr {
-                Some(self.reduce_expr(&expr_id))
-            } else {
-                None
-            },
-        }
+        RBlock::new(
+            stmtv,
+            if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
+        )
     }
 
     fn handle_stmt(&self, stmt_id: StmtId) -> RStmt<'tcx> {
         let Stmt { kind } = &self.thir.stmts[stmt_id];
         match kind {
             StmtKind::Expr { expr, .. } => {
-                RStmt { kind: RStmtKind::Expr { expr: self.reduce_expr(expr) } }
+                RStmt::new(RStmtKind::Expr { expr: self.reduce_expr(expr) })
             }
-            StmtKind::Let { pattern, initializer, else_block, span, .. } => RStmt {
-                kind: RStmtKind::Let {
-                    pattern: Box::new(self.reduce_pattern(pattern)),
+            StmtKind::Let { pattern, initializer, else_block, span, .. } => {
+                RStmt::new(RStmtKind::Let {
+                    pattern: self.reduce_pattern(pattern),
                     initializer: if let Some(expr_id) = initializer {
                         Some(self.reduce_expr(&expr_id))
                     } else {
@@ -280,8 +268,8 @@ impl<'tcx> ThirReducer<'tcx> {
                         None
                     },
                     span: *span,
-                },
-            },
+                })
+            }
         }
     }
 }
