@@ -39,7 +39,7 @@ impl<'tcx> ThirReducer<'tcx> {
 
     fn reduce_param(&self, param: &Param<'tcx>) -> RParam<'tcx> {
         let Param { pat, .. } = param;
-        RParam { pat: if let Some(pat) = pat { Some(self.reduce_pattern(pat)) } else { None } }
+        RParam::new(if let Some(pat) = pat { Some(self.reduce_pattern(pat)) } else { None })
     }
 
     fn reduce_pattern(&self, pat: &Box<Pat<'tcx>>) -> Rc<RExpr<'tcx>> {
@@ -226,16 +226,12 @@ impl<'tcx> ThirReducer<'tcx> {
 
     fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
         let arm = &self.thir.arms[*arm_id];
-        RArm {
-            pattern: self.reduce_pattern(&arm.pattern),
-            guard: if let Some(expr_id) = arm.guard {
-                Some(self.reduce_expr(&expr_id))
-            } else {
-                None
-            },
-            body: self.reduce_expr(&arm.body),
-            span: arm.span,
-        }
+        RArm::new(
+            self.reduce_pattern(&arm.pattern),
+            if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
+            self.reduce_expr(&arm.body),
+            arm.span,
+        )
     }
 
     fn handle_block(&self, block_id: &BlockId) -> RBlock<'tcx> {
@@ -246,24 +242,20 @@ impl<'tcx> ThirReducer<'tcx> {
             stmtv.push(self.handle_stmt(*stmt));
         }
 
-        RBlock {
-            stmts: stmtv,
-            expr: if let Some(expr_id) = block.expr {
-                Some(self.reduce_expr(&expr_id))
-            } else {
-                None
-            },
-        }
+        RBlock::new(
+            stmtv,
+            if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
+        )
     }
 
     fn handle_stmt(&self, stmt_id: StmtId) -> RStmt<'tcx> {
         let Stmt { kind } = &self.thir.stmts[stmt_id];
         match kind {
             StmtKind::Expr { expr, .. } => {
-                RStmt { kind: RStmtKind::Expr { expr: self.reduce_expr(expr) } }
+                RStmt::new(RStmtKind::Expr { expr: self.reduce_expr(expr) })
             }
-            StmtKind::Let { pattern, initializer, else_block, span, .. } => RStmt {
-                kind: RStmtKind::Let {
+            StmtKind::Let { pattern, initializer, else_block, span, .. } => {
+                RStmt::new(RStmtKind::Let {
                     pattern: self.reduce_pattern(pattern),
                     initializer: if let Some(expr_id) = initializer {
                         Some(self.reduce_expr(&expr_id))
@@ -276,8 +268,8 @@ impl<'tcx> ThirReducer<'tcx> {
                         None
                     },
                     span: *span,
-                },
-            },
+                })
+            }
         }
     }
 }

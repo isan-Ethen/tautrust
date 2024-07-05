@@ -528,6 +528,10 @@ pub struct RParam<'tcx> {
     pub pat: Option<Rc<RExpr<'tcx>>>,
 }
 
+impl<'tcx> RParam<'tcx> {
+    pub fn new(pat: Option<Rc<RExpr<'tcx>>>) -> Self { Self { pat } }
+}
+
 #[derive(Clone, Debug)]
 pub enum RPatKind<'tcx> {
     Wild,
@@ -716,15 +720,33 @@ pub struct RArm<'tcx> {
     pub span: Span,
 }
 
+impl<'tcx> RArm<'tcx> {
+    pub fn new(
+        pattern: Rc<RExpr<'tcx>>, guard: Option<Rc<RExpr<'tcx>>>, body: Rc<RExpr<'tcx>>, span: Span,
+    ) -> Self {
+        Self { pattern, guard, body, span }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RBlock<'tcx> {
     pub stmts: Vec<RStmt<'tcx>>,
     pub expr: Option<Rc<RExpr<'tcx>>>,
 }
 
+impl<'tcx> RBlock<'tcx> {
+    pub fn new(stmts: Vec<RStmt<'tcx>>, expr: Option<Rc<RExpr<'tcx>>>) -> Self {
+        Self { stmts, expr }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RStmt<'tcx> {
     pub kind: RStmtKind<'tcx>,
+}
+
+impl<'tcx> RStmt<'tcx> {
+    pub fn new(kind: RStmtKind<'tcx>) -> Self { Self { kind } }
 }
 
 #[derive(Clone, Debug)]
