@@ -1,5 +1,6 @@
 // rustc crates
 use rustc_middle::thir::*;
+use rustc_span::Span;
 
 // std crates
 use std::rc::Rc;
@@ -141,14 +142,21 @@ impl<'tcx> ThirReducer<'tcx> {
                 RExprKind::PointerCoercion { cast: *cast, source: self.reduce_expr(source) }
             }
             Loop { body } => RExprKind::Loop { body: self.reduce_expr(body) },
-            Let { expr, pat } => {
-                RExprKind::Let { expr: self.reduce_expr(expr), pat: self.reduce_pattern(pat) }
-            }
+            Let { expr, pat } => RExprKind::LetBinding {
+                expr: self.reduce_expr(expr),
+                pat: self.reduce_pattern(pat),
+            },
             Match { scrutinee, arms, .. } => RExprKind::Match {
                 scrutinee: self.reduce_expr(scrutinee),
-                arms: arms.iter().map(|arm| self.handle_arm(arm)).collect(),
+                arms: arms
+                    .iter()
+                    .map(|arm| {
+                        let (arm, span) = self.handle_arm(arm);
+                        Rc::new(RExpr::new(arm, span))
+                    })
+                    .collect(),
             },
-            Block { block } => RExprKind::Block { block: self.handle_block(block) },
+            Block { block } => self.handle_block(block),
             Assign { lhs, rhs } => {
                 RExprKind::Assign { lhs: self.reduce_expr(lhs), rhs: self.reduce_expr(rhs) }
             }
@@ -224,38 +232,46 @@ impl<'tcx> ThirReducer<'tcx> {
         self.reduce_expr_kind(&never_to_any.kind)
     }
 
-    fn handle_arm(&self, arm_id: &ArmId) -> RArm<'tcx> {
+    fn handle_arm(&self, arm_id: &ArmId) -> (RExprKind<'tcx>, Span) {
         let arm = &self.thir.arms[*arm_id];
-        RArm::new(
-            self.reduce_pattern(&arm.pattern),
-            if let Some(expr_id) = arm.guard { Some(self.reduce_expr(&expr_id)) } else { None },
-            self.reduce_expr(&arm.body),
+        (
+            RExprKind::Arm {
+                pattern: self.reduce_pattern(&arm.pattern),
+                guard: if let Some(expr_id) = arm.guard {
+                    Some(self.reduce_expr(&expr_id))
+                } else {
+                    None
+                },
+                body: self.reduce_expr(&arm.body),
+            },
             arm.span,
         )
     }
 
-    fn handle_block(&self, block_id: &BlockId) -> RBlock<'tcx> {
+    fn handle_block(&self, block_id: &BlockId) -> RExprKind<'tcx> {
         let block = &self.thir.blocks[*block_id];
 
-        let mut stmtv = Vec::new();
+        let mut stmts = Vec::new();
         for stmt in block.stmts.iter() {
-            stmtv.push(self.handle_stmt(*stmt));
+            stmts.push(self.handle_stmt(*stmt));
         }
 
-        RBlock::new(
-            stmtv,
-            if let Some(expr_id) = block.expr { Some(self.reduce_expr(&expr_id)) } else { None },
-        )
+        RExprKind::Block {
+            stmts,
+            expr: if let Some(expr_id) = block.expr {
+                Some(self.reduce_expr(&expr_id))
+            } else {
+                None
+            },
+        }
     }
 
-    fn handle_stmt(&self, stmt_id: StmtId) -> RStmt<'tcx> {
+    fn handle_stmt(&self, stmt_id: StmtId) -> Rc<RExpr<'tcx>> {
         let Stmt { kind } = &self.thir.stmts[stmt_id];
         match kind {
-            StmtKind::Expr { expr, .. } => {
-                RStmt::new(RStmtKind::Expr { expr: self.reduce_expr(expr) })
-            }
-            StmtKind::Let { pattern, initializer, else_block, span, .. } => {
-                RStmt::new(RStmtKind::Let {
+            StmtKind::Expr { expr, .. } => self.reduce_expr(expr),
+            StmtKind::Let { pattern, initializer, else_block, span, .. } => Rc::new(RExpr::new(
+                RExprKind::LetStmt {
                     pattern: self.reduce_pattern(pattern),
                     initializer: if let Some(expr_id) = initializer {
                         Some(self.reduce_expr(&expr_id))
@@ -263,13 +279,13 @@ impl<'tcx> ThirReducer<'tcx> {
                         None
                     },
                     else_block: if let Some(block_id) = else_block {
-                        Some(self.handle_block(&block_id))
+                        Some(Rc::new(RExpr::new(self.handle_block(&block_id), *span)))
                     } else {
                         None
                     },
-                    span: *span,
-                })
-            }
+                },
+                *span,
+            )),
         }
     }
 }
