@@ -79,5 +79,21 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> { Ok(()) }
+    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+        if let RExpr { kind: RExprKind::Block { block: RBlock { stmts, expr } }, .. } = &*body {
+            for stmt in stmts {
+                self.analyze_stmt(stmt)?;
+            }
+            if let Some(expr) = expr {
+                self.analyze_expr(expr)?;
+            }
+        } else {
+            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
+        }
+        Ok(())
+    }
+
+    fn analyze_stmt(&mut self, stmt: &RStmt<'tcx>) -> Result<(), AnalysisError> { Ok(()) }
+
+    fn analyze_expr(&mut self, expr: &Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> { Ok(()) }
 }
