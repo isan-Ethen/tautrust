@@ -107,7 +107,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             RPatKind::AscribeUserType { ascription, subpattern } => {
                 self.add_indented_string("AscribeUserType: {", depth_lvl + 1);
                 self.add_indented_string(&format!("ascription: {:?}", ascription), depth_lvl + 2);
-                self.add_indented_string("subpattern: ", depth_lvl + 2);
+                self.add_indented_string("subpattern:", depth_lvl + 2);
                 self.format_expr(subpattern, depth_lvl + 3);
                 self.add_indented_string("}", depth_lvl + 1);
             }
@@ -456,7 +456,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             LetStmt { pattern, initializer, else_block } => {
                 self.add_indented_string("LetStmt {", depth_lvl + 1);
 
-                self.add_indented_string("pattern: ", depth_lvl + 2);
+                self.add_indented_string("pattern:", depth_lvl + 2);
                 self.format_expr(pattern, depth_lvl + 3);
                 self.add_indented_string(",", depth_lvl + 2);
 
@@ -479,7 +479,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                 self.add_indented_string("}", depth_lvl + 1);
             }
             Arm { pattern, guard, body } => {
-                self.add_indented_string("pattern: ", depth_lvl + 1);
+                self.add_indented_string("pattern:", depth_lvl + 1);
                 self.format_expr(pattern, depth_lvl + 2);
 
                 if let Some(guard) = guard {

@@ -1,11 +1,11 @@
-(DefId(0:3 ~ if[30c5]::if_expr), params: [
+DefId(0:3 ~ if[30c5]::if_expr), params: [
   Param {
     param: Some(
       Expr {
         span: sample/if.rs:1:12: 1:13 (#0)
-        kind: 
+        kind:
           Pat {
-            kind: PatKind {
+            PatKind {
               Binding {
                 name: "n"
                 mode: BindingMode(No, Not)
@@ -23,30 +23,30 @@
 body:
   Expr {
     span: sample/if.rs:1:20: 7:2 (#0)
-    kind: 
+    kind:
       Block {
         stmts: []
         expr:
           Expr {
             span: sample/if.rs:2:3: 6:4 (#0)
-            kind: 
+            kind:
               If {
                 cond:
                   Expr {
                     span: sample/if.rs:2:6: 2:16 (#4)
-                    kind: 
+                    kind:
                       Binary {
                         op: Eq
                         lhs:
                           Expr {
                             span: sample/if.rs:2:6: 2:11 (#0)
-                            kind: 
+                            kind:
                               Binary {
                                 op: Rem
                                 lhs:
                                   Expr {
                                     span: sample/if.rs:2:6: 2:7 (#0)
-                                    kind: 
+                                    kind:
                                       VarRef {
                                         id: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
                                       }
@@ -54,7 +54,7 @@ body:
                                 rhs:
                                   Expr {
                                     span: sample/if.rs:2:10: 2:11 (#0)
-                                    kind: 
+                                    kind:
                                       Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/if.rs:2:10: 2:11 (#0) }, neg: false)
 
                                   }
@@ -63,7 +63,7 @@ body:
                         rhs:
                           Expr {
                             span: sample/if.rs:2:15: 2:16 (#0)
-                            kind: 
+                            kind:
                               Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/if.rs:2:15: 2:16 (#0) }, neg: false)
 
                           }
@@ -72,35 +72,30 @@ body:
                 then:
                   Expr {
                     span: sample/if.rs:2:17: 4:4 (#0)
-                    kind: 
+                    kind:
                       Block {
                         stmts: [
-                          Stmt {
-                            kind: Expr {
-                              expr:
-                                Expr {
-                                  span: sample/if.rs:3:5: 3:11 (#0)
-                                  kind: 
-                                    AssignOp {
-                                      op: Add
-                                      lhs:
-                                        Expr {
-                                          span: sample/if.rs:3:5: 3:6 (#0)
-                                          kind: 
-                                            VarRef {
-                                              id: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
-                                            }
-                                        }
-                                      rhs:
-                                        Expr {
-                                          span: sample/if.rs:3:10: 3:11 (#0)
-                                          kind: 
-                                            Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/if.rs:3:10: 3:11 (#0) }, neg: false)
+                          Expr {
+                            span: sample/if.rs:3:5: 3:11 (#0)
+                            kind:
+                              AssignOp {
+                                op: Add
+                                lhs:
+                                  Expr {
+                                    span: sample/if.rs:3:5: 3:6 (#0)
+                                    kind:
+                                      VarRef {
+                                        id: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
+                                      }
+                                  }
+                                rhs:
+                                  Expr {
+                                    span: sample/if.rs:3:10: 3:11 (#0)
+                                    kind:
+                                      Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/if.rs:3:10: 3:11 (#0) }, neg: false)
 
-                                        }
-                                    }
-                                }
-                            }
+                                  }
+                              }
                           }
                         ]
                         expr: []
@@ -109,35 +104,30 @@ body:
                 else:
                   Expr {
                     span: sample/if.rs:4:10: 6:4 (#0)
-                    kind: 
+                    kind:
                       Block {
                         stmts: [
-                          Stmt {
-                            kind: Expr {
-                              expr:
-                                Expr {
-                                  span: sample/if.rs:5:5: 5:11 (#0)
-                                  kind: 
-                                    AssignOp {
-                                      op: Div
-                                      lhs:
-                                        Expr {
-                                          span: sample/if.rs:5:5: 5:6 (#0)
-                                          kind: 
-                                            VarRef {
-                                              id: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
-                                            }
-                                        }
-                                      rhs:
-                                        Expr {
-                                          span: sample/if.rs:5:10: 5:11 (#0)
-                                          kind: 
-                                            Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/if.rs:5:10: 5:11 (#0) }, neg: false)
+                          Expr {
+                            span: sample/if.rs:5:5: 5:11 (#0)
+                            kind:
+                              AssignOp {
+                                op: Div
+                                lhs:
+                                  Expr {
+                                    span: sample/if.rs:5:5: 5:6 (#0)
+                                    kind:
+                                      VarRef {
+                                        id: LocalVarId(HirId(DefId(0:3 ~ if[30c5]::if_expr).2))
+                                      }
+                                  }
+                                rhs:
+                                  Expr {
+                                    span: sample/if.rs:5:10: 5:11 (#0)
+                                    kind:
+                                      Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/if.rs:5:10: 5:11 (#0) }, neg: false)
 
-                                        }
-                                    }
-                                }
-                            }
+                                  }
+                              }
                           }
                         ]
                         expr: []
@@ -147,78 +137,74 @@ body:
           }
       }
   }
-)
-(DefId(0:4 ~ if[30c5]::main), params: [
+
+DefId(0:4 ~ if[30c5]::main), params: [
 ]
 body:
   Expr {
     span: sample/if.rs:9:11: 12:2 (#0)
-    kind: 
+    kind:
       Block {
         stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/if.rs:10:7: 10:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "x"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:4 ~ if[30c5]::main).4))
-                          ty: i32
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/if.rs:10:11: 10:12 (#0)
-                  kind: 
-                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/if.rs:10:11: 10:12 (#0) }, neg: false)
-
-                }
-              )
-              else_block: None
-              span: sample/if.rs:10:3: 10:12 (#0)
-            }
-          }
-          Stmt {
-            kind: Expr {
-              expr:
-                Expr {
-                  span: sample/if.rs:11:3: 11:13 (#0)
-                  kind: 
-                    Call {
-                      ty: FnDef(DefId(0:3 ~ if[30c5]::if_expr), [])
-                      from_hir_call: true
-                      fn_span: sample/if.rs:11:3: 11:13 (#0)
-                      fun:
-                        Expr {
-                          span: sample/if.rs:11:3: 11:10 (#0)
-                          kind: 
-                            ZstLiteral(user_ty: None)
-                        }
-                      args: [
-                        Expr {
-                          span: sample/if.rs:11:11: 11:12 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:4 ~ if[30c5]::main).4))
+          Expr {
+            span: sample/if.rs:10:3: 10:12 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/if.rs:10:7: 10:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ if[30c5]::main).4))
+                              ty: i32
+                              is_primary: true
+                              subpattern: None
                             }
+                          }
                         }
-                      ]
                     }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/if.rs:10:11: 10:12 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/if.rs:10:11: 10:12 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
                 }
-            }
+          }
+          Expr {
+            span: sample/if.rs:11:3: 11:13 (#0)
+            kind:
+              Call {
+                ty: FnDef(DefId(0:3 ~ if[30c5]::if_expr), [])
+                from_hir_call: true
+                fn_span: sample/if.rs:11:3: 11:13 (#0)
+                fun:
+                  Expr {
+                    span: sample/if.rs:11:3: 11:10 (#0)
+                    kind:
+                      ZstLiteral(user_ty: None)
+                  }
+                args: [
+                  Expr {
+                    span: sample/if.rs:11:11: 11:12 (#0)
+                    kind:
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:4 ~ if[30c5]::main).4))
+                      }
+                  }
+                ]
+              }
           }
         ]
         expr: []
       }
   }
-)
+
