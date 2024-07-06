@@ -98,7 +98,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
     }
 
     fn format_pat_kind(&mut self, pat_kind: &RPatKind<'tcx>, depth_lvl: usize) {
-        self.add_indented_string("kind: PatKind {", depth_lvl);
+        self.add_indented_string("PatKind {", depth_lvl);
 
         match pat_kind {
             RPatKind::Wild => {
@@ -163,7 +163,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
         let RExpr { span, kind } = &**expr;
         self.add_indented_string("Expr {", depth_lvl);
         self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
-        self.add_indented_string("kind: ", depth_lvl + 1);
+        self.add_indented_string("kind:", depth_lvl + 1);
         self.format_expr_kind(&kind, depth_lvl + 2);
         self.add_indented_string("}", depth_lvl);
     }
@@ -263,8 +263,8 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                 self.format_expr(body, depth_lvl + 2);
                 self.add_indented_string(")", depth_lvl);
             }
-            Let { expr, pat } => {
-                self.add_indented_string("Let {", depth_lvl);
+            LetBinding { expr, pat } => {
+                self.add_indented_string("LetBinding {", depth_lvl);
                 self.add_indented_string("expr:", depth_lvl + 1);
                 self.format_expr(expr, depth_lvl + 2);
                 self.add_indented_string(&format!("pat: {:?}", pat), depth_lvl + 1);
@@ -277,12 +277,33 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
                 self.add_indented_string("arms: [", depth_lvl + 1);
                 for arm_id in arms.iter() {
-                    self.format_arm(arm_id, depth_lvl + 2);
+                    self.format_expr(arm_id, depth_lvl + 2);
                 }
                 self.add_indented_string("]", depth_lvl + 1);
                 self.add_indented_string("}", depth_lvl);
             }
-            Block { block } => self.format_block(block, depth_lvl),
+            Block { stmts, expr } => {
+                self.add_indented_string("Block {", depth_lvl);
+
+                if stmts.len() > 0 {
+                    self.add_indented_string("stmts: [", depth_lvl + 1);
+                    for stmt in stmts.iter() {
+                        self.format_expr(stmt, depth_lvl + 2);
+                    }
+                    self.add_indented_string("]", depth_lvl + 1);
+                } else {
+                    self.add_indented_string("stmts: []", depth_lvl + 1);
+                }
+
+                if let Some(expr) = expr {
+                    self.add_indented_string("expr:", depth_lvl + 1);
+                    self.format_expr(expr, depth_lvl + 2);
+                } else {
+                    self.add_indented_string("expr: []", depth_lvl + 1);
+                }
+
+                self.add_indented_string("}", depth_lvl);
+            }
             Assign { lhs, rhs } => {
                 self.add_indented_string("Assign {", depth_lvl);
                 self.add_indented_string("lhs:", depth_lvl + 1);
@@ -432,67 +453,8 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                 self.add_indented_string(&format!("param: {:?}", param), depth_lvl + 1);
                 self.add_indented_string("}", depth_lvl);
             }
-        }
-    }
-
-    fn format_arm(&mut self, arm: &RArm<'tcx>, depth_lvl: usize) {
-        let RArm { pattern, guard, body, span } = arm;
-
-        self.add_indented_string("pattern: ", depth_lvl + 1);
-        self.format_expr(pattern, depth_lvl + 2);
-
-        if let Some(guard) = guard {
-            self.add_indented_string("guard: ", depth_lvl + 1);
-            self.format_expr(guard, depth_lvl + 2);
-        } else {
-            self.add_indented_string("guard: None", depth_lvl + 1);
-        }
-
-        self.add_indented_string("body: ", depth_lvl + 1);
-        self.format_expr(body, depth_lvl + 2);
-        self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
-        self.add_indented_string("}", depth_lvl);
-    }
-
-    fn format_block(&mut self, block: &RBlock<'tcx>, depth_lvl: usize) {
-        let RBlock { expr, stmts } = block;
-
-        self.add_indented_string("Block {", depth_lvl);
-
-        if stmts.len() > 0 {
-            self.add_indented_string("stmts: [", depth_lvl + 1);
-            for stmt in stmts.iter() {
-                self.format_stmt(stmt, depth_lvl + 2);
-            }
-            self.add_indented_string("]", depth_lvl + 1);
-        } else {
-            self.add_indented_string("stmts: []", depth_lvl + 1);
-        }
-
-        if let Some(expr) = expr {
-            self.add_indented_string("expr:", depth_lvl + 1);
-            self.format_expr(expr, depth_lvl + 2);
-        } else {
-            self.add_indented_string("expr: []", depth_lvl + 1);
-        }
-
-        self.add_indented_string("}", depth_lvl);
-    }
-
-    fn format_stmt(&mut self, stmt: &RStmt<'tcx>, depth_lvl: usize) {
-        let RStmt { kind } = stmt;
-
-        self.add_indented_string("Stmt {", depth_lvl);
-
-        match kind {
-            RStmtKind::Expr { expr } => {
-                self.add_indented_string("kind: Expr {", depth_lvl + 1);
-                self.add_indented_string("expr:", depth_lvl + 2);
-                self.format_expr(expr, depth_lvl + 3);
-                self.add_indented_string("}", depth_lvl + 1);
-            }
-            RStmtKind::Let { pattern, initializer, else_block, span } => {
-                self.add_indented_string("kind: Let {", depth_lvl + 1);
+            LetStmt { pattern, initializer, else_block } => {
+                self.add_indented_string("LetStmt {", depth_lvl + 1);
 
                 self.add_indented_string("pattern: ", depth_lvl + 2);
                 self.format_expr(pattern, depth_lvl + 3);
@@ -508,18 +470,30 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
                 if let Some(else_block) = else_block {
                     self.add_indented_string("else_block: Some(", depth_lvl + 2);
-                    self.format_block(else_block, depth_lvl + 3);
+                    self.format_expr(else_block, depth_lvl + 3);
                     self.add_indented_string(")", depth_lvl + 2);
                 } else {
                     self.add_indented_string("else_block: None", depth_lvl + 2);
                 }
 
-                self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 2);
                 self.add_indented_string("}", depth_lvl + 1);
             }
-        }
+            Arm { pattern, guard, body } => {
+                self.add_indented_string("pattern: ", depth_lvl + 1);
+                self.format_expr(pattern, depth_lvl + 2);
 
-        self.add_indented_string("}", depth_lvl);
+                if let Some(guard) = guard {
+                    self.add_indented_string("guard: ", depth_lvl + 1);
+                    self.format_expr(guard, depth_lvl + 2);
+                } else {
+                    self.add_indented_string("guard: None", depth_lvl + 1);
+                }
+
+                self.add_indented_string("body: ", depth_lvl + 1);
+                self.format_expr(body, depth_lvl + 2);
+                self.add_indented_string("}", depth_lvl);
+            }
+        }
     }
 }
 
@@ -619,7 +593,7 @@ pub enum RExprKind<'tcx> {
     Loop {
         body: Rc<RExpr<'tcx>>,
     },
-    Let {
+    LetBinding {
         expr: Rc<RExpr<'tcx>>,
         pat: Rc<RExpr<'tcx>>,
     },
@@ -628,10 +602,11 @@ pub enum RExprKind<'tcx> {
     },
     Match {
         scrutinee: Rc<RExpr<'tcx>>,
-        arms: Vec<RArm<'tcx>>,
+        arms: Vec<Rc<RExpr<'tcx>>>,
     },
     Block {
-        block: RBlock<'tcx>,
+        stmts: Vec<Rc<RExpr<'tcx>>>,
+        expr: Option<Rc<RExpr<'tcx>>>,
     },
     Assign {
         lhs: Rc<RExpr<'tcx>>,
@@ -710,54 +685,14 @@ pub enum RExprKind<'tcx> {
         param: ty::ParamConst,
         def_id: DefId,
     },
-}
-
-#[derive(Clone, Debug)]
-pub struct RArm<'tcx> {
-    pub pattern: Rc<RExpr<'tcx>>,
-    pub guard: Option<Rc<RExpr<'tcx>>>,
-    pub body: Rc<RExpr<'tcx>>,
-    pub span: Span,
-}
-
-impl<'tcx> RArm<'tcx> {
-    pub fn new(
-        pattern: Rc<RExpr<'tcx>>, guard: Option<Rc<RExpr<'tcx>>>, body: Rc<RExpr<'tcx>>, span: Span,
-    ) -> Self {
-        Self { pattern, guard, body, span }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RBlock<'tcx> {
-    pub stmts: Vec<RStmt<'tcx>>,
-    pub expr: Option<Rc<RExpr<'tcx>>>,
-}
-
-impl<'tcx> RBlock<'tcx> {
-    pub fn new(stmts: Vec<RStmt<'tcx>>, expr: Option<Rc<RExpr<'tcx>>>) -> Self {
-        Self { stmts, expr }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RStmt<'tcx> {
-    pub kind: RStmtKind<'tcx>,
-}
-
-impl<'tcx> RStmt<'tcx> {
-    pub fn new(kind: RStmtKind<'tcx>) -> Self { Self { kind } }
-}
-
-#[derive(Clone, Debug)]
-pub enum RStmtKind<'tcx> {
-    Expr {
-        expr: Rc<RExpr<'tcx>>,
-    },
-    Let {
+    LetStmt {
         pattern: Rc<RExpr<'tcx>>,
         initializer: Option<Rc<RExpr<'tcx>>>,
-        else_block: Option<RBlock<'tcx>>,
-        span: Span,
+        else_block: Option<Rc<RExpr<'tcx>>>,
+    },
+    Arm {
+        pattern: Rc<RExpr<'tcx>>,
+        guard: Option<Rc<RExpr<'tcx>>>,
+        body: Rc<RExpr<'tcx>>,
     },
 }
