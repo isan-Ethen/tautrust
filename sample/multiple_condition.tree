@@ -1,11 +1,11 @@
-(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition), params: [
+DefId(0:3 ~ multiple_condition[9b69]::multiple_condition), params: [
   Param {
     param: Some(
       Expr {
         span: sample/multiple_condition.rs:1:23: 1:24 (#0)
-        kind: 
+        kind:
           Pat {
-            kind: PatKind {
+            PatKind {
               Binding {
                 name: "n"
                 mode: BindingMode(No, Not)
@@ -23,36 +23,36 @@
 body:
   Expr {
     span: sample/multiple_condition.rs:1:33: 7:2 (#0)
-    kind: 
+    kind:
       Block {
         stmts: []
         expr:
           Expr {
             span: sample/multiple_condition.rs:2:3: 6:4 (#0)
-            kind: 
+            kind:
               If {
                 cond:
                   Expr {
                     span: sample/multiple_condition.rs:2:6: 2:30 (#4)
-                    kind: 
+                    kind:
                       LogicalOp {
                         op: And
                         lhs:
                           Expr {
                             span: sample/multiple_condition.rs:2:6: 2:16 (#0)
-                            kind: 
+                            kind:
                               Binary {
                                 op: Eq
                                 lhs:
                                   Expr {
                                     span: sample/multiple_condition.rs:2:6: 2:11 (#0)
-                                    kind: 
+                                    kind:
                                       Binary {
                                         op: Rem
                                         lhs:
                                           Expr {
                                             span: sample/multiple_condition.rs:2:6: 2:7 (#0)
-                                            kind: 
+                                            kind:
                                               VarRef {
                                                 id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition).2))
                                               }
@@ -60,7 +60,7 @@ body:
                                         rhs:
                                           Expr {
                                             span: sample/multiple_condition.rs:2:10: 2:11 (#0)
-                                            kind: 
+                                            kind:
                                               Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/multiple_condition.rs:2:10: 2:11 (#0) }, neg: false)
 
                                           }
@@ -69,7 +69,7 @@ body:
                                 rhs:
                                   Expr {
                                     span: sample/multiple_condition.rs:2:15: 2:16 (#0)
-                                    kind: 
+                                    kind:
                                       Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/multiple_condition.rs:2:15: 2:16 (#0) }, neg: false)
 
                                   }
@@ -78,19 +78,19 @@ body:
                         rhs:
                           Expr {
                             span: sample/multiple_condition.rs:2:20: 2:30 (#0)
-                            kind: 
+                            kind:
                               Binary {
                                 op: Eq
                                 lhs:
                                   Expr {
                                     span: sample/multiple_condition.rs:2:20: 2:25 (#0)
-                                    kind: 
+                                    kind:
                                       Binary {
                                         op: Rem
                                         lhs:
                                           Expr {
                                             span: sample/multiple_condition.rs:2:20: 2:21 (#0)
-                                            kind: 
+                                            kind:
                                               VarRef {
                                                 id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition).2))
                                               }
@@ -98,7 +98,7 @@ body:
                                         rhs:
                                           Expr {
                                             span: sample/multiple_condition.rs:2:24: 2:25 (#0)
-                                            kind: 
+                                            kind:
                                               Literal( lit: Spanned { node: Int(Pu128(3), Unsuffixed), span: sample/multiple_condition.rs:2:24: 2:25 (#0) }, neg: false)
 
                                           }
@@ -107,7 +107,7 @@ body:
                                 rhs:
                                   Expr {
                                     span: sample/multiple_condition.rs:2:29: 2:30 (#0)
-                                    kind: 
+                                    kind:
                                       Literal( lit: Spanned { node: Int(Pu128(0), Unsuffixed), span: sample/multiple_condition.rs:2:29: 2:30 (#0) }, neg: false)
 
                                   }
@@ -118,35 +118,30 @@ body:
                 then:
                   Expr {
                     span: sample/multiple_condition.rs:2:31: 4:4 (#0)
-                    kind: 
+                    kind:
                       Block {
                         stmts: [
-                          Stmt {
-                            kind: Expr {
-                              expr:
-                                Expr {
-                                  span: sample/multiple_condition.rs:3:5: 3:11 (#0)
-                                  kind: 
-                                    AssignOp {
-                                      op: Add
-                                      lhs:
-                                        Expr {
-                                          span: sample/multiple_condition.rs:3:5: 3:6 (#0)
-                                          kind: 
-                                            VarRef {
-                                              id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition).2))
-                                            }
-                                        }
-                                      rhs:
-                                        Expr {
-                                          span: sample/multiple_condition.rs:3:10: 3:11 (#0)
-                                          kind: 
-                                            Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/multiple_condition.rs:3:10: 3:11 (#0) }, neg: false)
+                          Expr {
+                            span: sample/multiple_condition.rs:3:5: 3:11 (#0)
+                            kind:
+                              AssignOp {
+                                op: Add
+                                lhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:3:5: 3:6 (#0)
+                                    kind:
+                                      VarRef {
+                                        id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition).2))
+                                      }
+                                  }
+                                rhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:3:10: 3:11 (#0)
+                                    kind:
+                                      Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/multiple_condition.rs:3:10: 3:11 (#0) }, neg: false)
 
-                                        }
-                                    }
-                                }
-                            }
+                                  }
+                              }
                           }
                         ]
                         expr: []
@@ -155,35 +150,30 @@ body:
                 else:
                   Expr {
                     span: sample/multiple_condition.rs:4:10: 6:4 (#0)
-                    kind: 
+                    kind:
                       Block {
                         stmts: [
-                          Stmt {
-                            kind: Expr {
-                              expr:
-                                Expr {
-                                  span: sample/multiple_condition.rs:5:5: 5:11 (#0)
-                                  kind: 
-                                    AssignOp {
-                                      op: Add
-                                      lhs:
-                                        Expr {
-                                          span: sample/multiple_condition.rs:5:5: 5:6 (#0)
-                                          kind: 
-                                            VarRef {
-                                              id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition).2))
-                                            }
-                                        }
-                                      rhs:
-                                        Expr {
-                                          span: sample/multiple_condition.rs:5:10: 5:11 (#0)
-                                          kind: 
-                                            Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/multiple_condition.rs:5:10: 5:11 (#0) }, neg: false)
+                          Expr {
+                            span: sample/multiple_condition.rs:5:5: 5:11 (#0)
+                            kind:
+                              AssignOp {
+                                op: Add
+                                lhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:5:5: 5:6 (#0)
+                                    kind:
+                                      VarRef {
+                                        id: LocalVarId(HirId(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition).2))
+                                      }
+                                  }
+                                rhs:
+                                  Expr {
+                                    span: sample/multiple_condition.rs:5:10: 5:11 (#0)
+                                    kind:
+                                      Literal( lit: Spanned { node: Int(Pu128(2), Unsuffixed), span: sample/multiple_condition.rs:5:10: 5:11 (#0) }, neg: false)
 
-                                        }
-                                    }
-                                }
-                            }
+                                  }
+                              }
                           }
                         ]
                         expr: []
@@ -193,78 +183,74 @@ body:
           }
       }
   }
-)
-(DefId(0:4 ~ multiple_condition[9b69]::main), params: [
+
+DefId(0:4 ~ multiple_condition[9b69]::main), params: [
 ]
 body:
   Expr {
     span: sample/multiple_condition.rs:9:11: 12:2 (#0)
-    kind: 
+    kind:
       Block {
         stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/multiple_condition.rs:10:7: 10:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "x"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:4 ~ multiple_condition[9b69]::main).4))
-                          ty: usize
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/multiple_condition.rs:10:11: 10:12 (#0)
-                  kind: 
-                    Literal( lit: Spanned { node: Int(Pu128(9), Unsuffixed), span: sample/multiple_condition.rs:10:11: 10:12 (#0) }, neg: false)
-
-                }
-              )
-              else_block: None
-              span: sample/multiple_condition.rs:10:3: 10:12 (#0)
-            }
-          }
-          Stmt {
-            kind: Expr {
-              expr:
-                Expr {
-                  span: sample/multiple_condition.rs:11:3: 11:24 (#0)
-                  kind: 
-                    Call {
-                      ty: FnDef(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition), [])
-                      from_hir_call: true
-                      fn_span: sample/multiple_condition.rs:11:3: 11:24 (#0)
-                      fun:
-                        Expr {
-                          span: sample/multiple_condition.rs:11:3: 11:21 (#0)
-                          kind: 
-                            ZstLiteral(user_ty: None)
-                        }
-                      args: [
-                        Expr {
-                          span: sample/multiple_condition.rs:11:22: 11:23 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:4 ~ multiple_condition[9b69]::main).4))
+          Expr {
+            span: sample/multiple_condition.rs:10:3: 10:12 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/multiple_condition.rs:10:7: 10:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ multiple_condition[9b69]::main).4))
+                              ty: usize
+                              is_primary: true
+                              subpattern: None
                             }
+                          }
                         }
-                      ]
                     }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/multiple_condition.rs:10:11: 10:12 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(9), Unsuffixed), span: sample/multiple_condition.rs:10:11: 10:12 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
                 }
-            }
+          }
+          Expr {
+            span: sample/multiple_condition.rs:11:3: 11:24 (#0)
+            kind:
+              Call {
+                ty: FnDef(DefId(0:3 ~ multiple_condition[9b69]::multiple_condition), [])
+                from_hir_call: true
+                fn_span: sample/multiple_condition.rs:11:3: 11:24 (#0)
+                fun:
+                  Expr {
+                    span: sample/multiple_condition.rs:11:3: 11:21 (#0)
+                    kind:
+                      ZstLiteral(user_ty: None)
+                  }
+                args: [
+                  Expr {
+                    span: sample/multiple_condition.rs:11:22: 11:23 (#0)
+                    kind:
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:4 ~ multiple_condition[9b69]::main).4))
+                      }
+                  }
+                ]
+              }
           }
         ]
         expr: []
       }
   }
-)
+

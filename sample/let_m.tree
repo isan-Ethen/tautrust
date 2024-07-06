@@ -1,85 +1,11 @@
-(DefId(0:4 ~ let_m[4cf1]::main), params: [
-]
-body:
-  Expr {
-    span: sample/let_m.rs:3:11: 6:2 (#0)
-    kind: 
-      Block {
-        stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/let_m.rs:4:7: 4:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "x"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:4 ~ let_m[4cf1]::main).4))
-                          ty: i32
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/let_m.rs:4:11: 4:12 (#0)
-                  kind: 
-                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/let_m.rs:4:11: 4:12 (#0) }, neg: false)
-
-                }
-              )
-              else_block: None
-              span: sample/let_m.rs:4:3: 4:12 (#0)
-            }
-          }
-          Stmt {
-            kind: Expr {
-              expr:
-                Expr {
-                  span: sample/let_m.rs:5:3: 5:11 (#0)
-                  kind: 
-                    Call {
-                      ty: FnDef(DefId(0:3 ~ let_m[4cf1]::let_m), [])
-                      from_hir_call: true
-                      fn_span: sample/let_m.rs:5:3: 5:11 (#0)
-                      fun:
-                        Expr {
-                          span: sample/let_m.rs:5:3: 5:8 (#0)
-                          kind: 
-                            ZstLiteral(user_ty: None)
-                        }
-                      args: [
-                        Expr {
-                          span: sample/let_m.rs:5:9: 5:10 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:4 ~ let_m[4cf1]::main).4))
-                            }
-                        }
-                      ]
-                    }
-                }
-            }
-          }
-        ]
-        expr: []
-      }
-  }
-)
-(DefId(0:3 ~ let_m[4cf1]::let_m), params: [
+DefId(0:3 ~ let_m[4cf1]::let_m), params: [
   Param {
     param: Some(
       Expr {
         span: sample/let_m.rs:1:10: 1:11 (#0)
-        kind: 
+        kind:
           Pat {
-            kind: PatKind {
+            PatKind {
               Binding {
                 name: "n"
                 mode: BindingMode(No, Not)
@@ -97,59 +23,130 @@ body:
 body:
   Expr {
     span: sample/let_m.rs:1:18: 1:36 (#0)
-    kind: 
+    kind:
       Block {
         stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/let_m.rs:1:24: 1:25 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "m"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:3 ~ let_m[4cf1]::let_m).9))
-                          ty: i32
-                          is_primary: true
-                          subpattern: None
+          Expr {
+            span: sample/let_m.rs:1:20: 1:33 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/let_m.rs:1:24: 1:25 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "m"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:3 ~ let_m[4cf1]::let_m).9))
+                              ty: i32
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
                         }
-                      }
                     }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/let_m.rs:1:28: 1:33 (#0)
-                  kind: 
-                    Binary {
-                      op: Add
-                      lhs:
-                        Expr {
-                          span: sample/let_m.rs:1:28: 1:29 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:3 ~ let_m[4cf1]::let_m).2))
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/let_m.rs:1:28: 1:33 (#0)
+                      kind:
+                        Binary {
+                          op: Add
+                          lhs:
+                            Expr {
+                              span: sample/let_m.rs:1:28: 1:29 (#0)
+                              kind:
+                                VarRef {
+                                  id: LocalVarId(HirId(DefId(0:3 ~ let_m[4cf1]::let_m).2))
+                                }
+                            }
+                          rhs:
+                            Expr {
+                              span: sample/let_m.rs:1:32: 1:33 (#0)
+                              kind:
+                                Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/let_m.rs:1:32: 1:33 (#0) }, neg: false)
+
                             }
                         }
-                      rhs:
-                        Expr {
-                          span: sample/let_m.rs:1:32: 1:33 (#0)
-                          kind: 
-                            Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/let_m.rs:1:32: 1:33 (#0) }, neg: false)
-
-                        }
                     }
+                  )
+                  else_block: None
                 }
-              )
-              else_block: None
-              span: sample/let_m.rs:1:20: 1:33 (#0)
-            }
           }
         ]
         expr: []
       }
   }
-)
+
+DefId(0:4 ~ let_m[4cf1]::main), params: [
+]
+body:
+  Expr {
+    span: sample/let_m.rs:3:11: 6:2 (#0)
+    kind:
+      Block {
+        stmts: [
+          Expr {
+            span: sample/let_m.rs:4:3: 4:12 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/let_m.rs:4:7: 4:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ let_m[4cf1]::main).4))
+                              ty: i32
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                    }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/let_m.rs:4:11: 4:12 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/let_m.rs:4:11: 4:12 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
+                }
+          }
+          Expr {
+            span: sample/let_m.rs:5:3: 5:11 (#0)
+            kind:
+              Call {
+                ty: FnDef(DefId(0:3 ~ let_m[4cf1]::let_m), [])
+                from_hir_call: true
+                fn_span: sample/let_m.rs:5:3: 5:11 (#0)
+                fun:
+                  Expr {
+                    span: sample/let_m.rs:5:3: 5:8 (#0)
+                    kind:
+                      ZstLiteral(user_ty: None)
+                  }
+                args: [
+                  Expr {
+                    span: sample/let_m.rs:5:9: 5:10 (#0)
+                    kind:
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:4 ~ let_m[4cf1]::main).4))
+                      }
+                  }
+                ]
+              }
+          }
+        ]
+        expr: []
+      }
+  }
+
