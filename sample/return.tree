@@ -1,11 +1,11 @@
-(DefId(0:3 ~ return[68b0]::return_expr), params: [
+DefId(0:3 ~ return[68b0]::return_expr), params: [
   Param {
     param: Some(
       Expr {
         span: sample/return.rs:1:16: 1:17 (#0)
-        kind: 
+        kind:
           Pat {
-            kind: PatKind {
+            PatKind {
               Binding {
                 name: "n"
                 mode: BindingMode(No, Not)
@@ -23,173 +23,171 @@
 body:
   Expr {
     span: sample/return.rs:1:35: 4:2 (#0)
-    kind: 
+    kind:
       Block {
         stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/return.rs:2:7: 2:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "m"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
-                          ty: usize
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/return.rs:2:11: 2:16 (#0)
-                  kind: 
-                    Binary {
-                      op: Add
-                      lhs:
-                        Expr {
-                          span: sample/return.rs:2:11: 2:12 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).2))
+          Expr {
+            span: sample/return.rs:2:3: 2:16 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/return.rs:2:7: 2:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "m"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
+                              ty: usize
+                              is_primary: true
+                              subpattern: None
                             }
+                          }
                         }
-                      rhs:
-                        Expr {
-                          span: sample/return.rs:2:15: 2:16 (#0)
-                          kind: 
-                            Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/return.rs:2:15: 2:16 (#0) }, neg: false)
+                    }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/return.rs:2:11: 2:16 (#0)
+                      kind:
+                        Binary {
+                          op: Add
+                          lhs:
+                            Expr {
+                              span: sample/return.rs:2:11: 2:12 (#0)
+                              kind:
+                                VarRef {
+                                  id: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).2))
+                                }
+                            }
+                          rhs:
+                            Expr {
+                              span: sample/return.rs:2:15: 2:16 (#0)
+                              kind:
+                                Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/return.rs:2:15: 2:16 (#0) }, neg: false)
 
-                        }
-                    }
-                }
-              )
-              else_block: None
-              span: sample/return.rs:2:3: 2:16 (#0)
-            }
-          }
-          Stmt {
-            kind: Expr {
-              expr:
-                Expr {
-                  span: sample/return.rs:3:3: 3:11 (#0)
-                  kind: 
-                    Return {
-                      value:
-                        Expr {
-                          span: sample/return.rs:3:10: 3:11 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
                             }
                         }
                     }
+                  )
+                  else_block: None
                 }
-            }
+          }
+          Expr {
+            span: sample/return.rs:3:3: 3:11 (#0)
+            kind:
+              Return {
+                value:
+                  Expr {
+                    span: sample/return.rs:3:10: 3:11 (#0)
+                    kind:
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:3 ~ return[68b0]::return_expr).9))
+                      }
+                  }
+              }
           }
         ]
         expr: []
       }
   }
-)
-(DefId(0:4 ~ return[68b0]::main), params: [
+
+DefId(0:4 ~ return[68b0]::main), params: [
 ]
 body:
   Expr {
     span: sample/return.rs:6:11: 9:2 (#0)
-    kind: 
+    kind:
       Block {
         stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/return.rs:7:7: 7:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "x"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:4 ~ return[68b0]::main).4))
-                          ty: usize
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/return.rs:7:11: 7:12 (#0)
-                  kind: 
-                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/return.rs:7:11: 7:12 (#0) }, neg: false)
-
-                }
-              )
-              else_block: None
-              span: sample/return.rs:7:3: 7:12 (#0)
-            }
-          }
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/return.rs:8:7: 8:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "y"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:4 ~ return[68b0]::main).12))
-                          ty: usize
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/return.rs:8:11: 8:25 (#0)
-                  kind: 
-                    Call {
-                      ty: FnDef(DefId(0:3 ~ return[68b0]::return_expr), [])
-                      from_hir_call: true
-                      fn_span: sample/return.rs:8:11: 8:25 (#0)
-                      fun:
-                        Expr {
-                          span: sample/return.rs:8:11: 8:22 (#0)
-                          kind: 
-                            ZstLiteral(user_ty: None)
-                        }
-                      args: [
-                        Expr {
-                          span: sample/return.rs:8:23: 8:24 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:4 ~ return[68b0]::main).4))
+          Expr {
+            span: sample/return.rs:7:3: 7:12 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/return.rs:7:7: 7:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ return[68b0]::main).4))
+                              ty: usize
+                              is_primary: true
+                              subpattern: None
                             }
+                          }
                         }
-                      ]
                     }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/return.rs:7:11: 7:12 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/return.rs:7:11: 7:12 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
                 }
-              )
-              else_block: None
-              span: sample/return.rs:8:3: 8:25 (#0)
-            }
+          }
+          Expr {
+            span: sample/return.rs:8:3: 8:25 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/return.rs:8:7: 8:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "y"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ return[68b0]::main).12))
+                              ty: usize
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                    }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/return.rs:8:11: 8:25 (#0)
+                      kind:
+                        Call {
+                          ty: FnDef(DefId(0:3 ~ return[68b0]::return_expr), [])
+                          from_hir_call: true
+                          fn_span: sample/return.rs:8:11: 8:25 (#0)
+                          fun:
+                            Expr {
+                              span: sample/return.rs:8:11: 8:22 (#0)
+                              kind:
+                                ZstLiteral(user_ty: None)
+                            }
+                          args: [
+                            Expr {
+                              span: sample/return.rs:8:23: 8:24 (#0)
+                              kind:
+                                VarRef {
+                                  id: LocalVarId(HirId(DefId(0:4 ~ return[68b0]::main).4))
+                                }
+                            }
+                          ]
+                        }
+                    }
+                  )
+                  else_block: None
+                }
           }
         ]
         expr: []
       }
   }
-)
+

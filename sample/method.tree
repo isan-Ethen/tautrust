@@ -1,85 +1,11 @@
-(DefId(0:4 ~ method[d9e8]::main), params: [
-]
-body:
-  Expr {
-    span: sample/method.rs:3:11: 6:2 (#0)
-    kind: 
-      Block {
-        stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/method.rs:4:7: 4:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "x"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:4 ~ method[d9e8]::main).4))
-                          ty: u32
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/method.rs:4:11: 4:12 (#0)
-                  kind: 
-                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/method.rs:4:11: 4:12 (#0) }, neg: false)
-
-                }
-              )
-              else_block: None
-              span: sample/method.rs:4:3: 4:12 (#0)
-            }
-          }
-          Stmt {
-            kind: Expr {
-              expr:
-                Expr {
-                  span: sample/method.rs:5:3: 5:12 (#0)
-                  kind: 
-                    Call {
-                      ty: FnDef(DefId(0:3 ~ method[d9e8]::method), [])
-                      from_hir_call: true
-                      fn_span: sample/method.rs:5:3: 5:12 (#0)
-                      fun:
-                        Expr {
-                          span: sample/method.rs:5:3: 5:9 (#0)
-                          kind: 
-                            ZstLiteral(user_ty: None)
-                        }
-                      args: [
-                        Expr {
-                          span: sample/method.rs:5:10: 5:11 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:4 ~ method[d9e8]::main).4))
-                            }
-                        }
-                      ]
-                    }
-                }
-            }
-          }
-        ]
-        expr: []
-      }
-  }
-)
-(DefId(0:3 ~ method[d9e8]::method), params: [
+DefId(0:3 ~ method[d9e8]::method), params: [
   Param {
     param: Some(
       Expr {
         span: sample/method.rs:1:11: 1:12 (#0)
-        kind: 
+        kind:
           Pat {
-            kind: PatKind {
+            PatKind {
               Binding {
                 name: "n"
                 mode: BindingMode(No, Not)
@@ -97,67 +23,138 @@ body:
 body:
   Expr {
     span: sample/method.rs:1:19: 1:40 (#0)
-    kind: 
+    kind:
       Block {
         stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/method.rs:1:25: 1:26 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "m"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:3 ~ method[d9e8]::method).10))
-                          ty: u32
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/method.rs:1:29: 1:37 (#0)
-                  kind: 
-                    Call {
-                      ty: FnDef(DefId(2:23858 ~ core[e2cd]::num::{impl#8}::pow), [true])
-                      from_hir_call: true
-                      fn_span: sample/method.rs:1:31: 1:37 (#0)
-                      fun:
-                        Expr {
-                          span: sample/method.rs:1:31: 1:34 (#0)
-                          kind: 
-                            ZstLiteral(user_ty: None)
-                        }
-                      args: [
-                        Expr {
-                          span: sample/method.rs:1:29: 1:30 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:3 ~ method[d9e8]::method).2))
+          Expr {
+            span: sample/method.rs:1:21: 1:37 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/method.rs:1:25: 1:26 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "m"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:3 ~ method[d9e8]::method).10))
+                              ty: u32
+                              is_primary: true
+                              subpattern: None
                             }
+                          }
                         }
-                        Expr {
-                          span: sample/method.rs:1:35: 1:36 (#0)
-                          kind: 
-                            Literal( lit: Spanned { node: Int(Pu128(3), Unsuffixed), span: sample/method.rs:1:35: 1:36 (#0) }, neg: false)
-
-                        }
-                      ]
                     }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/method.rs:1:29: 1:37 (#0)
+                      kind:
+                        Call {
+                          ty: FnDef(DefId(2:23858 ~ core[e2cd]::num::{impl#8}::pow), [true])
+                          from_hir_call: true
+                          fn_span: sample/method.rs:1:31: 1:37 (#0)
+                          fun:
+                            Expr {
+                              span: sample/method.rs:1:31: 1:34 (#0)
+                              kind:
+                                ZstLiteral(user_ty: None)
+                            }
+                          args: [
+                            Expr {
+                              span: sample/method.rs:1:29: 1:30 (#0)
+                              kind:
+                                VarRef {
+                                  id: LocalVarId(HirId(DefId(0:3 ~ method[d9e8]::method).2))
+                                }
+                            }
+                            Expr {
+                              span: sample/method.rs:1:35: 1:36 (#0)
+                              kind:
+                                Literal( lit: Spanned { node: Int(Pu128(3), Unsuffixed), span: sample/method.rs:1:35: 1:36 (#0) }, neg: false)
+
+                            }
+                          ]
+                        }
+                    }
+                  )
+                  else_block: None
                 }
-              )
-              else_block: None
-              span: sample/method.rs:1:21: 1:37 (#0)
-            }
           }
         ]
         expr: []
       }
   }
-)
+
+DefId(0:4 ~ method[d9e8]::main), params: [
+]
+body:
+  Expr {
+    span: sample/method.rs:3:11: 6:2 (#0)
+    kind:
+      Block {
+        stmts: [
+          Expr {
+            span: sample/method.rs:4:3: 4:12 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/method.rs:4:7: 4:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ method[d9e8]::main).4))
+                              ty: u32
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                    }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/method.rs:4:11: 4:12 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/method.rs:4:11: 4:12 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
+                }
+          }
+          Expr {
+            span: sample/method.rs:5:3: 5:12 (#0)
+            kind:
+              Call {
+                ty: FnDef(DefId(0:3 ~ method[d9e8]::method), [])
+                from_hir_call: true
+                fn_span: sample/method.rs:5:3: 5:12 (#0)
+                fun:
+                  Expr {
+                    span: sample/method.rs:5:3: 5:9 (#0)
+                    kind:
+                      ZstLiteral(user_ty: None)
+                  }
+                args: [
+                  Expr {
+                    span: sample/method.rs:5:10: 5:11 (#0)
+                    kind:
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:4 ~ method[d9e8]::main).4))
+                      }
+                  }
+                ]
+              }
+          }
+        ]
+        expr: []
+      }
+  }
+

@@ -1,85 +1,11 @@
-(DefId(0:4 ~ loop[0385]::main), params: [
-]
-body:
-  Expr {
-    span: sample/loop.rs:10:11: 13:2 (#0)
-    kind: 
-      Block {
-        stmts: [
-          Stmt {
-            kind: Let {
-              pattern: 
-                Expr {
-                  span: sample/loop.rs:11:7: 11:8 (#0)
-                  kind: 
-                    Pat {
-                      kind: PatKind {
-                        Binding {
-                          name: "x"
-                          mode: BindingMode(No, Not)
-                          var: LocalVarId(HirId(DefId(0:4 ~ loop[0385]::main).4))
-                          ty: i32
-                          is_primary: true
-                          subpattern: None
-                        }
-                      }
-                    }
-                }
-              ,
-              initializer: Some(
-                Expr {
-                  span: sample/loop.rs:11:11: 11:12 (#0)
-                  kind: 
-                    Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/loop.rs:11:11: 11:12 (#0) }, neg: false)
-
-                }
-              )
-              else_block: None
-              span: sample/loop.rs:11:3: 11:12 (#0)
-            }
-          }
-          Stmt {
-            kind: Expr {
-              expr:
-                Expr {
-                  span: sample/loop.rs:12:3: 12:15 (#0)
-                  kind: 
-                    Call {
-                      ty: FnDef(DefId(0:3 ~ loop[0385]::loop_expr), [])
-                      from_hir_call: true
-                      fn_span: sample/loop.rs:12:3: 12:15 (#0)
-                      fun:
-                        Expr {
-                          span: sample/loop.rs:12:3: 12:12 (#0)
-                          kind: 
-                            ZstLiteral(user_ty: None)
-                        }
-                      args: [
-                        Expr {
-                          span: sample/loop.rs:12:13: 12:14 (#0)
-                          kind: 
-                            VarRef {
-                              id: LocalVarId(HirId(DefId(0:4 ~ loop[0385]::main).4))
-                            }
-                        }
-                      ]
-                    }
-                }
-            }
-          }
-        ]
-        expr: []
-      }
-  }
-)
-(DefId(0:3 ~ loop[0385]::loop_expr), params: [
+DefId(0:3 ~ loop[0385]::loop_expr), params: [
   Param {
     param: Some(
       Expr {
         span: sample/loop.rs:1:14: 1:15 (#0)
-        kind: 
+        kind:
           Pat {
-            kind: PatKind {
+            PatKind {
               Binding {
                 name: "n"
                 mode: BindingMode(No, Not)
@@ -97,102 +23,87 @@ body:
 body:
   Expr {
     span: sample/loop.rs:1:22: 8:2 (#0)
-    kind: 
+    kind:
       Block {
         stmts: []
         expr:
           Expr {
             span: sample/loop.rs:2:3: 7:4 (#0)
-            kind: 
+            kind:
               Loop (
                 body:
                   Expr {
                     span: sample/loop.rs:2:8: 7:4 (#0)
-                    kind: 
+                    kind:
                       Block {
                         stmts: [
-                          Stmt {
-                            kind: Expr {
-                              expr:
-                                Expr {
-                                  span: sample/loop.rs:3:5: 5:6 (#0)
-                                  kind: 
-                                    If {
-                                      cond:
-                                        Expr {
-                                          span: sample/loop.rs:3:8: 3:14 (#4)
-                                          kind: 
-                                            Binary {
-                                              op: Gt
-                                              lhs:
-                                                Expr {
-                                                  span: sample/loop.rs:3:8: 3:9 (#0)
-                                                  kind: 
-                                                    VarRef {
-                                                      id: LocalVarId(HirId(DefId(0:3 ~ loop[0385]::loop_expr).2))
-                                                    }
-                                                }
-                                              rhs:
-                                                Expr {
-                                                  span: sample/loop.rs:3:12: 3:14 (#0)
-                                                  kind: 
-                                                    Literal( lit: Spanned { node: Int(Pu128(10), Unsuffixed), span: sample/loop.rs:3:12: 3:14 (#0) }, neg: false)
+                          Expr {
+                            span: sample/loop.rs:3:5: 5:6 (#0)
+                            kind:
+                              If {
+                                cond:
+                                  Expr {
+                                    span: sample/loop.rs:3:8: 3:14 (#4)
+                                    kind:
+                                      Binary {
+                                        op: Gt
+                                        lhs:
+                                          Expr {
+                                            span: sample/loop.rs:3:8: 3:9 (#0)
+                                            kind:
+                                              VarRef {
+                                                id: LocalVarId(HirId(DefId(0:3 ~ loop[0385]::loop_expr).2))
+                                              }
+                                          }
+                                        rhs:
+                                          Expr {
+                                            span: sample/loop.rs:3:12: 3:14 (#0)
+                                            kind:
+                                              Literal( lit: Spanned { node: Int(Pu128(10), Unsuffixed), span: sample/loop.rs:3:12: 3:14 (#0) }, neg: false)
 
-                                                }
-                                            }
-                                        }
-                                      then:
-                                        Expr {
-                                          span: sample/loop.rs:3:15: 5:6 (#0)
-                                          kind: 
-                                            Block {
-                                              stmts: [
-                                                Stmt {
-                                                  kind: Expr {
-                                                    expr:
-                                                      Expr {
-                                                        span: sample/loop.rs:4:7: 4:12 (#0)
-                                                        kind: 
-                                                          Break (
-                                                            label: Node(3)
-                                                          )
-                                                      }
-                                                  }
-                                                }
-                                              ]
-                                              expr: []
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                                          }
+                                      }
+                                  }
+                                then:
+                                  Expr {
+                                    span: sample/loop.rs:3:15: 5:6 (#0)
+                                    kind:
+                                      Block {
+                                        stmts: [
+                                          Expr {
+                                            span: sample/loop.rs:4:7: 4:12 (#0)
+                                            kind:
+                                              Break (
+                                                label: Node(3)
+                                              )
+                                          }
+                                        ]
+                                        expr: []
+                                      }
+                                  }
+                              }
                           }
-                          Stmt {
-                            kind: Expr {
-                              expr:
-                                Expr {
-                                  span: sample/loop.rs:6:5: 6:11 (#0)
-                                  kind: 
-                                    AssignOp {
-                                      op: Add
-                                      lhs:
-                                        Expr {
-                                          span: sample/loop.rs:6:5: 6:6 (#0)
-                                          kind: 
-                                            VarRef {
-                                              id: LocalVarId(HirId(DefId(0:3 ~ loop[0385]::loop_expr).2))
-                                            }
-                                        }
-                                      rhs:
-                                        Expr {
-                                          span: sample/loop.rs:6:10: 6:11 (#0)
-                                          kind: 
-                                            Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/loop.rs:6:10: 6:11 (#0) }, neg: false)
+                          Expr {
+                            span: sample/loop.rs:6:5: 6:11 (#0)
+                            kind:
+                              AssignOp {
+                                op: Add
+                                lhs:
+                                  Expr {
+                                    span: sample/loop.rs:6:5: 6:6 (#0)
+                                    kind:
+                                      VarRef {
+                                        id: LocalVarId(HirId(DefId(0:3 ~ loop[0385]::loop_expr).2))
+                                      }
+                                  }
+                                rhs:
+                                  Expr {
+                                    span: sample/loop.rs:6:10: 6:11 (#0)
+                                    kind:
+                                      Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: sample/loop.rs:6:10: 6:11 (#0) }, neg: false)
 
-                                        }
-                                    }
-                                }
-                            }
+                                  }
+                              }
                           }
                         ]
                         expr: []
@@ -202,4 +113,74 @@ body:
           }
       }
   }
-)
+
+DefId(0:4 ~ loop[0385]::main), params: [
+]
+body:
+  Expr {
+    span: sample/loop.rs:10:11: 13:2 (#0)
+    kind:
+      Block {
+        stmts: [
+          Expr {
+            span: sample/loop.rs:11:3: 11:12 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: sample/loop.rs:11:7: 11:8 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ loop[0385]::main).4))
+                              ty: i32
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                    }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: sample/loop.rs:11:11: 11:12 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: sample/loop.rs:11:11: 11:12 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
+                }
+          }
+          Expr {
+            span: sample/loop.rs:12:3: 12:15 (#0)
+            kind:
+              Call {
+                ty: FnDef(DefId(0:3 ~ loop[0385]::loop_expr), [])
+                from_hir_call: true
+                fn_span: sample/loop.rs:12:3: 12:15 (#0)
+                fun:
+                  Expr {
+                    span: sample/loop.rs:12:3: 12:12 (#0)
+                    kind:
+                      ZstLiteral(user_ty: None)
+                  }
+                args: [
+                  Expr {
+                    span: sample/loop.rs:12:13: 12:14 (#0)
+                    kind:
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:4 ~ loop[0385]::main).4))
+                      }
+                  }
+                ]
+              }
+          }
+        ]
+        expr: []
+      }
+  }
+
