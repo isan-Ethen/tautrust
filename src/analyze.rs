@@ -80,7 +80,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
-        if let RExpr { kind: RExprKind::Block { block: RBlock { stmts, expr } }, .. } = &*body {
+        if let RExpr { kind: RExprKind::Block { stmts, expr }, span } = &*body {
             for stmt in stmts {
                 self.analyze_stmt(stmt)?;
             }
@@ -93,7 +93,7 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    fn analyze_stmt(&mut self, stmt: &RStmt<'tcx>) -> Result<(), AnalysisError> { Ok(()) }
+    fn analyze_stmt(&mut self, stmt: &RExpr<'tcx>) -> Result<(), AnalysisError> { Ok(()) }
 
     fn analyze_expr(&mut self, expr: &Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> { Ok(()) }
 }
