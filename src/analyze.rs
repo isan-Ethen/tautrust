@@ -1,5 +1,10 @@
 // rustc crates
+use rustc_ast::ast::LitKind;
+use rustc_hir::Lit;
+use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
 use rustc_middle::thir::LocalVarId;
+use rustc_middle::thir::LogicalOp;
+use rustc_middle::ty::TyKind;
 use rustc_span::{def_id::LocalDefId, Span};
 
 // std crates
@@ -10,6 +15,7 @@ use std::rc::Rc;
 
 // Own crates
 use crate::thir::rthir::*;
+use regex::Regex;
 mod lir;
 use lir::*;
 
@@ -24,13 +30,14 @@ struct Analyzer<'tcx> {
     fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
     path_map: Map<(Lir<'tcx>, bool), VecDeque<Lir<'tcx>>>,
     current_path: VecDeque<Lir<'tcx>>,
-    var_map: Map<LocalVarId, Rc<RExpr<'tcx>>>,
+    var_map: Map<LocalVarId, String>,
 }
 
 #[derive(Debug)]
 pub enum AnalysisError {
     FunctionNotFound(LocalDefId),
     UnsupportedPattern(String),
+    RandFunctions,
     VerifyError { message: String, span: Span },
 }
 
@@ -44,7 +51,10 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let mut analyzer = Analyzer::new(fn_map);
         let main = analyzer.get_fn(main_id)?;
-        analyzer.analyze_fn(main)
+        match analyzer.analyze_fn(main, &[]) {
+            Ok(_) => Ok(()),
+            Err(why) => Err(why),
+        }
     }
 
     fn verify(&self) -> Result<(), AnalysisError> {
@@ -56,12 +66,14 @@ impl<'tcx> Analyzer<'tcx> {
             .expect("Run z3 failed");
 
         let mut stdin = child.stdin.take().expect("Open std failed");
-        stdin.write_all(self.get_current_assumptions().as_bytes()).expect("Write smt failed");
+        let smt = self.get_current_assumptions();
+        println!("{}", smt);
+        stdin.write_all(smt.as_bytes()).expect("Write smt failed");
         drop(stdin);
 
         let output = child.wait_with_output().expect("Get stdout failed");
         let result = String::from_utf8(output.stdout).expect("Load result failed");
-        if &result != "unsat" {
+        if &result != "unsat\n" {
             return Err(AnalysisError::VerifyError {
                 message: result,
                 span: self.get_current_span(),
@@ -73,9 +85,18 @@ impl<'tcx> Analyzer<'tcx> {
 
     fn get_current_assumptions(&self) -> String {
         let mut smt = String::new();
-        for lir in self.current_path.iter() {
-            smt.push_str(&lir.to_smt());
+        let len = self.current_path.len();
+        let mut cnt = 0;
+        loop {
+            // println!("{:?}", self.current_path[cnt]);
+            if len - 1 == cnt {
+                smt.push_str(&self.current_path[cnt].to_assert());
+                break;
+            }
+            smt.push_str(&self.current_path[cnt].to_smt());
+            cnt += 1;
         }
+        smt += "(check-sat)";
         smt
     }
 
@@ -87,27 +108,36 @@ impl<'tcx> Analyzer<'tcx> {
         self.fn_map.get(&fn_id).cloned().ok_or(AnalysisError::FunctionNotFound(fn_id))
     }
 
-    fn analyze_fn(&mut self, rthir: Rc<RThir<'tcx>>) -> Result<(), AnalysisError> {
-        self.analyze_params(&rthir.params)?;
+    fn analyze_fn(
+        &mut self, rthir: Rc<RThir<'tcx>>, args: &[Rc<RExpr<'tcx>>],
+    ) -> Result<Option<String>, AnalysisError> {
+        self.analyze_params(&rthir.params, args)?;
         if let Some(body) = &rthir.body {
             self.analyze_body((*body).clone())?;
         }
-        Ok(())
+        Ok(None)
     }
 
-    fn analyze_params(&mut self, params: &[RParam<'tcx>]) -> Result<(), AnalysisError> {
+    fn analyze_params(
+        &mut self, params: &[RParam<'tcx>], args: &[Rc<RExpr<'tcx>>],
+    ) -> Result<(), AnalysisError> {
         use RExprKind::*;
         use RPatKind::*;
 
-        for param in params {
+        for (param, arg) in params.iter().zip(args.iter()) {
             if let Some(pat) = &param.pat {
                 if let RExpr { kind: Pat { kind }, .. } = &**pat {
                     match kind {
                         Binding { name, ty, var, .. } => {
                             let parameter =
-                                Lir::<'tcx>::new_parameter(name.clone(), ty.clone(), pat.clone());
+                                Lir::new_parameter(name.clone(), ty.clone(), pat.clone());
                             self.current_path.push_back(parameter);
-                            self.var_map.insert(var.clone(), pat.clone());
+                            self.var_map.insert(var.clone(), format!("{}", name));
+                            let new_assume = Lir::new_assume(
+                                format!("(= {} {})", name, self.expr_to_string(arg.clone())?),
+                                arg.clone(),
+                            );
+                            self.current_path.push_back(new_assume);
                         }
                         Wild => (),
                         _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
@@ -116,6 +146,119 @@ impl<'tcx> Analyzer<'tcx> {
             }
         }
         Ok(())
+    }
+
+    fn expr_to_string(&mut self, arg: Rc<RExpr<'tcx>>) -> Result<String, AnalysisError> {
+        use RExprKind::*;
+
+        match &arg.kind {
+            VarRef { id } => Ok(self.get_var(*id)),
+            Literal { lit, neg } => Analyzer::literal_to_string(lit, *neg),
+            LogicalOp { op, lhs, rhs } => {
+                let lhs_str = self.expr_to_string(lhs.clone())?;
+                let rhs_str = self.expr_to_string(rhs.clone())?;
+                self.logical_op_to_string(*op, lhs_str, rhs_str)
+            }
+            Binary { op, lhs, rhs } => {
+                let lhs_str = self.expr_to_string(lhs.clone())?;
+                let rhs_str = self.expr_to_string(rhs.clone())?;
+                self.bin_op_to_string(*op, lhs_str, rhs_str)
+            }
+            Call { ty, args, .. } => match ty.kind() {
+                TyKind::FnDef(def_id, ..) => {
+                    if def_id.is_local() {
+                        if let Some(fun) = self.fn_map.get(&def_id.expect_local()) {
+                            match self.analyze_fn(fun.clone(), &**args) {
+                                Ok(some) => Ok(some.unwrap()),
+                                Err(why) => Err(why),
+                            }
+                        } else {
+                            unreachable!("Function is not local");
+                        }
+                    } else {
+                        let re = Regex::new(r"DefId\(\d+:\d+ ~ ([\w]+)\[[\w]+\]::([\w]+)").unwrap();
+                        let fn_name = format!("{:?}", def_id);
+                        if let Some(captures) = re.captures(&fn_name) {
+                            if &captures[1] == "t3modules" {
+                                match &captures[2] {
+                                    "rand_bool" => Err(AnalysisError::RandFunctions),
+                                    "rand_int" => Err(AnalysisError::RandFunctions),
+                                    "rand_float" => Err(AnalysisError::RandFunctions),
+                                    _ => unreachable!(),
+                                }
+                            } else {
+                                panic!("Unknown module");
+                            }
+                        } else {
+                            panic!("Unknown module");
+                        }
+                    }
+                }
+                _ => panic!("Call has not have FnDef"),
+            },
+            _ => {
+                println!("{}", self.get_current_assumptions());
+                panic!("Unsupported pattern: {:?}", arg)
+            }
+        }
+    }
+
+    fn get_var(&self, var_id: LocalVarId) -> String { self.var_map.get(&var_id).unwrap().clone() }
+
+    fn literal_to_string(lit: &'tcx Lit, neg: bool) -> Result<String, AnalysisError> {
+        match lit.node {
+            LitKind::Str(symbol, _) => Ok(symbol.to_string()),
+            LitKind::Char(c) => Ok(format!("'{}'", c)),
+            LitKind::Int(n, _) => Ok(if neg { format!("-{}", n) } else { format!("{}", n) }),
+            LitKind::Float(symbol, _) => {
+                Ok(if neg { format!("-{}", symbol) } else { format!("{}", symbol) })
+            }
+            LitKind::Bool(b) => Ok(b.to_string()),
+            LitKind::ByteStr(ref bytes, _) => {
+                Ok(format!("b\"{}\"", String::from_utf8_lossy(bytes)))
+            }
+            _ => Err(AnalysisError::UnsupportedPattern(format!(
+                "Unsupported literal pattern: {}",
+                lit.node
+            ))),
+        }
+    }
+
+    fn logical_op_to_string(
+        &self, op: LogicalOp, lhs: String, rhs: String,
+    ) -> Result<String, AnalysisError> {
+        use LogicalOp::*;
+
+        let op_str = match op {
+            And => "and",
+            Or => "or",
+        };
+        Ok(format!("({} {} {})", op_str, lhs, rhs))
+    }
+
+    fn bin_op_to_string(
+        &self, op: BinOp, lhs: String, rhs: String,
+    ) -> Result<String, AnalysisError> {
+        use BinOp::*;
+
+        let op_str = match op {
+            Add => "+",
+            Sub => "-",
+            Mul => "*",
+            Rem => "%",
+            Div => "/",
+            BitXor => "^",
+            BitAnd => "&",
+            BitOr => "|",
+            Eq => "=",
+            Lt => "<",
+            Le => "<=",
+            Ne => "!=",
+            Ge => ">=",
+            Gt => ">",
+            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
+        };
+        Ok(format!("({} {} {})", op_str, lhs, rhs))
     }
 
     fn analyze_pat(
@@ -128,7 +271,7 @@ impl<'tcx> Analyzer<'tcx> {
             Binding { name, ty, var, .. } => {
                 let parameter = Lir::<'tcx>::new_parameter(name.clone(), ty.clone(), pat.clone());
                 self.current_path.push_back(parameter);
-                self.var_map.insert(var.clone(), pat.clone());
+                self.var_map.insert(var.clone(), format!("{}", name));
             }
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
         }
@@ -157,151 +300,73 @@ impl<'tcx> Analyzer<'tcx> {
 
         match kind {
             Pat { kind } => self.analyze_pat(&kind, expr)?,
-            // If { cond, then, else_opt } => {
-            //     self.format_expr(cond);
-            //     self.format_expr(then);
-            //     if let Some(else_expr) = else_opt {
-            //         self.format_expr(else_expr);
-            //     }
-            // }
-            // Call { fun, args, ty, from_hir_call, fn_span } => {
-            //     self.format_expr(fun);
-            //     if args.len() > 0 {
-            //         for arg in args.iter() {
-            //             self.format_expr(arg);
-            //         }
-            //     } else {
-            //     }
-            // }
-            // Deref { arg } => {
-            //     self.format_expr(arg);
-            // }
-            // Binary { op, lhs, rhs } => {
-            //     self.format_expr(lhs);
-            //     self.format_expr(rhs);
-            // }
-            // LogicalOp { op, lhs, rhs } => {
-            //     self.format_expr(lhs);
-            //     self.format_expr(rhs);
-            // }
-            // Unary { op, arg } => {
-            //     self.format_expr(arg);
-            // }
-            // Cast { source } => {
-            //     self.format_expr(source);
-            // }
-            // PointerCoercion { cast, source } => {
-            //     self.format_expr(source);
-            // }
-            // Loop { body } => {
-            //     self.format_expr(body);
-            // }
-            // LetBinding { expr, pat } => {
-            //     self.format_expr(expr);
-            // }
-            // Match { scrutinee, arms, .. } => {
-            //     self.format_expr(scrutinee);
-            //     for arm_id in arms.iter() {
-            //         self.format_expr(arm_id);
-            //     }
-            // }
-            // Block { stmts, expr } => {
-            //     if stmts.len() > 0 {
-            //         for stmt in stmts.iter() {
-            //             self.format_expr(stmt);
-            //         }
-            //     } else {
-            //     }
-            //     if let Some(expr) = expr {
-            //         self.format_expr(expr);
-            //     } else {
-            //     }
-            // }
-            // Assign { lhs, rhs } => {
-            //     self.format_expr(lhs);
-            //     self.format_expr(rhs);
-            // }
-            // AssignOp { op, lhs, rhs } => {
-            //     self.format_expr(lhs);
-            //     self.format_expr(rhs);
-            // }
-            // Field { lhs, variant_index, name } => {
-            //     self.format_expr(lhs);
-            // }
-            // Index { lhs, index } => {
-            //     self.format_expr(lhs);
-            // }
-            // VarRef { id } => {
-            // }
-            // UpvarRef { closure_def_id, var_hir_id } => {
-            //         &format!("closure_def_id: {:?}", closure_def_id),
-            //         depth_lvl + 1,
-            //     );
-            // }
-            // Borrow { borrow_kind, arg } => {
-            //     self.format_expr(arg);
-            // }
-            // Break { label, value } => {
-            //     if let Some(value) = value {
-            //         self.format_expr(value);
-            //     }
-            // }
-            // Continue { label } => {
-            // }
-            // Return { value } => {
-            //     if let Some(value) = value {
-            //         self.format_expr(value);
-            //     }
-            // }
-            // Repeat { value, count } => {
-            //     self.format_expr(value);
-            // }
-            // Array { fields } => {
-            //     for field in fields.iter() {
-            //         self.format_expr(field);
-            //     }
-            // }
-            // Tuple { fields } => {
-            //     for field_id in fields.iter() {
-            //         self.format_expr(field_id);
-            //     }
-            // }
-            // PlaceTypeAscription { source, user_ty } => {
-            //     self.format_expr(source);
-            // }
-            // ValueTypeAscription { source, user_ty } => {
-            //     self.format_expr(source);
-            // }
-            // Literal { lit, neg } => {
-            // }
-            // NonHirLiteral { lit, user_ty } => {
-            // }
-            // ZstLiteral { user_ty } => {
-            // }
-            // NamedConst { def_id, args, user_ty } => {
-            // }
-            // ConstParam { param, def_id } => {
-            // }
-            LetStmt { pattern, initializer: _, else_block: _ } => {
-                self.analyze_expr(pattern.clone())?;
-
-                // if let Some(init) = initializer {
-                //     self.analyze_expr(init.clone())?;
-                // }
-
-                // if let Some(else_block) = else_block {
-                //     self.analyze_expr(else_block.clone())?;
-                // }
+            Call { ty, args, .. } => match ty.kind() {
+                TyKind::FnDef(def_id, ..) => {
+                    if def_id.is_local() {
+                        if let Some(fun) = self.fn_map.get(&def_id.expect_local()) {
+                            // self.current_path.push_back(Lir::new_push(expr));
+                            self.analyze_fn(fun.clone(), &**args)?;
+                        }
+                    } else {
+                        let re = Regex::new(r"DefId\(\d+:\d+ ~ ([\w]+)\[[\w]+\]::([\w]+)").unwrap();
+                        let fn_name = format!("{:?}", def_id);
+                        if let Some(captures) = re.captures(&fn_name) {
+                            if &captures[1] == "t3modules" {
+                                match &captures[2] {
+                                    "t3assert" => self.analyze_t3assert(&**args)?,
+                                    "t3assume" => self.analyze_t3assume(&**args)?,
+                                    _ => unreachable!(),
+                                }
+                            } else {
+                                panic!("Unknown module");
+                            }
+                        }
+                    }
+                }
+                _ => panic!("Call has not have FnDef"),
+            },
+            LetStmt { pattern, initializer, else_block: _ } => {
+                self.analyze_let_stmt(pattern, initializer)?
             }
-            // Arm { pattern, guard, body } => {
-            //     self.format_expr(pattern);
-            //     if let Some(guard) = guard {
-            //         self.format_expr(guard);
-            //     } else {
-            //     }
-            //     self.format_expr(body);
-            // }
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", expr.kind))),
+        }
+        Ok(())
+    }
+
+    fn analyze_t3assert(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
+        self.analyze_t3assume(args)?;
+        self.verify()
+    }
+
+    fn analyze_t3assume(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
+        let new_assume = Lir::new_assume(self.expr_to_string(args[0].clone())?, args[0].clone());
+        self.current_path.push_back(new_assume);
+        Ok(())
+    }
+
+    fn analyze_let_stmt(
+        &mut self, pattern: &Rc<RExpr<'tcx>>, initializer: &Option<Rc<RExpr<'tcx>>>,
+    ) -> Result<(), AnalysisError> {
+        if let RExprKind::Pat { kind: RPatKind::Binding { name, ty, var, .. } } = pattern.kind {
+            let declaration = Lir::new_parameter(name.clone(), ty.clone(), pattern.clone());
+            self.current_path.push_back(declaration);
+            self.var_map.insert(var.clone(), format!("{}", name));
+            if let Some(init) = initializer {
+                match self.expr_to_string(init.clone()) {
+                    Ok(string) => {
+                        self.current_path.push_back(Lir::new_assume(
+                            format!("(= {} {})", name, string),
+                            init.clone(),
+                        ));
+                    }
+                    Err(err) => match err {
+                        AnalysisError::RandFunctions => {}
+                        _ => return Err(err),
+                    },
+                }
+            }
+        } else {
+            unreachable!();
         }
         Ok(())
     }
