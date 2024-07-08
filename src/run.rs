@@ -26,8 +26,7 @@ impl Callbacks for MyCallbacks {
         &mut self, _compiler: &Compiler, queries: &'tcx Queries<'tcx>,
     ) -> Compilation {
         queries.global_ctxt().unwrap().enter(|tcx| {
-            let res = drive_tautrust(tcx);
-            res.unwrap();
+            drive_tautrust(tcx);
         });
         Compilation::Stop
     }
