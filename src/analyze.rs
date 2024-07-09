@@ -341,6 +341,9 @@ impl<'tcx> Analyzer<'tcx> {
             }
             AssignOp { op, lhs, rhs } => self.analyze_assign_op(*op, lhs, rhs, expr.clone())?,
             Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr.clone())?,
+            If { cond, then, else_opt } => {
+                self.analyze_if(cond.clone(), then.clone(), else_opt.clone())?;
+            }
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", expr.kind))),
         }
         Ok(None)
@@ -420,5 +423,11 @@ impl<'tcx> Analyzer<'tcx> {
         let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, rhs), expr);
         self.current_path.push_back(new_assume);
         Ok(())
+    }
+
+    fn analyze_if(
+        &mut self, cond: Rc<RExpr<'tcx>>, then: Rc<RExpr<'tcx>>, else_opt: Option<Rc<RExpr<'tcx>>>,
+    ) -> Result<Option<String>, AnalysisError> {
+        Ok(None)
     }
 }

@@ -30,8 +30,9 @@ impl<'tcx> Lir<'tcx> {
                 TyKind::Float(_) => Ok(format!("(declare-const {} Real)\n", name)),
                 _ => Err(AnalysisError::UnsupportedPattern(format!("name: {}, ty: {}", name, ty))),
             },
-            Assert { constraint } => Ok(format!("(assert (not {}))\n", constraint)),
-            Assume { constraint } => Ok(format!("(assert {})\n", constraint)),
+            Assert(constraint) => Ok(format!("(assert (not {}))\n", constraint)),
+            Assume(constraint) => Ok(format!("(assert {})\n", constraint)),
+            Assumptions(constraints) => Ok(constraints.clone()),
         }
     }
 
@@ -39,8 +40,8 @@ impl<'tcx> Lir<'tcx> {
         use LirKind::*;
 
         match &self.kind {
-            Assert { constraint } => format!("(assert (not {}))\n", constraint),
-            Assume { constraint } => format!("(assert (not {}))\n", constraint),
+            Assert(constraint) => format!("(assert (not {}))\n", constraint),
+            Assume(constraint) => format!("(assert (not {}))\n", constraint),
             _ => "\n".to_string(),
         }
     }
@@ -50,17 +51,18 @@ impl<'tcx> Lir<'tcx> {
     }
 
     pub fn new_assert(constraint: String, expr: Rc<RExpr<'tcx>>) -> Lir<'tcx> {
-        Lir::new(LirKind::Assert { constraint }, expr.clone())
+        Lir::new(LirKind::Assert(constraint), expr.clone())
     }
 
     pub fn new_assume(constraint: String, expr: Rc<RExpr<'tcx>>) -> Lir<'tcx> {
-        Lir::new(LirKind::Assume { constraint }, expr.clone())
+        Lir::new(LirKind::Assume(constraint), expr.clone())
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum LirKind<'tcx> {
     Declaration { name: String, ty: Ty<'tcx> },
-    Assert { constraint: String },
-    Assume { constraint: String },
+    Assert(String),
+    Assume(String),
+    Assumptions(String),
 }
