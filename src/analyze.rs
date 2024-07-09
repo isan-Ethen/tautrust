@@ -59,7 +59,7 @@ impl<'tcx> Analyzer<'tcx> {
 
     fn verify(&self) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
-            .arg("-in")
+            .args(["-in", "-model"])
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .spawn()
