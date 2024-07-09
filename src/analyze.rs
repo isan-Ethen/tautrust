@@ -4,7 +4,7 @@ use rustc_hir::Lit;
 use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
 use rustc_middle::thir::LocalVarId;
 use rustc_middle::thir::LogicalOp;
-use rustc_middle::ty::TyKind;
+use rustc_middle::ty::{Ty, TyKind};
 use rustc_span::{def_id::LocalDefId, Span};
 
 // std crates
@@ -30,7 +30,7 @@ struct Analyzer<'tcx> {
     fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
     path_map: Map<(Lir<'tcx>, bool), VecDeque<Lir<'tcx>>>,
     current_path: VecDeque<Lir<'tcx>>,
-    var_map: Map<LocalVarId, String>,
+    var_map: Map<LocalVarId, (String, Ty<'tcx>)>,
 }
 
 #[derive(Debug)]
@@ -133,9 +133,9 @@ impl<'tcx> Analyzer<'tcx> {
                     match kind {
                         Binding { name, ty, var, .. } => {
                             let parameter =
-                                Lir::new_parameter(name.clone(), ty.clone(), pat.clone());
+                                Lir::new_parameter(name.to_string(), ty.clone(), pat.clone());
                             self.current_path.push_back(parameter);
-                            self.var_map.insert(var.clone(), format!("{}", name));
+                            self.var_map.insert(var.clone(), (format!("{}", name), ty.clone()));
                             let new_assume = Lir::new_assume(
                                 format!("(= {} {})", name, self.expr_to_string(arg.clone())?),
                                 arg.clone(),
@@ -206,7 +206,7 @@ impl<'tcx> Analyzer<'tcx> {
         }
     }
 
-    fn get_var(&self, var_id: LocalVarId) -> String { self.var_map.get(&var_id).unwrap().clone() }
+    fn get_var(&self, var_id: LocalVarId) -> String { self.var_map.get(&var_id).unwrap().0.clone() }
 
     fn literal_to_string(lit: &'tcx Lit, neg: bool) -> Result<String, AnalysisError> {
         match lit.node {
@@ -272,9 +272,9 @@ impl<'tcx> Analyzer<'tcx> {
         match kind {
             Wild => (),
             Binding { name, ty, var, .. } => {
-                let parameter = Lir::<'tcx>::new_parameter(name.clone(), ty.clone(), pat.clone());
+                let parameter = Lir::new_parameter(name.to_string(), ty.clone(), pat.clone());
                 self.current_path.push_back(parameter);
-                self.var_map.insert(var.clone(), format!("{}", name));
+                self.var_map.insert(var.clone(), (format!("{}", name), ty.clone()));
             }
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
         }
@@ -339,6 +339,8 @@ impl<'tcx> Analyzer<'tcx> {
                     return Ok(Some(self.expr_to_string(expr.clone())?));
                 }
             }
+            AssignOp { op, lhs, rhs } => self.analyze_assign_op(*op, lhs, rhs, expr.clone())?,
+            Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr.clone())?,
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", expr.kind))),
         }
         Ok(None)
@@ -359,9 +361,9 @@ impl<'tcx> Analyzer<'tcx> {
         &mut self, pattern: &Rc<RExpr<'tcx>>, initializer: &Option<Rc<RExpr<'tcx>>>,
     ) -> Result<(), AnalysisError> {
         if let RExprKind::Pat { kind: RPatKind::Binding { name, ty, var, .. } } = pattern.kind {
-            let declaration = Lir::new_parameter(name.clone(), ty.clone(), pattern.clone());
+            let declaration = Lir::new_parameter(name.to_string(), ty.clone(), pattern.clone());
             self.current_path.push_back(declaration);
-            self.var_map.insert(var.clone(), format!("{}", name));
+            self.var_map.insert(var.clone(), (format!("{}", name), ty.clone()));
             if let Some(init) = initializer {
                 match self.expr_to_string(init.clone()) {
                     Ok(string) => {
@@ -379,6 +381,44 @@ impl<'tcx> Analyzer<'tcx> {
         } else {
             unreachable!();
         }
+        Ok(())
+    }
+
+    fn analyze_assign_op(
+        &mut self, op: BinOp, lhs: &Rc<RExpr<'tcx>>, rhs: &Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        let rhs = self.expr_to_string(rhs.clone())?;
+        let (new_lhs, lhs) = self.assign_new_value(lhs.clone())?;
+        let constraint = self.bin_op_to_string(op, lhs.clone(), rhs)?;
+        let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, constraint,), expr);
+        self.current_path.push_back(new_assume);
+        Ok(())
+    }
+
+    fn assign_new_value(
+        &mut self, expr: Rc<RExpr<'tcx>>,
+    ) -> Result<(String, String), AnalysisError> {
+        match expr.kind {
+            RExprKind::VarRef { id } => {
+                let (current_symbol, ty) = self.var_map.get(&id).expect("Undeclared value").clone();
+                let new_symbol = current_symbol.clone() + "+";
+                let new_parameter =
+                    Lir::new_parameter(new_symbol.clone(), ty.clone(), expr.clone());
+                self.current_path.push_back(new_parameter);
+                self.var_map.insert(id, (new_symbol.clone(), ty));
+                Ok((new_symbol, current_symbol))
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn analyze_assign(
+        &mut self, lhs: &Rc<RExpr<'tcx>>, rhs: &Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        let rhs = self.expr_to_string(rhs.clone())?;
+        let (new_lhs, _) = self.assign_new_value(lhs.clone())?;
+        let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, rhs), expr);
+        self.current_path.push_back(new_assume);
         Ok(())
     }
 }

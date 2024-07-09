@@ -45,8 +45,8 @@ impl<'tcx> Lir<'tcx> {
         }
     }
 
-    pub fn new_parameter(name: Symbol, ty: Ty<'tcx>, pat: Rc<RExpr<'tcx>>) -> Lir<'tcx> {
-        Lir::new(LirKind::Declaration { name: name.clone(), ty: ty.clone() }, pat.clone())
+    pub fn new_parameter(name: String, ty: Ty<'tcx>, pat: Rc<RExpr<'tcx>>) -> Lir<'tcx> {
+        Lir::new(LirKind::Declaration { name, ty: ty.clone() }, pat.clone())
     }
 
     pub fn new_assert(constraint: String, expr: Rc<RExpr<'tcx>>) -> Lir<'tcx> {
@@ -60,7 +60,7 @@ impl<'tcx> Lir<'tcx> {
 
 #[derive(Debug, Clone)]
 pub enum LirKind<'tcx> {
-    Declaration { name: Symbol, ty: Ty<'tcx> },
+    Declaration { name: String, ty: Ty<'tcx> },
     Assert { constraint: String },
     Assume { constraint: String },
 }
