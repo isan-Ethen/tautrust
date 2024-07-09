@@ -59,14 +59,14 @@ impl<'tcx> Analyzer<'tcx> {
 
     fn verify(&self) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
-            .arg("-in")
+            .args(["-in", "-model"])
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .spawn()
             .expect("Run z3 failed");
 
         let mut stdin = child.stdin.take().expect("Open std failed");
-        let smt = self.get_current_assumptions();
+        let smt = self.get_current_assumptions()?;
         println!("{}", smt);
         stdin.write_all(smt.as_bytes()).expect("Write smt failed");
         drop(stdin);
@@ -80,10 +80,12 @@ impl<'tcx> Analyzer<'tcx> {
             });
         }
 
+        println!("Verification success!\n");
+
         Ok(())
     }
 
-    fn get_current_assumptions(&self) -> String {
+    fn get_current_assumptions(&self) -> Result<String, AnalysisError> {
         let mut smt = String::new();
         let len = self.current_path.len();
         let mut cnt = 0;
@@ -93,11 +95,11 @@ impl<'tcx> Analyzer<'tcx> {
                 smt.push_str(&self.current_path[cnt].to_assert());
                 break;
             }
-            smt.push_str(&self.current_path[cnt].to_smt());
+            smt.push_str(&self.current_path[cnt].to_smt()?);
             cnt += 1;
         }
         smt += "(check-sat)";
-        smt
+        Ok(smt)
     }
 
     fn get_current_span(&self) -> Span {
@@ -111,11 +113,12 @@ impl<'tcx> Analyzer<'tcx> {
     fn analyze_fn(
         &mut self, rthir: Rc<RThir<'tcx>>, args: &[Rc<RExpr<'tcx>>],
     ) -> Result<Option<String>, AnalysisError> {
+        let mut return_value = None;
         self.analyze_params(&rthir.params, args)?;
         if let Some(body) = &rthir.body {
-            self.analyze_body((*body).clone())?;
+            return_value = self.analyze_body((*body).clone())?;
         }
-        Ok(None)
+        Ok(return_value)
     }
 
     fn analyze_params(
@@ -197,8 +200,8 @@ impl<'tcx> Analyzer<'tcx> {
                 _ => panic!("Call has not have FnDef"),
             },
             _ => {
-                println!("{}", self.get_current_assumptions());
-                panic!("Unsupported pattern: {:?}", arg)
+                println!("{}", self.get_current_assumptions()?);
+                Err(AnalysisError::UnsupportedPattern(format!("name: {:?}", arg.kind)))
             }
         }
     }
@@ -278,10 +281,13 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<Option<String>, AnalysisError> {
+        let mut return_value = None;
         if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*body {
             for stmt in stmts {
-                self.analyze_expr(stmt.clone())?;
+                if let Some(value) = self.analyze_expr(stmt.clone())? {
+                    return_value = Some(value);
+                }
             }
             if let Some(expr) = expr {
                 self.analyze_expr(expr.clone())?;
@@ -289,10 +295,10 @@ impl<'tcx> Analyzer<'tcx> {
         } else {
             return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
         }
-        Ok(())
+        Ok(return_value)
     }
 
-    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<Option<String>, AnalysisError> {
         use RExprKind::*;
 
         let kind = &expr.kind;
@@ -328,9 +334,14 @@ impl<'tcx> Analyzer<'tcx> {
             LetStmt { pattern, initializer, else_block: _ } => {
                 self.analyze_let_stmt(pattern, initializer)?
             }
+            Return { value } => {
+                if let Some(expr) = value {
+                    return Ok(Some(self.expr_to_string(expr.clone())?));
+                }
+            }
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", expr.kind))),
         }
-        Ok(())
+        Ok(None)
     }
 
     fn analyze_t3assert(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {

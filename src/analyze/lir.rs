@@ -6,6 +6,7 @@ use rustc_span::{Span, Symbol};
 use std::rc::Rc;
 
 // Own crates
+use crate::analyze::AnalysisError;
 use crate::thir::rthir::*;
 
 #[derive(Debug, Clone)]
@@ -19,18 +20,18 @@ impl<'tcx> Lir<'tcx> {
 
     pub fn get_span(&self) -> Span { self.rthir.span }
 
-    pub fn to_smt(&self) -> String {
+    pub fn to_smt(&self) -> Result<String, AnalysisError> {
         use LirKind::*;
 
         match &self.kind {
             Declaration { name, ty } => match ty.kind() {
-                TyKind::Bool => format!("(declare-const {} Bool)\n", name),
-                TyKind::Int(_) => format!("(declare-const {} Int)\n", name),
-                TyKind::Float(_) => format!("(declare-const {} Real)\n", name),
-                _ => panic!("Unsupported variable type"),
+                TyKind::Bool => Ok(format!("(declare-const {} Bool)\n", name)),
+                TyKind::Int(_) => Ok(format!("(declare-const {} Int)\n", name)),
+                TyKind::Float(_) => Ok(format!("(declare-const {} Real)\n", name)),
+                _ => Err(AnalysisError::UnsupportedPattern(format!("name: {}, ty: {}", name, ty))),
             },
-            Assert { constraint } => format!("(assert (not {}))\n", constraint),
-            Assume { constraint } => format!("(assert {})\n", constraint),
+            Assert { constraint } => Ok(format!("(assert (not {}))\n", constraint)),
+            Assume { constraint } => Ok(format!("(assert {})\n", constraint)),
         }
     }
 
