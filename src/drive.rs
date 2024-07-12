@@ -9,7 +9,7 @@ use crate::util::get_fn_map;
 pub fn drive_tautrust(tcx: TyCtxt) {
     if let Some((main_id, ..)) = tcx.entry_fn(()) {
         let fn_map = get_fn_map(&tcx);
-        if let Err(error) = analyze(main_id.expect_local(), fn_map) {
+        if let Err(error) = analyze(main_id.expect_local(), fn_map, tcx) {
             use AnalysisError::*;
             match error {
                 FunctionNotFound(id) => eprintln!("Function not found: {:?}", id),
