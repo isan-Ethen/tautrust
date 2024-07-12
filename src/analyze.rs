@@ -4,8 +4,12 @@ use rustc_hir::Lit;
 use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
 use rustc_middle::thir::LocalVarId;
 use rustc_middle::thir::LogicalOp;
+use rustc_middle::ty::TyCtxt;
 use rustc_middle::ty::{Ty, TyKind};
-use rustc_span::{def_id::LocalDefId, Span};
+use rustc_span::{
+    def_id::{DefId, LocalDefId},
+    Span,
+};
 
 // std crates
 use std::collections::{HashMap as Map, VecDeque};
@@ -20,14 +24,14 @@ mod lir;
 use lir::*;
 
 pub fn analyze<'tcx>(
-    main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
+    main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>,
 ) -> Result<(), AnalysisError> {
-    Analyzer::run(main_id, fn_map)
+    Analyzer::run(main_id, fn_map, tcx)
 }
 
-#[derive(Debug)]
 struct Analyzer<'tcx> {
     fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
+    tcx: TyCtxt<'tcx>,
     path_map: Map<(Lir<'tcx>, bool), VecDeque<Lir<'tcx>>>,
     current_path: VecDeque<Lir<'tcx>>,
     var_map: Map<LocalVarId, (String, Ty<'tcx>)>,
@@ -42,14 +46,20 @@ pub enum AnalysisError {
 }
 
 impl<'tcx> Analyzer<'tcx> {
-    pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>) -> Self {
-        Self { fn_map, path_map: Map::new(), current_path: VecDeque::new(), var_map: Map::new() }
+    pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>) -> Self {
+        Self {
+            fn_map,
+            tcx,
+            path_map: Map::new(),
+            current_path: VecDeque::new(),
+            var_map: Map::new(),
+        }
     }
 
     pub fn run(
-        main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
+        main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>,
     ) -> Result<(), AnalysisError> {
-        let mut analyzer = Analyzer::new(fn_map);
+        let mut analyzer = Analyzer::new(fn_map, tcx);
         let main = analyzer.get_fn(main_id)?;
         match analyzer.analyze_fn(main, &[]) {
             Ok(_) => Ok(()),
@@ -169,32 +179,13 @@ impl<'tcx> Analyzer<'tcx> {
             }
             Call { ty, args, .. } => match ty.kind() {
                 TyKind::FnDef(def_id, ..) => {
-                    if def_id.is_local() {
-                        if let Some(fun) = self.fn_map.get(&def_id.expect_local()) {
-                            match self.analyze_fn(fun.clone(), &**args) {
-                                Ok(some) => Ok(some.unwrap()),
-                                Err(why) => Err(why),
-                            }
-                        } else {
-                            unreachable!("Function is not local");
+                    if let Some(fun) = self.get_local_fn(def_id) {
+                        match self.analyze_fn(fun.clone(), &**args) {
+                            Ok(some) => Ok(some.unwrap()),
+                            Err(why) => Err(why),
                         }
                     } else {
-                        let re = Regex::new(r"DefId\(\d+:\d+ ~ ([\w]+)\[[\w]+\]::([\w]+)").unwrap();
-                        let fn_name = format!("{:?}", def_id);
-                        if let Some(captures) = re.captures(&fn_name) {
-                            if &captures[1] == "t3modules" {
-                                match &captures[2] {
-                                    "rand_bool" => Err(AnalysisError::RandFunctions),
-                                    "rand_int" => Err(AnalysisError::RandFunctions),
-                                    "rand_float" => Err(AnalysisError::RandFunctions),
-                                    _ => unreachable!(),
-                                }
-                            } else {
-                                panic!("Unknown module");
-                            }
-                        } else {
-                            panic!("Unknown module");
-                        }
+                        self.analyze_extern_fn(def_id)
                     }
                 }
                 _ => panic!("Call has not have FnDef"),
@@ -262,6 +253,38 @@ impl<'tcx> Analyzer<'tcx> {
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
         };
         Ok(format!("({} {} {})", op_str, lhs, rhs))
+    }
+
+    fn get_local_fn(&self, def_id: &DefId) -> Option<Rc<RThir<'tcx>>> {
+        if def_id.is_local() {
+            Some(self.fn_map.get(&def_id.expect_local()).expect("Get local fn failed").clone())
+        } else {
+            None
+        }
+    }
+
+    fn analyze_extern_fn(&self, def_id: &DefId) -> Result<String, AnalysisError> {
+        let fn_info = self.get_fn_info(def_id);
+        println!("{:?}", fn_info);
+        if fn_info[0] == "t3modules" {
+            match fn_info[1].as_str() {
+                "rand_bool" => Err(AnalysisError::RandFunctions),
+                "rand_int" => Err(AnalysisError::RandFunctions),
+                "rand_float" => Err(AnalysisError::RandFunctions),
+                _ => unreachable!(),
+            }
+        } else {
+            Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
+        }
+    }
+
+    fn get_fn_info(&self, def_id: &DefId) -> Vec<String> {
+        let def_path = self.tcx.def_path_str(*def_id);
+        def_path
+            .split(|c| c == ':' || c == '"' || c == '\\')
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect()
     }
 
     fn analyze_pat(
