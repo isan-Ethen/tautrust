@@ -309,11 +309,11 @@ impl<'tcx> Analyzer<'tcx> {
         if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*body {
             for stmt in stmts {
                 if let Some(value) = self.analyze_expr(stmt.clone())? {
-                    return_value = Some(value);
+                    return Ok(Some(value));
                 }
             }
             if let Some(expr) = expr {
-                self.analyze_expr(expr.clone())?;
+                return_value = self.analyze_expr(expr.clone())?;
             }
         } else {
             return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
@@ -326,6 +326,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         let kind = &expr.kind;
         let expr = expr.clone();
+        let mut return_value = None;
 
         match kind {
             Pat { kind } => self.analyze_pat(&kind, expr)?,
@@ -367,9 +368,11 @@ impl<'tcx> Analyzer<'tcx> {
             If { cond, then, else_opt } => {
                 self.analyze_if(cond.clone(), then.clone(), else_opt.clone())?;
             }
-            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", expr.kind))),
+            _ => {
+                return_value = Some(self.expr_to_string(expr)?);
+            }
         }
-        Ok(None)
+        Ok(return_value)
     }
 
     fn analyze_t3assert(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
@@ -449,8 +452,32 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_if(
-        &mut self, cond: Rc<RExpr<'tcx>>, then: Rc<RExpr<'tcx>>, else_opt: Option<Rc<RExpr<'tcx>>>,
+        &mut self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>,
     ) -> Result<Option<String>, AnalysisError> {
+        let cond_constraint = Lir::new_assume(self.expr_to_string(cond.clone())?, cond);
+        self.current_path.push_back(cond_constraint);
+        let then_value = self.analyze_body(then_block)?;
+        // if let Some(else_block) = else_opt {
+        //     let else_value = self.analyze_body(else_block)?;
+        // }
         Ok(None)
+    }
+
+    fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<Option<String>, AnalysisError> {
+        let mut return_value = None;
+        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
+            for stmt in stmts {
+                if let Some(value) = self.analyze_expr(stmt.clone())? {
+                    return_value = Some(value);
+                }
+            }
+            if let Some(expr) = expr {
+                self.analyze_expr(expr.clone())?;
+            }
+        } else {
+            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
+        }
+        Ok(return_value)
     }
 }
