@@ -11,14 +11,14 @@ use crate::thir::rthir::*;
 
 #[derive(Debug, Clone)]
 pub struct Lir<'tcx> {
-    kind: LirKind<'tcx>,
-    rthir: Rc<RExpr<'tcx>>,
+    pub kind: LirKind<'tcx>,
+    pub expr: Rc<RExpr<'tcx>>,
 }
 
 impl<'tcx> Lir<'tcx> {
-    fn new(kind: LirKind<'tcx>, rthir: Rc<RExpr<'tcx>>) -> Self { Self { kind, rthir } }
+    fn new(kind: LirKind<'tcx>, expr: Rc<RExpr<'tcx>>) -> Self { Self { kind, expr } }
 
-    pub fn get_span(&self) -> Span { self.rthir.span }
+    pub fn get_span(&self) -> Span { self.expr.span }
 
     pub fn to_smt(&self) -> Result<String, AnalysisError> {
         use LirKind::*;
@@ -56,6 +56,10 @@ impl<'tcx> Lir<'tcx> {
 
     pub fn new_assume(constraint: String, expr: Rc<RExpr<'tcx>>) -> Lir<'tcx> {
         Lir::new(LirKind::Assume(constraint), expr.clone())
+    }
+
+    pub fn new_assumptions(constraint: String, expr: Rc<RExpr<'tcx>>) -> Lir<'tcx> {
+        Lir::new(LirKind::Assumptions(constraint), expr.clone())
     }
 }
 
