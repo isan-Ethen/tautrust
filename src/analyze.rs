@@ -31,7 +31,7 @@ pub fn analyze<'tcx>(
 struct Analyzer<'tcx> {
     fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
     tcx: TyCtxt<'tcx>,
-    path_map: Map<(Lir<'tcx>, bool), VecDeque<Lir<'tcx>>>,
+    // path_map: Map<(Lir<'tcx>, bool), VecDeque<Lir<'tcx>>>,
     context_stack: Vec<Context<'tcx>>,
     current_context: Context<'tcx>,
 }
@@ -109,7 +109,7 @@ impl<'tcx> Analyzer<'tcx> {
         Self {
             fn_map,
             tcx,
-            path_map: Map::new(),
+            // path_map: Map::new(),
             context_stack: Vec::new(),
             current_context: Context::new(),
         }
@@ -553,6 +553,8 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<Option<String>, AnalysisError> {
         let cond_str = self.expr_to_string(cond.clone())?;
 
+        // let mut return_values = Vec::new();
+
         self.save_and_switch_ctxt(
             if &self.current_context.name() == "then" {
                 format!("{}+", self.current_context.name())
@@ -579,12 +581,11 @@ impl<'tcx> Analyzer<'tcx> {
             )?;
             let cond_constraint = Lir::new_assume(format!("(not {})", cond_str), cond);
             self.current_context.add_assumption(cond_constraint);
-            else_value = Some(self.analyze_body(else_block)?);
+            else_value = Some(self.analyze_block(else_block)?);
             else_ctxt = Some(self.restore_ctxt());
         }
 
-        self.merge_then_else_ctxt(cond_str, then_ctxt, then_value, else_ctxt, else_value)?;
-
+        self.merge_then_else_ctxt(cond_str, then_ctxt, else_ctxt)?;
         Ok(None)
     }
 
@@ -606,8 +607,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn merge_then_else_ctxt(
-        &mut self, cond_str: String, then_ctxt: Context<'tcx>, then_value: Option<String>,
-        else_ctxt: Option<Context<'tcx>>, else_value: Option<Option<String>>,
+        &mut self, cond_str: String, then_ctxt: Context<'tcx>, else_ctxt: Option<Context<'tcx>>,
     ) -> Result<Option<String>, AnalysisError> {
         let then_ctxt = Analyzer::adapt_cond_to_path(&cond_str, then_ctxt)?;
         self.merge_ctxt(then_ctxt);
