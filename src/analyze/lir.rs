@@ -1,6 +1,6 @@
 // rustc crates
 use rustc_middle::ty::{Ty, TyKind};
-use rustc_span::{Span, Symbol};
+use rustc_span::Span;
 
 // std crates
 use std::rc::Rc;
