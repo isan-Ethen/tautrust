@@ -172,8 +172,8 @@ impl<'tcx> Analyzer<'tcx> {
 
     fn analyze_fn(
         &mut self, rthir: Rc<RThir<'tcx>>, args: &[Rc<RExpr<'tcx>>],
-    ) -> Result<Option<String>, AnalysisError> {
-        let mut return_value = None;
+    ) -> Result<Vec<String>, AnalysisError> {
+        let mut return_value = Vec::new();
         self.analyze_params(&rthir.params, args)?;
         if let Some(body) = &rthir.body {
             return_value = self.analyze_body((*body).clone())?;
@@ -197,11 +197,11 @@ impl<'tcx> Analyzer<'tcx> {
                                 Lir::new_parameter(name.clone(), ty.clone(), pat.clone());
                             self.current_context.add_assumption(parameter);
                             self.current_context.insert_var(var, name.clone(), ty);
-                            let new_assume = Lir::new_assume(
-                                format!("(= {} {})", name, self.expr_to_string(arg.clone())?),
-                                arg.clone(),
-                            );
-                            self.current_context.add_assumption(new_assume);
+                            for value in self.expr_to_string(arg.clone())? {
+                                let new_assume =
+                                    Lir::new_assume(format!("(= {} {})", name, value), arg.clone());
+                                self.current_context.add_assumption(new_assume);
+                            }
                         }
                         Wild => (),
                         _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
@@ -212,21 +212,21 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    fn expr_to_string(&mut self, arg: Rc<RExpr<'tcx>>) -> Result<String, AnalysisError> {
+    fn expr_to_string(&mut self, arg: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
         use RExprKind::*;
 
         match &arg.kind {
-            VarRef { id } => Ok(self.get_var(*id)),
-            Literal { lit, neg } => Analyzer::literal_to_string(lit, *neg),
+            VarRef { id } => Ok(vec![self.get_var(*id)]),
+            Literal { lit, neg } => Ok(vec![Analyzer::literal_to_string(lit, *neg)?]),
             LogicalOp { op, lhs, rhs } => {
                 let lhs_str = self.expr_to_string(lhs.clone())?;
                 let rhs_str = self.expr_to_string(rhs.clone())?;
-                self.logical_op_to_string(*op, lhs_str, rhs_str)
+                Ok(vec![self.logical_op_to_string(*op, lhs_str[0].clone(), rhs_str[0].clone())?])
             }
             Binary { op, lhs, rhs } => {
                 let lhs_str = self.expr_to_string(lhs.clone())?;
                 let rhs_str = self.expr_to_string(rhs.clone())?;
-                self.bin_op_to_string(*op, lhs_str, rhs_str)
+                Ok(vec![self.bin_op_to_string(*op, lhs_str[0].clone(), rhs_str[0].clone())?])
             }
             Call { ty, args, .. } => match ty.kind() {
                 TyKind::FnDef(def_id, ..) => {
@@ -240,16 +240,19 @@ impl<'tcx> Analyzer<'tcx> {
                             Ok(some) => {
                                 let fn_ctxt = self.restore_ctxt();
                                 self.merge_ctxt(fn_ctxt);
-                                Ok(some.unwrap())
+                                Ok(some)
                             }
                             Err(why) => Err(why),
                         }
                     } else {
-                        self.analyze_extern_fn(fn_info)
+                        Ok(vec![self.analyze_extern_fn(fn_info)?])
                     }
                 }
                 _ => panic!("Call has not have FnDef"),
             },
+            If { cond, then, else_opt } => {
+                self.analyze_if(cond.clone(), then.clone(), else_opt.clone())
+            }
             _ => {
                 println!("{}", self.get_current_assumptions()?);
                 Err(AnalysisError::UnsupportedPattern(format!("name: {:?}", arg.kind)))
@@ -401,31 +404,36 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<Option<String>, AnalysisError> {
-        let mut return_value = None;
+    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
+        let mut return_values = Vec::new();
         if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*body {
             for stmt in stmts {
-                if let Some(value) = self.analyze_expr(stmt.clone())? {
-                    return Ok(Some(value));
+                for value in self.analyze_expr(stmt.clone())? {
+                    return_values.push(value)
                 }
             }
             if let Some(expr) = expr {
-                return_value = self.analyze_expr(expr.clone())?;
+                for value in self.analyze_expr(expr.clone())? {
+                    return_values.push(value);
+                }
             }
         } else {
             return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
         }
-        Ok(return_value)
+        Ok(return_values)
     }
 
-    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<Option<String>, AnalysisError> {
+    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
         use RExprKind::*;
 
         let kind = &expr.kind;
         let expr = expr.clone();
-        let mut return_value = None;
+        let mut return_values = Vec::new();
 
         match kind {
+            VarRef { .. } => {
+                return_values = self.expr_to_string(expr.clone())?;
+            }
             Pat { kind } => self.analyze_pat(&kind, expr)?,
             Call { ty, args, .. } => match ty.kind() {
                 TyKind::FnDef(def_id, ..) => {
@@ -446,23 +454,27 @@ impl<'tcx> Analyzer<'tcx> {
                 _ => panic!("Call has not have FnDef"),
             },
             LetStmt { pattern, initializer, else_block: _ } => {
-                self.analyze_let_stmt(pattern, initializer)?
+                self.analyze_let_stmt(pattern, initializer)?;
             }
             Return { value } => {
                 if let Some(expr) = value {
-                    return Ok(Some(self.expr_to_string(expr.clone())?));
+                    return_values = self.expr_to_string(expr.clone())?;
                 }
             }
             AssignOp { op, lhs, rhs } => self.analyze_assign_op(*op, lhs, rhs, expr.clone())?,
             Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr.clone())?,
             If { cond, then, else_opt } => {
-                return_value = self.analyze_if(cond.clone(), then.clone(), else_opt.clone())?;
+                return_values = self.analyze_if(cond.clone(), then.clone(), else_opt.clone())?;
+            }
+            Binary { .. } => {
+                return_values = self.expr_to_string(expr.clone())?;
             }
             _ => {
-                return_value = Some(self.expr_to_string(expr)?);
+                println!("{:?}", kind);
+                return Err(AnalysisError::UnsupportedPattern("Unknown expr".into()));
             }
         }
-        Ok(return_value)
+        Ok(return_values)
     }
 
     fn analyze_t3assert(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
@@ -471,8 +483,11 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_t3assume(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
-        let new_assume = Lir::new_assume(self.expr_to_string(args[0].clone())?, args[0].clone());
-        self.current_context.add_assumption(new_assume);
+        let constraints = self.expr_to_string(args[0].clone())?;
+        for constraint in constraints {
+            let new_assume = Lir::new_assume(constraint, args[0].clone());
+            self.current_context.add_assumption(new_assume);
+        }
         Ok(())
     }
 
@@ -486,11 +501,13 @@ impl<'tcx> Analyzer<'tcx> {
             self.current_context.insert_var(var, name.clone(), ty);
             if let Some(init) = initializer {
                 match self.expr_to_string(init.clone()) {
-                    Ok(string) => {
-                        self.current_context.add_assumption(Lir::new_assume(
-                            format!("(= {} {})", name, string),
-                            init.clone(),
-                        ));
+                    Ok(values) => {
+                        for value in values {
+                            self.current_context.add_assumption(Lir::new_assume(
+                                format!("(= {} {})", name, value),
+                                init.clone(),
+                            ));
+                        }
                     }
                     Err(err) => match err {
                         AnalysisError::RandFunctions => {}
@@ -509,9 +526,12 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let rhs = self.expr_to_string(rhs.clone())?;
         let (new_lhs, lhs) = self.assign_new_value(lhs.clone())?;
-        let constraint = self.bin_op_to_string(op, lhs.clone(), rhs)?;
-        let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, constraint,), expr);
-        self.current_context.add_assumption(new_assume);
+        for value in rhs {
+            let constraint = self.bin_op_to_string(op, lhs.clone(), value)?;
+            let new_assume =
+                Lir::new_assume(format!("(= {} {})", new_lhs, constraint,), expr.clone());
+            self.current_context.add_assumption(new_assume);
+        }
         Ok(())
     }
 
@@ -542,18 +562,20 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let rhs = self.expr_to_string(rhs.clone())?;
         let (new_lhs, _) = self.assign_new_value(lhs.clone())?;
-        let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, rhs), expr);
-        self.current_context.add_assumption(new_assume);
+        for value in rhs {
+            let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, value), expr.clone());
+            self.current_context.add_assumption(new_assume);
+        }
         Ok(())
     }
 
     fn analyze_if(
         &mut self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
         else_opt: Option<Rc<RExpr<'tcx>>>,
-    ) -> Result<Option<String>, AnalysisError> {
+    ) -> Result<Vec<String>, AnalysisError> {
         let cond_str = self.expr_to_string(cond.clone())?;
 
-        // let mut return_values = Vec::new();
+        let mut return_values = Vec::new();
 
         self.save_and_switch_ctxt(
             if &self.current_context.name() == "then" {
@@ -563,12 +585,13 @@ impl<'tcx> Analyzer<'tcx> {
             },
             then_block.clone(),
         )?;
-        let cond_constraint = Lir::new_assume(cond_str.clone(), cond.clone());
+        let cond_constraint = Lir::new_assume(cond_str[0].clone(), cond.clone());
         self.current_context.add_assumption(cond_constraint);
-        let then_value = self.analyze_block(then_block)?;
+        for value in self.analyze_block(then_block)? {
+            return_values.push(value);
+        }
         let then_ctxt = self.restore_ctxt();
 
-        let mut else_value = None;
         let mut else_ctxt = None;
         if let Some(else_block) = else_opt {
             self.save_and_switch_ctxt(
@@ -579,14 +602,16 @@ impl<'tcx> Analyzer<'tcx> {
                 },
                 else_block.clone(),
             )?;
-            let cond_constraint = Lir::new_assume(format!("(not {})", cond_str), cond);
+            let cond_constraint = Lir::new_assume(format!("(not {})", cond_str[0].clone()), cond);
             self.current_context.add_assumption(cond_constraint);
-            else_value = Some(self.analyze_block(else_block)?);
+            for value in self.analyze_block(else_block)? {
+                return_values.push(value);
+            }
             else_ctxt = Some(self.restore_ctxt());
         }
 
-        self.merge_then_else_ctxt(cond_str, then_ctxt, else_ctxt)?;
-        Ok(None)
+        self.merge_then_else_ctxt(cond_str[0].clone(), then_ctxt, else_ctxt)?;
+        Ok(return_values)
     }
 
     fn save_and_switch_ctxt(
@@ -608,16 +633,15 @@ impl<'tcx> Analyzer<'tcx> {
 
     fn merge_then_else_ctxt(
         &mut self, cond_str: String, then_ctxt: Context<'tcx>, else_ctxt: Option<Context<'tcx>>,
-    ) -> Result<Option<String>, AnalysisError> {
+    ) -> Result<(), AnalysisError> {
         let then_ctxt = Analyzer::adapt_cond_to_path(&cond_str, then_ctxt)?;
         self.merge_ctxt(then_ctxt);
         if let Some(else_ctxt) = else_ctxt {
             let else_ctxt =
                 Analyzer::adapt_cond_to_path(&format!("(not {})", cond_str), else_ctxt)?;
             self.merge_ctxt(else_ctxt);
-        } else {
         }
-        Ok(None)
+        Ok(())
     }
 
     fn adapt_cond_to_path(
@@ -644,20 +668,22 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(ctxt)
     }
 
-    fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<Option<String>, AnalysisError> {
-        let mut return_value = None;
+    fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
+        let mut return_values = Vec::new();
         if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
             for stmt in stmts {
-                if let Some(value) = self.analyze_expr(stmt.clone())? {
-                    return_value = Some(value);
+                for value in self.analyze_expr(stmt.clone())? {
+                    return_values.push(value);
                 }
             }
             if let Some(expr) = expr {
-                self.analyze_expr(expr.clone())?;
+                for value in self.analyze_expr(expr.clone())? {
+                    return_values.push(value);
+                }
             }
         } else {
             return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
         }
-        Ok(return_value)
+        Ok(return_values)
     }
 }
