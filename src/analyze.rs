@@ -413,7 +413,7 @@ impl<'tcx> Analyzer<'tcx> {
                 }
             }
             if let Some(expr) = expr {
-                for value in self.analyze_expr(expr.clone())? {
+                for value in self.expr_to_string(expr.clone())? {
                     return_values.push(value);
                 }
             }
