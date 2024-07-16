@@ -105,6 +105,10 @@ pub enum AnalysisError {
 }
 
 impl<'tcx> Analyzer<'tcx> {
+    /// Constructors
+    /// - new
+    /// - run
+
     pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>) -> Self {
         Self {
             fn_map,
@@ -120,11 +124,21 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let mut analyzer = Analyzer::new(fn_map, tcx);
         let main = analyzer.get_fn(main_id)?;
-        match analyzer.analyze_fn(main, &[]) {
-            Ok(_) => Ok(()),
-            Err(why) => Err(why),
-        }
+        analyzer.analyze_local_fn(main, &[])
     }
+
+    /// Utility functions
+    /// - verify
+    /// - get_current_assumptions_for_verify
+    /// - get_current_assumptions
+    /// - get_current_span
+    /// - get_fn
+    /// - add_assumption
+    /// - add_parameter
+    /// - get_var
+    /// - get_local_fn
+    /// - get_fn_info
+    /// - assign_new_value
 
     fn verify(&self) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
@@ -164,21 +178,76 @@ impl<'tcx> Analyzer<'tcx> {
         let smt = self.current_context.get_assumptions()?;
         Ok(smt)
     }
+
     fn get_current_span(&self) -> Span { self.current_context.get_latest_span() }
 
     fn get_fn(&self, fn_id: LocalDefId) -> Result<Rc<RThir<'tcx>>, AnalysisError> {
         self.fn_map.get(&fn_id).cloned().ok_or(AnalysisError::FunctionNotFound(fn_id))
     }
 
-    fn analyze_fn(
+    fn get_local_fn(&self, def_id: &DefId) -> Option<Rc<RThir<'tcx>>> {
+        if def_id.is_local() {
+            Some(self.fn_map.get(&def_id.expect_local()).expect("Get local fn failed").clone())
+        } else {
+            None
+        }
+    }
+
+    fn get_fn_info(&self, def_id: &DefId) -> Vec<String> {
+        let def_path = self.tcx.def_path_str(*def_id);
+        def_path
+            .split(|c| c == ':' || c == '"' || c == '\\')
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect()
+    }
+
+    fn get_var(&self, var_id: LocalVarId) -> String { self.current_context.get_var(&var_id).0 }
+
+    fn add_assumption(&mut self, constraint: String, expr: Rc<RExpr<'tcx>>) {
+        let new_assumption = Lir::new_assume(constraint, expr);
+        self.current_context.add_assumption(new_assumption);
+    }
+
+    fn add_parameter(
+        &mut self, name: String, ty: &Ty<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>,
+    ) {
+        let parameter = Lir::new_parameter(name.to_string(), ty.clone(), pat);
+        self.current_context.add_assumption(parameter);
+        self.current_context.insert_var(var_id, name, ty);
+    }
+
+    fn assign_new_value(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<String, AnalysisError> {
+        match expr.kind {
+            RExprKind::VarRef { id } => {
+                let (current_symbol, ty) = self.current_context.get_var(&id);
+                let new_symbol = if current_symbol.starts_with(self.current_context.name().as_str())
+                {
+                    format!("{}+", current_symbol)
+                } else {
+                    format!("{}_{}", self.current_context.name(), current_symbol)
+                };
+                self.add_parameter(new_symbol.clone(), &ty, &id, expr);
+                Ok(new_symbol)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    /// Main analyze functions
+    /// - analyze_local_fn
+    /// - analyze_params
+    /// - analyze_body
+    /// - analyze_expr
+
+    fn analyze_local_fn(
         &mut self, rthir: Rc<RThir<'tcx>>, args: &[Rc<RExpr<'tcx>>],
-    ) -> Result<Vec<String>, AnalysisError> {
-        let mut return_value = Vec::new();
+    ) -> Result<(), AnalysisError> {
         self.analyze_params(&rthir.params, args)?;
         if let Some(body) = &rthir.body {
-            return_value = self.analyze_body((*body).clone())?;
+            self.analyze_body((*body).clone())?;
         }
-        Ok(return_value)
+        Ok(())
     }
 
     fn analyze_params(
@@ -192,16 +261,16 @@ impl<'tcx> Analyzer<'tcx> {
                 if let RExpr { kind: Pat { kind }, .. } = &**pat {
                     match kind {
                         Binding { name, ty, var, .. } => {
-                            let name = format!("{}_{}", self.current_context.name(), name);
-                            let parameter =
-                                Lir::new_parameter(name.clone(), ty.clone(), pat.clone());
-                            self.current_context.add_assumption(parameter);
-                            self.current_context.insert_var(var, name.clone(), ty);
-                            for value in self.expr_to_string(arg.clone())? {
-                                let new_assume =
-                                    Lir::new_assume(format!("(= {} {})", name, value), arg.clone());
-                                self.current_context.add_assumption(new_assume);
-                            }
+                            let context_name = format!("{}_{}", self.current_context.name(), name);
+                            self.add_parameter(context_name.clone(), ty, var, pat.clone());
+                            let value = self.expr_to_constraint(arg.clone())?;
+                            self.add_assumption(
+                                format!("(= {} {})", context_name, value),
+                                arg.clone(),
+                            );
+                            // for value in self.expr_to_constraint(context_name, arg.clone())? {
+                            //     self.add_assumption(value, *arg);
+                            // }
                         }
                         Wild => (),
                         _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
@@ -212,53 +281,386 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    fn expr_to_string(&mut self, arg: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
+    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+        if let RExpr { kind: RExprKind::Block { stmts, expr: _ }, .. } = &*body {
+            for stmt in stmts {
+                self.analyze_expr(stmt.clone())?
+            }
+        } else {
+            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
+        }
+        Ok(())
+    }
+
+    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+        use RExprKind::*;
+
+        match expr.kind.clone() {
+            Literal { .. } => self.analyze_literal(expr),
+            VarRef { .. } => self.analyze_var_ref(expr),
+            Binary { .. } => self.analyze_binary(expr),
+            Pat { kind } => self.analyze_pat(&kind, expr),
+            Call { ty, args, .. } => self.analyze_fn(ty, &*args, expr),
+            LetStmt { pattern, initializer, else_block } => {
+                self.analyze_let_stmt(pattern, initializer, else_block)
+            }
+            // Return { value } => Ok(()),
+            AssignOp { op, lhs, rhs } => self.analyze_assign_op(op, lhs, rhs, expr),
+            Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr),
+            If { cond, then, else_opt } => self.analyze_if(cond, then, else_opt),
+            _ => {
+                println!("{:?}", expr.kind);
+                Err(AnalysisError::UnsupportedPattern("Unknown expr".into()))
+            }
+        }
+    }
+
+    /// Sub analyze functions
+    /// - analyze_literal
+    /// - analyze_var_ref
+    /// - analyze_binary
+    /// - analyze_pat
+    /// - analyze_fn
+    /// - analyze_extern_fn
+    /// - analyze_let_stmt
+    /// - analyze_assign_op
+    /// - analyze_assign
+    /// - analyze_if
+    /// - analyze_block
+
+    fn analyze_literal(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+        let constraint = self.expr_to_constraint(expr.clone())?;
+        self.add_assumption(constraint, expr);
+        Ok(())
+    }
+
+    fn analyze_var_ref(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+        let constraint = self.expr_to_constraint(expr.clone())?;
+        self.add_assumption(constraint, expr);
+        Ok(())
+    }
+
+    fn analyze_binary(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+        let constraint = self.expr_to_constraint(expr.clone())?;
+        self.add_assumption(constraint, expr);
+        Ok(())
+    }
+
+    fn analyze_pat(
+        &mut self, kind: &RPatKind<'tcx>, pat: Rc<RExpr<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        use RPatKind::*;
+
+        match kind {
+            Wild => (),
+            Binding { name, ty, var, .. } => self.add_parameter(name.to_string(), ty, var, pat),
+            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
+        }
+        Ok(())
+    }
+
+    fn analyze_fn(
+        &mut self, ty: Ty<'tcx>, args: &[Rc<RExpr<'tcx>>], expr: Rc<RExpr<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        match ty.kind() {
+            TyKind::FnDef(def_id, ..) => {
+                let mut fn_info = self.get_fn_info(def_id);
+                if let Some(fun) = self.get_local_fn(def_id) {
+                    self.save_and_switch_ctxt(fn_info.pop().expect("fn info not found"), expr)?;
+                    match self.analyze_local_fn(fun, args) {
+                        Ok(()) => {
+                            let fn_ctxt = self.restore_ctxt();
+                            self.merge_ctxt(fn_ctxt);
+                            Ok(())
+                        }
+                        Err(why) => Err(why),
+                    }
+                } else {
+                    self.analyze_extern_fn(fn_info, args)
+                }
+            }
+            _ => panic!("Call has not have FnDef"),
+        }
+    }
+
+    fn analyze_extern_fn(
+        &mut self, fn_info: Vec<String>, args: &[Rc<RExpr<'tcx>>],
+    ) -> Result<(), AnalysisError> {
+        if fn_info[0] == "t3modules" {
+            match fn_info[1].as_str() {
+                "t3assert" => self.analyze_t3assert(args),
+                "t3assume" => self.analyze_t3assume(args),
+                _ => unreachable!(),
+            }
+        } else {
+            Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
+        }
+    }
+
+    fn analyze_let_stmt(
+        &mut self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>,
+        _: Option<Rc<RExpr<'tcx>>>,
+    ) -> Result<(), AnalysisError> {
+        if let RExprKind::Pat { kind: RPatKind::Binding { name, ty, var, .. } } = &pattern.kind {
+            let name = format!("{}_{}", self.current_context.name(), name);
+            let declaration = Lir::new_parameter(name.clone(), ty.clone(), pattern.clone());
+            self.current_context.add_assumption(declaration);
+            self.current_context.insert_var(var, name.clone(), ty);
+            if let Some(init) = initializer {
+                match self.expr_to_constraint(init.clone()) {
+                    Ok(value) => {
+                        self.add_assumption(format!("(= {} {})", name, value), init.clone())
+                    }
+                    Err(err) => match err {
+                        AnalysisError::RandFunctions => {}
+                        _ => return Err(err),
+                    },
+                }
+            }
+        } else {
+            unreachable!();
+        }
+        Ok(())
+    }
+
+    fn analyze_assign_op(
+        &mut self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        let new_lhs = self.assign_new_value(lhs.clone())?;
+        let constraint = self.bin_op_to_constraint(op, &lhs, &rhs)?;
+        self.add_assumption(format!("(= {} {})", new_lhs, constraint), expr);
+        Ok(())
+    }
+
+    fn analyze_assign(
+        &mut self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        let rhs = self.expr_to_constraint(rhs.clone())?;
+        let new_lhs = self.assign_new_value(lhs.clone())?;
+        self.add_assumption(format!("(= {} {})", new_lhs, rhs), expr);
+        Ok(())
+    }
+
+    fn analyze_if(
+        &mut self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>,
+    ) -> Result<(), AnalysisError> {
+        let cond_str = self.expr_to_constraint(cond.clone())?;
+
+        self.save_and_switch_ctxt(
+            if &self.current_context.name() == "then" {
+                format!("{}+", self.current_context.name())
+            } else {
+                "then".to_string()
+            },
+            then_block.clone(),
+        )?;
+        let cond_constraint = Lir::new_assume(cond_str.clone(), cond.clone());
+        self.current_context.add_assumption(cond_constraint);
+        self.analyze_block(then_block)?;
+
+        let then_ctxt = self.restore_ctxt();
+
+        let mut else_ctxt = None;
+        if let Some(else_block) = else_opt {
+            self.save_and_switch_ctxt(
+                if &self.current_context.name() == "else" {
+                    format!("{}+", self.current_context.name())
+                } else {
+                    "else".to_string()
+                },
+                else_block.clone(),
+            )?;
+            let cond_constraint = Lir::new_assume(format!("(not {})", cond_str.clone()), cond);
+            self.current_context.add_assumption(cond_constraint);
+            self.analyze_block(else_block)?;
+            else_ctxt = Some(self.restore_ctxt());
+        }
+
+        self.merge_then_else_ctxt(cond_str.clone(), then_ctxt, else_ctxt)?;
+        Ok(())
+    }
+
+    fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+        if let RExpr { kind: RExprKind::Block { stmts, .. }, .. } = &*block {
+            for stmt in stmts {
+                self.analyze_expr(stmt.clone())?;
+            }
+        } else {
+            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
+        }
+        Ok(())
+    }
+
+    /// String convertor functions
+    /// - expr_to_constraint
+    /// - literal_to_constraint
+    /// - var_ref_to_constraint
+    /// - logical_op_to_constraint
+    /// - bin_op_to_constraint
+    /// - fn_to_constraint
+    /// - extern_fn_to_constraint
+    /// - expr_to_constraint_with_condition
+
+    fn expr_to_constraint(&mut self, arg: Rc<RExpr<'tcx>>) -> Result<String, AnalysisError> {
         use RExprKind::*;
 
         match &arg.kind {
-            VarRef { id } => Ok(vec![self.get_var(*id)]),
-            Literal { lit, neg } => Ok(vec![Analyzer::literal_to_string(lit, *neg)?]),
-            LogicalOp { op, lhs, rhs } => {
-                let lhs_str = self.expr_to_string(lhs.clone())?;
-                let rhs_str = self.expr_to_string(rhs.clone())?;
-                Ok(vec![self.logical_op_to_string(*op, lhs_str[0].clone(), rhs_str[0].clone())?])
-            }
-            Binary { op, lhs, rhs } => {
-                let lhs_str = self.expr_to_string(lhs.clone())?;
-                let rhs_str = self.expr_to_string(rhs.clone())?;
-                Ok(vec![self.bin_op_to_string(*op, lhs_str[0].clone(), rhs_str[0].clone())?])
-            }
-            Call { ty, args, .. } => match ty.kind() {
-                TyKind::FnDef(def_id, ..) => {
-                    let mut fn_info = self.get_fn_info(def_id);
-                    if let Some(fun) = self.get_local_fn(def_id) {
-                        self.save_and_switch_ctxt(
-                            fn_info.pop().expect("fn info not found"),
-                            arg.clone(),
-                        )?;
-                        match self.analyze_fn(fun.clone(), &**args) {
-                            Ok(some) => {
-                                let fn_ctxt = self.restore_ctxt();
-                                self.merge_ctxt(fn_ctxt);
-                                Ok(some)
-                            }
-                            Err(why) => Err(why),
-                        }
-                    } else {
-                        Ok(vec![self.analyze_extern_fn(fn_info)?])
-                    }
-                }
-                _ => panic!("Call has not have FnDef"),
-            },
-            If { cond, then, else_opt } => {
-                self.analyze_if(cond.clone(), then.clone(), else_opt.clone())
-            }
+            Literal { lit, neg } => Ok(Analyzer::literal_to_constraint(lit, *neg)?),
+            VarRef { id } => self.var_ref_to_constraint(id),
+            LogicalOp { op, lhs, rhs } => Ok(self.logical_op_to_constraint(*op, lhs, rhs)?),
+            Binary { op, lhs, rhs } => Ok(self.bin_op_to_constraint(*op, lhs, rhs)?),
+            Call { ty, args, .. } => self.fn_to_constraint(*ty, args),
+            // If { cond, then, else_opt } => {
+            //     self.analyze_if(cond.clone(), then.clone(), else_opt.clone())
+            // }
             _ => {
                 println!("{}", self.get_current_assumptions()?);
                 Err(AnalysisError::UnsupportedPattern(format!("name: {:?}", arg.kind)))
             }
         }
     }
+
+    fn literal_to_constraint(lit: &'tcx Lit, neg: bool) -> Result<String, AnalysisError> {
+        match lit.node {
+            LitKind::Str(symbol, _) => Ok(symbol.to_string()),
+            LitKind::Char(c) => Ok(format!("'{}'", c)),
+            LitKind::Int(n, _) => Ok(if neg { format!("-{}", n) } else { format!("{}", n) }),
+            LitKind::Float(symbol, _) => {
+                Ok(if neg { format!("-{}", symbol) } else { format!("{}", symbol) })
+            }
+            LitKind::Bool(b) => Ok(b.to_string()),
+            LitKind::ByteStr(ref bytes, _) => {
+                Ok(format!("b\"{}\"", String::from_utf8_lossy(bytes)))
+            }
+            _ => Err(AnalysisError::UnsupportedPattern(format!(
+                "Unsupported literal pattern: {}",
+                lit.node
+            ))),
+        }
+    }
+
+    fn var_ref_to_constraint(&self, id: &LocalVarId) -> Result<String, AnalysisError> {
+        Ok(self.get_var(*id))
+    }
+
+    fn logical_op_to_constraint(
+        &mut self, op: LogicalOp, lhs: &Rc<RExpr<'tcx>>, rhs: &Rc<RExpr<'tcx>>,
+    ) -> Result<String, AnalysisError> {
+        let lhs_str = self.expr_to_constraint(lhs.clone())?;
+        let rhs_str = self.expr_to_constraint(rhs.clone())?;
+        use LogicalOp::*;
+
+        let op_str = match op {
+            And => "and",
+            Or => "or",
+        };
+        Ok(format!("({} {} {})", op_str, lhs_str, rhs_str))
+    }
+
+    fn bin_op_to_constraint(
+        &mut self, op: BinOp, lhs: &Rc<RExpr<'tcx>>, rhs: &Rc<RExpr<'tcx>>,
+    ) -> Result<String, AnalysisError> {
+        let lhs_str = self.expr_to_constraint(lhs.clone())?;
+        let rhs_str = self.expr_to_constraint(rhs.clone())?;
+        use BinOp::*;
+
+        let op_str = match op {
+            Add => "+",
+            Sub => "-",
+            Mul => "*",
+            Rem => "%",
+            Div => "/",
+            BitXor => "^",
+            BitAnd => "&",
+            BitOr => "|",
+            Eq => "=",
+            Lt => "<",
+            Le => "<=",
+            Ne => "!=",
+            Ge => ">=",
+            Gt => ">",
+            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
+        };
+        Ok(format!("({} {} {})", op_str, lhs_str, rhs_str))
+    }
+
+    fn fn_to_constraint(
+        &mut self, ty: Ty<'tcx>, args: &[Rc<RExpr<'tcx>>],
+    ) -> Result<String, AnalysisError> {
+        match ty.kind() {
+            TyKind::FnDef(def_id, ..) => {
+                let fn_info = self.get_fn_info(def_id);
+                if let Some(fun) = self.get_local_fn(def_id) {
+                    unimplemented!();
+                    // self.local_fn_to_constraint(fun.clone(), args)
+                } else {
+                    self.extern_fn_to_constraint(fn_info, args)
+                }
+            }
+            _ => panic!("Call has not have FnDef"),
+        }
+    }
+
+    // fn local_fn_to_constraint(
+    //     &mut expr: Rc<RExpr<'tcx>>, args: &[Rc<RExpr<'tcx>>],
+    // ) -> Result<String, AnalysisError> {
+    //     self.analyze_params(&rthir.params, args)?;
+    //     if let Some(body) = &rthir.body {
+    //         self.expr_to_constraint(body)?;
+    //     }
+    // }
+
+    fn extern_fn_to_constraint(
+        &self, fn_info: Vec<String>, _: &[Rc<RExpr<'tcx>>],
+    ) -> Result<String, AnalysisError> {
+        if fn_info[0] == "t3modules" {
+            match fn_info[1].as_str() {
+                "rand_bool" => Err(AnalysisError::RandFunctions),
+                "rand_int" => Err(AnalysisError::RandFunctions),
+                "rand_float" => Err(AnalysisError::RandFunctions),
+                _ => unreachable!(),
+            }
+        } else {
+            Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
+        }
+    }
+
+    fn expr_to_constraint_with_condition(
+        &mut self, arg: Rc<RExpr<'tcx>>, cond: String,
+    ) -> Result<String, AnalysisError> {
+        use RExprKind::*;
+
+        match &arg.kind {
+            // VarRef { id } => Ok(vec![self.get_var(*id)]),
+            // Literal { lit, neg } => Ok(vec![Analyzer::literal_to_constraint(lit, *neg)?]),
+            // LogicalOp { op, lhs, rhs } => {
+            //     let lhs_str = self.expr_to_constraint(lhs.clone())?;
+            //     let rhs_str = self.expr_to_constraint(rhs.clone())?;
+            //     Ok(vec![self.logical_op_to_constraint(*op, lhs_str[0].clone(), rhs_str[0].clone())?])
+            // }
+            // Binary { op, lhs, rhs } => {
+            //     let lhs_str = self.expr_to_constraint(lhs.clone())?;
+            //     let rhs_str = self.expr_to_constraint(rhs.clone())?;
+            //     Ok(vec![self.bin_op_to_constraint(*op, lhs_str[0].clone(), rhs_str[0].clone())?])
+            // }
+            // Call { ty, args, .. } => self.analyze_fn(ty, args),
+            // If { cond, then, else_opt } => {
+            //     self.analyze_if(cond.clone(), then.clone(), else_opt.clone())
+            // }
+            _ => {
+                println!("{}", self.get_current_assumptions()?);
+                Err(AnalysisError::UnsupportedPattern(format!("name: {:?}", arg.kind)))
+            }
+        }
+    }
+
+    /// Manage context functions
+    /// - merge_ctxt
+    /// - save_and_switch_ctxt
+    /// - restore_ctxt
+    /// - merge_then_else_ctxt
+    /// - adapt_cond_to_path
 
     fn merge_ctxt(&mut self, ctxt: Context<'tcx>) {
         for assumption in ctxt.path.iter() {
@@ -297,321 +699,6 @@ impl<'tcx> Analyzer<'tcx> {
             }
         }
         self.current_context.var_map = new_var_map;
-    }
-
-    fn get_var(&self, var_id: LocalVarId) -> String { self.current_context.get_var(&var_id).0 }
-
-    fn literal_to_string(lit: &'tcx Lit, neg: bool) -> Result<String, AnalysisError> {
-        match lit.node {
-            LitKind::Str(symbol, _) => Ok(symbol.to_string()),
-            LitKind::Char(c) => Ok(format!("'{}'", c)),
-            LitKind::Int(n, _) => Ok(if neg { format!("-{}", n) } else { format!("{}", n) }),
-            LitKind::Float(symbol, _) => {
-                Ok(if neg { format!("-{}", symbol) } else { format!("{}", symbol) })
-            }
-            LitKind::Bool(b) => Ok(b.to_string()),
-            LitKind::ByteStr(ref bytes, _) => {
-                Ok(format!("b\"{}\"", String::from_utf8_lossy(bytes)))
-            }
-            _ => Err(AnalysisError::UnsupportedPattern(format!(
-                "Unsupported literal pattern: {}",
-                lit.node
-            ))),
-        }
-    }
-
-    fn logical_op_to_string(
-        &self, op: LogicalOp, lhs: String, rhs: String,
-    ) -> Result<String, AnalysisError> {
-        use LogicalOp::*;
-
-        let op_str = match op {
-            And => "and",
-            Or => "or",
-        };
-        Ok(format!("({} {} {})", op_str, lhs, rhs))
-    }
-
-    fn bin_op_to_string(
-        &self, op: BinOp, lhs: String, rhs: String,
-    ) -> Result<String, AnalysisError> {
-        use BinOp::*;
-
-        let op_str = match op {
-            Add => "+",
-            Sub => "-",
-            Mul => "*",
-            Rem => "%",
-            Div => "/",
-            BitXor => "^",
-            BitAnd => "&",
-            BitOr => "|",
-            Eq => "=",
-            Lt => "<",
-            Le => "<=",
-            Ne => "!=",
-            Ge => ">=",
-            Gt => ">",
-            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
-        };
-        Ok(format!("({} {} {})", op_str, lhs, rhs))
-    }
-
-    fn get_local_fn(&self, def_id: &DefId) -> Option<Rc<RThir<'tcx>>> {
-        if def_id.is_local() {
-            Some(self.fn_map.get(&def_id.expect_local()).expect("Get local fn failed").clone())
-        } else {
-            None
-        }
-    }
-
-    fn analyze_extern_fn(&self, fn_info: Vec<String>) -> Result<String, AnalysisError> {
-        if fn_info[0] == "t3modules" {
-            match fn_info[1].as_str() {
-                "rand_bool" => Err(AnalysisError::RandFunctions),
-                "rand_int" => Err(AnalysisError::RandFunctions),
-                "rand_float" => Err(AnalysisError::RandFunctions),
-                _ => unreachable!(),
-            }
-        } else {
-            Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
-        }
-    }
-
-    fn get_fn_info(&self, def_id: &DefId) -> Vec<String> {
-        let def_path = self.tcx.def_path_str(*def_id);
-        def_path
-            .split(|c| c == ':' || c == '"' || c == '\\')
-            .filter(|s| !s.is_empty())
-            .map(String::from)
-            .collect()
-    }
-
-    fn analyze_pat(
-        &mut self, kind: &RPatKind<'tcx>, pat: Rc<RExpr<'tcx>>,
-    ) -> Result<(), AnalysisError> {
-        use RPatKind::*;
-
-        match kind {
-            Wild => (),
-            Binding { name, ty, var, .. } => {
-                let parameter = Lir::new_parameter(name.to_string(), ty.clone(), pat.clone());
-                self.current_context.add_assumption(parameter);
-                self.current_context.insert_var(var, name.to_string(), ty);
-            }
-            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
-        }
-        Ok(())
-    }
-
-    fn analyze_body(&mut self, body: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
-        let mut return_values = Vec::new();
-        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*body {
-            for stmt in stmts {
-                for value in self.analyze_expr(stmt.clone())? {
-                    return_values.push(value)
-                }
-            }
-            if let Some(expr) = expr {
-                for value in self.expr_to_string(expr.clone())? {
-                    return_values.push(value);
-                }
-            }
-        } else {
-            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
-        }
-        Ok(return_values)
-    }
-
-    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
-        use RExprKind::*;
-
-        let kind = &expr.kind;
-        let expr = expr.clone();
-        let mut return_values = Vec::new();
-
-        match kind {
-            VarRef { .. } => {
-                return_values = self.expr_to_string(expr.clone())?;
-            }
-            Pat { kind } => self.analyze_pat(&kind, expr)?,
-            Call { ty, args, .. } => match ty.kind() {
-                TyKind::FnDef(def_id, ..) => {
-                    if let Some(fun) = self.get_local_fn(def_id) {
-                        // self.current_path.push_back(Lir::new_push(expr));
-                        self.analyze_fn(fun.clone(), &**args)?;
-                    } else {
-                        let fn_info = self.get_fn_info(def_id);
-                        if &fn_info[0] == "t3modules" {
-                            match fn_info[1].as_str() {
-                                "t3assert" => self.analyze_t3assert(&**args)?,
-                                "t3assume" => self.analyze_t3assume(&**args)?,
-                                _ => unreachable!(),
-                            }
-                        }
-                    }
-                }
-                _ => panic!("Call has not have FnDef"),
-            },
-            LetStmt { pattern, initializer, else_block: _ } => {
-                self.analyze_let_stmt(pattern, initializer)?;
-            }
-            Return { value } => {
-                if let Some(expr) = value {
-                    return_values = self.expr_to_string(expr.clone())?;
-                }
-            }
-            AssignOp { op, lhs, rhs } => self.analyze_assign_op(*op, lhs, rhs, expr.clone())?,
-            Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr.clone())?,
-            If { cond, then, else_opt } => {
-                return_values = self.analyze_if(cond.clone(), then.clone(), else_opt.clone())?;
-            }
-            Binary { .. } => {
-                return_values = self.expr_to_string(expr.clone())?;
-            }
-            _ => {
-                println!("{:?}", kind);
-                return Err(AnalysisError::UnsupportedPattern("Unknown expr".into()));
-            }
-        }
-        Ok(return_values)
-    }
-
-    fn analyze_t3assert(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
-        self.analyze_t3assume(args)?;
-        self.verify()
-    }
-
-    fn analyze_t3assume(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
-        let constraints = self.expr_to_string(args[0].clone())?;
-        for constraint in constraints {
-            let new_assume = Lir::new_assume(constraint, args[0].clone());
-            self.current_context.add_assumption(new_assume);
-        }
-        Ok(())
-    }
-
-    fn analyze_let_stmt(
-        &mut self, pattern: &Rc<RExpr<'tcx>>, initializer: &Option<Rc<RExpr<'tcx>>>,
-    ) -> Result<(), AnalysisError> {
-        if let RExprKind::Pat { kind: RPatKind::Binding { name, ty, var, .. } } = &pattern.kind {
-            let name = format!("{}_{}", self.current_context.name(), name);
-            let declaration = Lir::new_parameter(name.clone(), ty.clone(), pattern.clone());
-            self.current_context.add_assumption(declaration);
-            self.current_context.insert_var(var, name.clone(), ty);
-            if let Some(init) = initializer {
-                match self.expr_to_string(init.clone()) {
-                    Ok(values) => {
-                        for value in values {
-                            self.current_context.add_assumption(Lir::new_assume(
-                                format!("(= {} {})", name, value),
-                                init.clone(),
-                            ));
-                        }
-                    }
-                    Err(err) => match err {
-                        AnalysisError::RandFunctions => {}
-                        _ => return Err(err),
-                    },
-                }
-            }
-        } else {
-            unreachable!();
-        }
-        Ok(())
-    }
-
-    fn analyze_assign_op(
-        &mut self, op: BinOp, lhs: &Rc<RExpr<'tcx>>, rhs: &Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
-    ) -> Result<(), AnalysisError> {
-        let rhs = self.expr_to_string(rhs.clone())?;
-        let (new_lhs, lhs) = self.assign_new_value(lhs.clone())?;
-        for value in rhs {
-            let constraint = self.bin_op_to_string(op, lhs.clone(), value)?;
-            let new_assume =
-                Lir::new_assume(format!("(= {} {})", new_lhs, constraint,), expr.clone());
-            self.current_context.add_assumption(new_assume);
-        }
-        Ok(())
-    }
-
-    fn assign_new_value(
-        &mut self, expr: Rc<RExpr<'tcx>>,
-    ) -> Result<(String, String), AnalysisError> {
-        match expr.kind {
-            RExprKind::VarRef { id } => {
-                let (current_symbol, ty) = self.current_context.get_var(&id);
-                let new_symbol = if current_symbol.starts_with(self.current_context.name().as_str())
-                {
-                    format!("{}+", current_symbol)
-                } else {
-                    format!("{}_{}", self.current_context.name(), current_symbol)
-                };
-                let new_parameter =
-                    Lir::new_parameter(new_symbol.clone(), ty.clone(), expr.clone());
-                self.current_context.add_assumption(new_parameter);
-                self.current_context.insert_var(&id, new_symbol.clone(), &ty);
-                Ok((new_symbol, current_symbol))
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn analyze_assign(
-        &mut self, lhs: &Rc<RExpr<'tcx>>, rhs: &Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
-    ) -> Result<(), AnalysisError> {
-        let rhs = self.expr_to_string(rhs.clone())?;
-        let (new_lhs, _) = self.assign_new_value(lhs.clone())?;
-        for value in rhs {
-            let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, value), expr.clone());
-            self.current_context.add_assumption(new_assume);
-        }
-        Ok(())
-    }
-
-    fn analyze_if(
-        &mut self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
-        else_opt: Option<Rc<RExpr<'tcx>>>,
-    ) -> Result<Vec<String>, AnalysisError> {
-        let cond_str = self.expr_to_string(cond.clone())?;
-
-        let mut return_values = Vec::new();
-
-        self.save_and_switch_ctxt(
-            if &self.current_context.name() == "then" {
-                format!("{}+", self.current_context.name())
-            } else {
-                "then".to_string()
-            },
-            then_block.clone(),
-        )?;
-        let cond_constraint = Lir::new_assume(cond_str[0].clone(), cond.clone());
-        self.current_context.add_assumption(cond_constraint);
-        for value in self.analyze_block(then_block)? {
-            return_values.push(value);
-        }
-        let then_ctxt = self.restore_ctxt();
-
-        let mut else_ctxt = None;
-        if let Some(else_block) = else_opt {
-            self.save_and_switch_ctxt(
-                if &self.current_context.name() == "else" {
-                    format!("{}+", self.current_context.name())
-                } else {
-                    "else".to_string()
-                },
-                else_block.clone(),
-            )?;
-            let cond_constraint = Lir::new_assume(format!("(not {})", cond_str[0].clone()), cond);
-            self.current_context.add_assumption(cond_constraint);
-            for value in self.analyze_block(else_block)? {
-                return_values.push(value);
-            }
-            else_ctxt = Some(self.restore_ctxt());
-        }
-
-        self.merge_then_else_ctxt(cond_str[0].clone(), then_ctxt, else_ctxt)?;
-        Ok(return_values)
     }
 
     fn save_and_switch_ctxt(
@@ -668,22 +755,16 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(ctxt)
     }
 
-    fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<Vec<String>, AnalysisError> {
-        let mut return_values = Vec::new();
-        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
-            for stmt in stmts {
-                for value in self.analyze_expr(stmt.clone())? {
-                    return_values.push(value);
-                }
-            }
-            if let Some(expr) = expr {
-                for value in self.analyze_expr(expr.clone())? {
-                    return_values.push(value);
-                }
-            }
-        } else {
-            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
-        }
-        Ok(return_values)
+    /// Special functions
+
+    fn analyze_t3assert(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
+        self.analyze_t3assume(args)?;
+        self.verify()
+    }
+
+    fn analyze_t3assume(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
+        let constraint = self.expr_to_constraint(args[0].clone())?;
+        self.add_assumption(constraint, args[0].clone());
+        Ok(())
     }
 }
