@@ -810,9 +810,7 @@ impl<'tcx> Analyzer<'tcx> {
         cond_str: &String, mut ctxt: Context<'tcx>,
     ) -> Result<Context<'tcx>, AnalysisError> {
         let mut adapted_path = VecDeque::new();
-        let len = ctxt.path.len();
-        for i in 0..len {
-            let lir = ctxt.path[i].clone();
+        for lir in ctxt.path {
             match lir.kind {
                 LirKind::Declaration { .. } => adapted_path.push_back(lir),
                 LirKind::Assume(constraint) => {
