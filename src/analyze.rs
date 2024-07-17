@@ -120,10 +120,6 @@ pub enum AnalysisError {
 }
 
 impl<'tcx> Analyzer<'tcx> {
-    /// Constructors
-    /// - new
-    /// - run
-
     pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>) -> Self {
         Self {
             fn_map,
@@ -254,7 +250,7 @@ impl<'tcx> Analyzer<'tcx> {
         }
     }
 
-    /// Main analyze functions
+    /// Main analysis functions
     /// - analyze_local_fn
     /// - analyze_params
     /// - analyze_body
@@ -344,7 +340,7 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(return_value)
     }
 
-    /// Sub analyze functions
+    /// Sub analysis functions
     /// - analyze_literal
     /// - analyze_var_ref
     /// - analyze_binary
@@ -523,7 +519,7 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    /// String convertor functions
+    /// Constraint generation functions
     /// - expr_to_constraint
     /// - literal_to_constraint
     /// - var_ref_to_constraint
