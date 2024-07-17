@@ -532,6 +532,8 @@ impl<'tcx> Analyzer<'tcx> {
     /// - fn_to_constraint
     /// - extern_fn_to_constraint
     /// - expr_to_constraint_with_condition
+    /// - value_to_ite
+    /// block_to_constraint
 
     fn expr_to_constraint(&mut self, arg: Rc<RExpr<'tcx>>) -> Result<String, AnalysisError> {
         use RExprKind::*;
@@ -818,6 +820,8 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     /// Special functions
+    /// - analyze_t3assert
+    /// - analyze_t3assume
 
     fn analyze_t3assert(&mut self, args: &[Rc<RExpr<'tcx>>]) -> Result<(), AnalysisError> {
         self.analyze_t3assume(args)?;
