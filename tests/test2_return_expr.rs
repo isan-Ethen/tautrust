@@ -3,7 +3,7 @@ use t3modules::*;
 
 fn return_expr(n: i32) -> i32 {
     let m = n + 1;
-    return m;
+    m
 }
 
 fn main() {
