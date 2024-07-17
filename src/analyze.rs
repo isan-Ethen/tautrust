@@ -528,6 +528,7 @@ impl<'tcx> Analyzer<'tcx> {
     /// - literal_to_constraint
     /// - var_ref_to_constraint
     /// - logical_op_to_constraint
+    /// - un_op_to_constraint
     /// - bin_op_to_constraint
     /// - fn_to_constraint
     /// - extern_fn_to_constraint
