@@ -1,7 +1,7 @@
 // rustc crates
 use rustc_ast::ast::LitKind;
 use rustc_hir::Lit;
-use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
+use rustc_middle::mir::{BinOp, UnOp};
 use rustc_middle::thir::LocalVarId;
 use rustc_middle::thir::LogicalOp;
 use rustc_middle::ty::TyCtxt;
@@ -531,9 +531,8 @@ impl<'tcx> Analyzer<'tcx> {
     /// - bin_op_to_constraint
     /// - fn_to_constraint
     /// - extern_fn_to_constraint
-    /// - expr_to_constraint_with_condition
     /// - value_to_ite
-    /// block_to_constraint
+    /// - block_to_constraint
 
     fn expr_to_constraint(&mut self, arg: Rc<RExpr<'tcx>>) -> Result<String, AnalysisError> {
         use RExprKind::*;
@@ -545,6 +544,10 @@ impl<'tcx> Analyzer<'tcx> {
                 let lhs_str = self.expr_to_constraint(lhs.clone())?;
                 let rhs_str = self.expr_to_constraint(rhs.clone())?;
                 Ok(self.logical_op_to_constraint(*op, &lhs_str, &rhs_str)?)
+            }
+            Unary { op, arg } => {
+                let arg_str = self.expr_to_constraint(arg.clone())?;
+                Ok(self.un_op_to_constraint(*op, &arg_str)?)
             }
             Binary { op, lhs, rhs } => {
                 let lhs_str = self.expr_to_constraint(lhs.clone())?;
@@ -595,6 +598,17 @@ impl<'tcx> Analyzer<'tcx> {
             Or => "or",
         };
         Ok(format!("({} {} {})", op_str, lhs_str, rhs_str))
+    }
+
+    fn un_op_to_constraint(&mut self, op: UnOp, arg_str: &String) -> Result<String, AnalysisError> {
+        use UnOp::*;
+
+        let op_str = match op {
+            Not => "not",
+            Neg => "-",
+            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
+        };
+        Ok(format!("({} {})", op_str, arg_str))
     }
 
     fn bin_op_to_constraint(
