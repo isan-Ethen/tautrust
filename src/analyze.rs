@@ -31,26 +31,24 @@ pub fn analyze<'tcx>(
 struct Analyzer<'tcx> {
     fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
     tcx: TyCtxt<'tcx>,
-    context_stack: Vec<Context<'tcx>>,
-    current_context: Context<'tcx>,
+    env_stack: Vec<Env<'tcx>>,
+    current_env: Env<'tcx>,
 }
 
 #[derive(Clone)]
-struct Context<'tcx> {
+struct Env<'tcx> {
     name: String,
     path: VecDeque<Lir<'tcx>>,
     var_map: Map<LocalVarId, (String, Ty<'tcx>)>,
 }
 
-impl<'tcx> Context<'tcx> {
+impl<'tcx> Env<'tcx> {
     fn new() -> Self {
         Self { name: "main".to_string(), path: VecDeque::new(), var_map: Map::new() }
     }
 
     fn from(
-        name: String, // condition: Option<String>,
-        path: VecDeque<Lir<'tcx>>,
-        var_map: Map<LocalVarId, (String, Ty<'tcx>)>,
+        name: String, path: VecDeque<Lir<'tcx>>, var_map: Map<LocalVarId, (String, Ty<'tcx>)>,
     ) -> Self {
         Self { name, path, var_map }
     }
@@ -121,13 +119,7 @@ pub enum AnalysisError {
 
 impl<'tcx> Analyzer<'tcx> {
     pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>) -> Self {
-        Self {
-            fn_map,
-            tcx,
-            // path_map: Map::new(),
-            context_stack: Vec::new(),
-            current_context: Context::new(),
-        }
+        Self { fn_map, tcx, env_stack: Vec::new(), current_env: Env::new() }
     }
 
     pub fn run(
@@ -181,16 +173,16 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn get_current_assumptions_for_verify(&self) -> Result<String, AnalysisError> {
-        let smt = self.current_context.get_assumptions_for_verify()?;
+        let smt = self.current_env.get_assumptions_for_verify()?;
         Ok(smt)
     }
 
     fn get_current_assumptions(&self) -> Result<String, AnalysisError> {
-        let smt = self.current_context.get_assumptions()?;
+        let smt = self.current_env.get_assumptions()?;
         Ok(smt)
     }
 
-    fn get_current_span(&self) -> Span { self.current_context.get_latest_span() }
+    fn get_current_span(&self) -> Span { self.current_env.get_latest_span() }
 
     fn get_fn(&self, fn_id: LocalDefId) -> Result<Rc<RThir<'tcx>>, AnalysisError> {
         self.fn_map.get(&fn_id).cloned().ok_or(AnalysisError::FunctionNotFound(fn_id))
@@ -213,19 +205,19 @@ impl<'tcx> Analyzer<'tcx> {
             .collect()
     }
 
-    fn get_var(&self, var_id: LocalVarId) -> String { self.current_context.get_var(&var_id).0 }
+    fn get_var(&self, var_id: LocalVarId) -> String { self.current_env.get_var(&var_id).0 }
 
     fn add_assumption(&mut self, constraint: String, expr: Rc<RExpr<'tcx>>) {
         let new_assumption = Lir::new_assume(constraint, expr);
-        self.current_context.add_assumption(new_assumption);
+        self.current_env.add_assumption(new_assumption);
     }
 
     fn add_parameter(
         &mut self, name: String, ty: &Ty<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>,
     ) {
         let parameter = Lir::new_parameter(name.to_string(), ty.clone(), pat);
-        self.current_context.add_assumption(parameter);
-        self.current_context.insert_var(var_id, name, ty);
+        self.current_env.add_assumption(parameter);
+        self.current_env.insert_var(var_id, name, ty);
     }
 
     fn assign_new_value(
@@ -233,17 +225,16 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(String, String), AnalysisError> {
         match expr.kind {
             RExprKind::VarRef { id } => {
-                let (current_symbol, ty) = self.current_context.get_var(&id);
-                let new_symbol = if current_symbol.starts_with(self.current_context.name().as_str())
-                {
+                let (current_symbol, ty) = self.current_env.get_var(&id);
+                let new_symbol = if current_symbol.starts_with(self.current_env.name().as_str()) {
                     format!("{}+", current_symbol)
                 } else {
-                    format!("{}_{}", self.current_context.name(), current_symbol)
+                    format!("{}_{}", self.current_env.name(), current_symbol)
                 };
                 let new_parameter =
                     Lir::new_parameter(new_symbol.clone(), ty.clone(), expr.clone());
-                self.current_context.add_assumption(new_parameter);
-                self.current_context.insert_var(&id, new_symbol.clone(), &ty);
+                self.current_env.add_assumption(new_parameter);
+                self.current_env.insert_var(&id, new_symbol.clone(), &ty);
                 Ok((new_symbol, current_symbol))
             }
             _ => unreachable!(),
@@ -277,13 +268,10 @@ impl<'tcx> Analyzer<'tcx> {
                 if let RExpr { kind: Pat { kind }, .. } = &**pat {
                     match kind {
                         Binding { name, ty, var, .. } => {
-                            let context_name = format!("{}_{}", self.current_context.name(), name);
-                            self.add_parameter(context_name.clone(), ty, var, pat.clone());
+                            let env_name = format!("{}_{}", self.current_env.name(), name);
+                            self.add_parameter(env_name.clone(), ty, var, pat.clone());
                             let value = self.expr_to_constraint(arg.clone())?;
-                            self.add_assumption(
-                                format!("(= {} {})", context_name, value),
-                                arg.clone(),
-                            );
+                            self.add_assumption(format!("(= {} {})", env_name, value), arg.clone());
                         }
                         Wild => (),
                         _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
@@ -391,11 +379,11 @@ impl<'tcx> Analyzer<'tcx> {
             TyKind::FnDef(def_id, ..) => {
                 let mut fn_info = self.get_fn_info(def_id);
                 if let Some(fun) = self.get_local_fn(def_id) {
-                    self.save_and_switch_ctxt(fn_info.pop().expect("fn info not found"), expr)?;
+                    self.save_and_switch_env(fn_info.pop().expect("fn info not found"), expr)?;
                     match self.analyze_local_fn(fun, args) {
                         Ok(()) => {
-                            let fn_ctxt = self.restore_ctxt();
-                            self.merge_ctxt(fn_ctxt);
+                            let fn_env = self.restore_env();
+                            self.merge_env(fn_env);
                             Ok(())
                         }
                         Err(why) => Err(why),
@@ -427,10 +415,10 @@ impl<'tcx> Analyzer<'tcx> {
         _: Option<Rc<RExpr<'tcx>>>,
     ) -> Result<(), AnalysisError> {
         if let RExprKind::Pat { kind: RPatKind::Binding { name, ty, var, .. } } = &pattern.kind {
-            let name = format!("{}_{}", self.current_context.name(), name);
+            let name = format!("{}_{}", self.current_env.name(), name);
             let declaration = Lir::new_parameter(name.clone(), ty.clone(), pattern.clone());
-            self.current_context.add_assumption(declaration);
-            self.current_context.insert_var(var, name.clone(), ty);
+            self.current_env.add_assumption(declaration);
+            self.current_env.insert_var(var, name.clone(), ty);
             if let Some(init) = initializer {
                 match self.expr_to_constraint(init.clone()) {
                     Ok(value) => {
@@ -464,7 +452,7 @@ impl<'tcx> Analyzer<'tcx> {
         let rhs = self.expr_to_constraint(rhs.clone())?;
         let (new_lhs, _) = self.assign_new_value(lhs.clone())?;
         let new_assume = Lir::new_assume(format!("(= {} {})", new_lhs, rhs), expr.clone());
-        self.current_context.add_assumption(new_assume);
+        self.current_env.add_assumption(new_assume);
         Ok(())
     }
 
@@ -474,37 +462,37 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let cond_str = self.expr_to_constraint(cond.clone())?;
 
-        self.save_and_switch_ctxt(
-            if &self.current_context.name() == "then" {
-                format!("{}+", self.current_context.name())
+        self.save_and_switch_env(
+            if &self.current_env.name() == "then" {
+                format!("{}+", self.current_env.name())
             } else {
                 "then".to_string()
             },
             then_block.clone(),
         )?;
         let cond_constraint = Lir::new_assume(cond_str.clone(), cond.clone());
-        self.current_context.add_assumption(cond_constraint);
+        self.current_env.add_assumption(cond_constraint);
         self.analyze_block(then_block)?;
 
-        let then_ctxt = self.restore_ctxt();
+        let then_env = self.restore_env();
 
-        let mut else_ctxt = None;
+        let mut else_env = None;
         if let Some(else_block) = else_opt {
-            self.save_and_switch_ctxt(
-                if &self.current_context.name() == "else" {
-                    format!("{}+", self.current_context.name())
+            self.save_and_switch_env(
+                if &self.current_env.name() == "else" {
+                    format!("{}+", self.current_env.name())
                 } else {
                     "else".to_string()
                 },
                 else_block.clone(),
             )?;
             let cond_constraint = Lir::new_assume(format!("(not {})", cond_str.clone()), cond);
-            self.current_context.add_assumption(cond_constraint);
+            self.current_env.add_assumption(cond_constraint);
             self.analyze_block(else_block)?;
-            else_ctxt = Some(self.restore_ctxt());
+            else_env = Some(self.restore_env());
         }
 
-        self.merge_then_else_ctxt(cond_str.clone(), then_ctxt, else_ctxt)?;
+        self.merge_then_else_env(cond_str.clone(), then_env, else_env)?;
         Ok(())
     }
 
@@ -677,35 +665,35 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<String, AnalysisError> {
         let cond_str = self.expr_to_constraint(cond.clone())?;
 
-        self.save_and_switch_ctxt(
-            if &self.current_context.name() == "then" {
-                format!("{}+", self.current_context.name())
+        self.save_and_switch_env(
+            if &self.current_env.name() == "then" {
+                format!("{}+", self.current_env.name())
             } else {
                 "then".to_string()
             },
             then_block.clone(),
         )?;
         let cond_constraint = Lir::new_assume(cond_str.clone(), cond.clone());
-        self.current_context.add_assumption(cond_constraint);
+        self.current_env.add_assumption(cond_constraint);
         let then_value = self.block_to_constraint(then_block)?;
 
-        let then_ctxt = self.restore_ctxt();
+        let then_env = self.restore_env();
 
         let else_block = else_opt.expect("Else block of if initializer not found");
-        self.save_and_switch_ctxt(
-            if &self.current_context.name() == "else" {
-                format!("{}+", self.current_context.name())
+        self.save_and_switch_env(
+            if &self.current_env.name() == "else" {
+                format!("{}+", self.current_env.name())
             } else {
                 "else".to_string()
             },
             else_block.clone(),
         )?;
         let cond_constraint = Lir::new_assume(format!("(not {})", cond_str.clone()), cond);
-        self.current_context.add_assumption(cond_constraint);
+        self.current_env.add_assumption(cond_constraint);
         let else_value = self.block_to_constraint(else_block)?;
-        let else_ctxt = Some(self.restore_ctxt());
+        let else_env = Some(self.restore_env());
 
-        self.merge_then_else_ctxt(cond_str.clone(), then_ctxt, else_ctxt)?;
+        self.merge_then_else_env(cond_str.clone(), then_env, else_env)?;
         Ok(Analyzer::value_to_ite(cond_str, then_value, else_value))
     }
 
@@ -730,42 +718,41 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(return_value)
     }
 
-    /// Manage context functions
-    /// - merge_ctxt
-    /// - save_and_switch_ctxt
-    /// - restore_ctxt
-    /// - merge_then_else_ctxt
+    /// Manage env functions
+    /// - merge_env
+    /// - save_and_switch_env
+    /// - restore_env
+    /// - merge_then_else_env
     /// - adapt_cond_to_path
 
-    fn merge_ctxt(&mut self, ctxt: Context<'tcx>) {
-        for assumption in ctxt.path.iter() {
+    fn merge_env(&mut self, env: Env<'tcx>) {
+        for assumption in env.path.iter() {
             match assumption.kind {
-                LirKind::Declaration { .. } => {
-                    self.current_context.add_assumption(assumption.clone())
-                }
-                LirKind::Assume(_) => self.current_context.add_assumption(assumption.clone()),
+                LirKind::Declaration { .. } => self.current_env.add_assumption(assumption.clone()),
+                LirKind::Assume(_) => self.current_env.add_assumption(assumption.clone()),
                 _ => (),
             }
         }
 
         let mut new_var_map = Map::new();
-        let current_var_map = self.current_context.var_map.clone();
+        let current_var_map = self.current_env.var_map.clone();
         for (var_id, (var_str, ty)) in current_var_map.iter() {
-            if let Some((ctxt_var_str, ..)) = ctxt.var_map.get(var_id) {
-                if var_str != ctxt_var_str {
+            if let Some((env_var_str, ..)) = env.var_map.get(var_id) {
+                if var_str != env_var_str {
                     let new_var_str = format!("{}+", var_str);
-                    self.current_context.add_assumption(Lir::new_parameter(
+                    let last = env.path.back().expect("No lir found in new_var_map").expr.clone();
+                    self.current_env.add_assumption(Lir::new_parameter(
                         new_var_str.clone(),
                         ty.clone(),
-                        ctxt.path.back().expect("No lir found in new_var_map").expr.clone(),
+                        last.clone(),
                     ));
-                    self.current_context.add_assumption(Lir::new_assume(
+                    self.current_env.add_assumption(Lir::new_assume(
                         format!("(= {} {})", new_var_str, var_str),
-                        ctxt.path.back().expect("No lir found in new_var_map").expr.clone(),
+                        last.clone(),
                     ));
-                    self.current_context.add_assumption(Lir::new_assume(
-                        format!("(= {} {})", new_var_str, ctxt_var_str),
-                        ctxt.path.back().expect("No lir found in new_var_map").expr.clone(),
+                    self.current_env.add_assumption(Lir::new_assume(
+                        format!("(= {} {})", new_var_str, env_var_str),
+                        last.clone(),
                     ));
                     new_var_map.insert(var_id.clone(), (new_var_str, ty.clone()));
                 } else {
@@ -773,44 +760,43 @@ impl<'tcx> Analyzer<'tcx> {
                 }
             }
         }
-        self.current_context.var_map = new_var_map;
+        self.current_env.var_map = new_var_map;
     }
 
-    fn save_and_switch_ctxt(
+    fn save_and_switch_env(
         &mut self, name: String, expr: Rc<RExpr<'tcx>>,
     ) -> Result<(), AnalysisError> {
-        self.context_stack.push(self.current_context.clone());
+        self.env_stack.push(self.current_env.clone());
         let assumptions = Lir::new_assumptions(self.get_current_assumptions()?, expr);
         let mut new_path = VecDeque::new();
         new_path.push_back(assumptions);
-        self.current_context = Context::from(name, new_path, self.current_context.var_map.clone());
+        self.current_env = Env::from(name, new_path, self.current_env.var_map.clone());
         Ok(())
     }
 
-    fn restore_ctxt(&mut self) -> Context<'tcx> {
-        let current_ctxt = self.current_context.clone();
-        self.current_context = self.context_stack.pop().expect("No context found");
-        current_ctxt
+    fn restore_env(&mut self) -> Env<'tcx> {
+        let current_env = self.current_env.clone();
+        self.current_env = self.env_stack.pop().expect("No env found");
+        current_env
     }
 
-    fn merge_then_else_ctxt(
-        &mut self, cond_str: String, then_ctxt: Context<'tcx>, else_ctxt: Option<Context<'tcx>>,
+    fn merge_then_else_env(
+        &mut self, cond_str: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>,
     ) -> Result<(), AnalysisError> {
-        let then_ctxt = Analyzer::adapt_cond_to_path(&cond_str, then_ctxt)?;
-        self.merge_ctxt(then_ctxt);
-        if let Some(else_ctxt) = else_ctxt {
-            let else_ctxt =
-                Analyzer::adapt_cond_to_path(&format!("(not {})", cond_str), else_ctxt)?;
-            self.merge_ctxt(else_ctxt);
+        let then_env = Analyzer::adapt_cond_to_path(&cond_str, then_env)?;
+        self.merge_env(then_env);
+        if let Some(else_env) = else_env {
+            let else_env = Analyzer::adapt_cond_to_path(&format!("(not {})", cond_str), else_env)?;
+            self.merge_env(else_env);
         }
         Ok(())
     }
 
     fn adapt_cond_to_path(
-        cond_str: &String, mut ctxt: Context<'tcx>,
-    ) -> Result<Context<'tcx>, AnalysisError> {
+        cond_str: &String, mut env: Env<'tcx>,
+    ) -> Result<Env<'tcx>, AnalysisError> {
         let mut adapted_path = VecDeque::new();
-        for lir in ctxt.path {
+        for lir in env.path {
             match lir.kind {
                 LirKind::Declaration { .. } => adapted_path.push_back(lir),
                 LirKind::Assume(constraint) => {
@@ -824,8 +810,8 @@ impl<'tcx> Analyzer<'tcx> {
                 _ => (),
             }
         }
-        ctxt.path = adapted_path;
-        Ok(ctxt)
+        env.path = adapted_path;
+        Ok(env)
     }
 
     /// Special functions
