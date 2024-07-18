@@ -8,9 +8,12 @@ use rustc_session::config::OptLevel;
 
 // std crates
 use std::env::args as get_args;
+use std::sync::OnceLock;
 
 // Own crates
 use crate::drive::drive_tautrust;
+
+pub static FILE: OnceLock<String> = OnceLock::new();
 
 struct MyCallbacks {}
 
@@ -33,7 +36,7 @@ impl Callbacks for MyCallbacks {
 }
 
 pub fn run_tautrust() {
-    println!("Tautrust!");
+    println!("Tautrust!\n");
     let mut args = Vec::new();
     let mut args_iter = get_args();
     while let Some(arg) = args_iter.next() {
@@ -41,5 +44,6 @@ pub fn run_tautrust() {
             _ => args.push(arg),
         };
     }
+    FILE.set(args[1].to_string()).unwrap();
     RunCompiler::new(&args, &mut MyCallbacks {}).run().unwrap();
 }
