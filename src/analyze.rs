@@ -114,7 +114,7 @@ pub enum AnalysisError {
     FunctionNotFound(LocalDefId),
     UnsupportedPattern(String),
     RandFunctions,
-    VerifyError { message: String, span: Span },
+    VerifyError { span: Span },
 }
 
 impl<'tcx> Analyzer<'tcx> {
@@ -153,7 +153,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         let mut stdin = child.stdin.take().expect("Open std failed");
         let mut smt = self.get_current_assumptions_for_verify()?;
-        smt += "(check-sat)";
+        smt += "(check-sat)\n";
         println!("{}", smt);
         stdin.write_all(smt.as_bytes()).expect("Write smt failed");
         drop(stdin);
@@ -161,10 +161,7 @@ impl<'tcx> Analyzer<'tcx> {
         let output = child.wait_with_output().expect("Get stdout failed");
         let result = String::from_utf8(output.stdout).expect("Load result failed");
         if &result != "unsat\n" {
-            return Err(AnalysisError::VerifyError {
-                message: result,
-                span: self.get_current_span(),
-            });
+            return Err(AnalysisError::VerifyError { span: self.get_current_span() });
         }
 
         println!("Verification success!\n");
