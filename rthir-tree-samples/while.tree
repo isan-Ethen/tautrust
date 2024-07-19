@@ -1,0 +1,229 @@
+DefId(0:3 ~ while[de33]::while_expr), params: [
+  Param {
+    param: Some(
+      Expr {
+        span: rthir-tree-samples/while.rs:1:15: 1:16 (#0)
+        kind:
+          Pat {
+            PatKind {
+              Binding {
+                name: "n"
+                mode: BindingMode(No, Not)
+                var: LocalVarId(HirId(DefId(0:3 ~ while[de33]::while_expr).2))
+                ty: i32
+                is_primary: true
+                subpattern: None
+              }
+            }
+          }
+      }
+    )
+  }
+]
+body:
+  Expr {
+    span: rthir-tree-samples/while.rs:1:23: 6:2 (#0)
+    kind:
+      Block {
+        stmts: [
+          Expr {
+            span: rthir-tree-samples/while.rs:2:5: 2:18 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: rthir-tree-samples/while.rs:2:9: 2:14 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "i"
+                              mode: BindingMode(No, Mut)
+                              var: LocalVarId(HirId(DefId(0:3 ~ while[de33]::while_expr).6))
+                              ty: i32
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                    }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: rthir-tree-samples/while.rs:2:17: 2:18 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(0), Unsuffixed), span: rthir-tree-samples/while.rs:2:17: 2:18 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
+                }
+          }
+        ]
+        expr:
+          Expr {
+            span: rthir-tree-samples/while.rs:3:5: 5:6 (#0)
+            kind:
+              Loop (
+                body:
+                  Expr {
+                    span: rthir-tree-samples/while.rs:3:5: 5:6 (#4)
+                    kind:
+                      Block {
+                        stmts: []
+                        expr:
+                          Expr {
+                            span: rthir-tree-samples/while.rs:3:5: 5:6 (#4)
+                            kind:
+                              If {
+                                cond:
+                                  Expr {
+                                    span: rthir-tree-samples/while.rs:3:11: 3:16 (#5)
+                                    kind:
+                                      Binary {
+                                        op: Lt
+                                        lhs:
+                                          Expr {
+                                            span: rthir-tree-samples/while.rs:3:11: 3:12 (#0)
+                                            kind:
+                                              VarRef {
+                                                id: LocalVarId(HirId(DefId(0:3 ~ while[de33]::while_expr).6))
+                                              }
+                                          }
+                                        rhs:
+                                          Expr {
+                                            span: rthir-tree-samples/while.rs:3:15: 3:16 (#0)
+                                            kind:
+                                              VarRef {
+                                                id: LocalVarId(HirId(DefId(0:3 ~ while[de33]::while_expr).2))
+                                              }
+                                          }
+                                      }
+                                  }
+                                then:
+                                  Expr {
+                                    span: rthir-tree-samples/while.rs:3:17: 5:6 (#0)
+                                    kind:
+                                      Block {
+                                        stmts: [
+                                          Expr {
+                                            span: rthir-tree-samples/while.rs:4:9: 4:15 (#0)
+                                            kind:
+                                              AssignOp {
+                                                op: Add
+                                                lhs:
+                                                  Expr {
+                                                    span: rthir-tree-samples/while.rs:4:9: 4:10 (#0)
+                                                    kind:
+                                                      VarRef {
+                                                        id: LocalVarId(HirId(DefId(0:3 ~ while[de33]::while_expr).6))
+                                                      }
+                                                  }
+                                                rhs:
+                                                  Expr {
+                                                    span: rthir-tree-samples/while.rs:4:14: 4:15 (#0)
+                                                    kind:
+                                                      Literal( lit: Spanned { node: Int(Pu128(1), Unsuffixed), span: rthir-tree-samples/while.rs:4:14: 4:15 (#0) }, neg: false)
+
+                                                  }
+                                              }
+                                          }
+                                        ]
+                                        expr: []
+                                      }
+                                  }
+                                else:
+                                  Expr {
+                                    span: rthir-tree-samples/while.rs:3:5: 5:6 (#4)
+                                    kind:
+                                      Block {
+                                        stmts: [
+                                          Expr {
+                                            span: rthir-tree-samples/while.rs:3:5: 5:6 (#4)
+                                            kind:
+                                              Break (
+                                                label: Node(7)
+                                              )
+                                          }
+                                        ]
+                                        expr: []
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              )
+          }
+      }
+  }
+
+DefId(0:4 ~ while[de33]::main), params: [
+]
+body:
+  Expr {
+    span: rthir-tree-samples/while.rs:8:11: 11:2 (#0)
+    kind:
+      Block {
+        stmts: [
+          Expr {
+            span: rthir-tree-samples/while.rs:9:5: 9:14 (#0)
+            kind:
+                LetStmt {
+                  pattern:
+                    Expr {
+                      span: rthir-tree-samples/while.rs:9:9: 9:10 (#0)
+                      kind:
+                        Pat {
+                          PatKind {
+                            Binding {
+                              name: "x"
+                              mode: BindingMode(No, Not)
+                              var: LocalVarId(HirId(DefId(0:4 ~ while[de33]::main).4))
+                              ty: i32
+                              is_primary: true
+                              subpattern: None
+                            }
+                          }
+                        }
+                    }
+                  ,
+                  initializer: Some(
+                    Expr {
+                      span: rthir-tree-samples/while.rs:9:13: 9:14 (#0)
+                      kind:
+                        Literal( lit: Spanned { node: Int(Pu128(5), Unsuffixed), span: rthir-tree-samples/while.rs:9:13: 9:14 (#0) }, neg: false)
+
+                    }
+                  )
+                  else_block: None
+                }
+          }
+          Expr {
+            span: rthir-tree-samples/while.rs:10:5: 10:18 (#0)
+            kind:
+              Call {
+                ty: FnDef(DefId(0:3 ~ while[de33]::while_expr), [])
+                from_hir_call: true
+                fn_span: rthir-tree-samples/while.rs:10:5: 10:18 (#0)
+                fun:
+                  Expr {
+                    span: rthir-tree-samples/while.rs:10:5: 10:15 (#0)
+                    kind:
+                      ZstLiteral(user_ty: None)
+                  }
+                args: [
+                  Expr {
+                    span: rthir-tree-samples/while.rs:10:16: 10:17 (#0)
+                    kind:
+                      VarRef {
+                        id: LocalVarId(HirId(DefId(0:4 ~ while[de33]::main).4))
+                      }
+                  }
+                ]
+              }
+          }
+        ]
+        expr: []
+      }
+  }
