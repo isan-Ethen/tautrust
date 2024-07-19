@@ -134,6 +134,7 @@ impl<'tcx> Analyzer<'tcx> {
     /// - get_local_fn
     /// - get_fn_info
     /// - assign_new_value
+    /// - new_env_name
 
     fn verify(&self) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
@@ -227,6 +228,15 @@ impl<'tcx> Analyzer<'tcx> {
                 Ok((new_symbol, current_symbol))
             }
             _ => unreachable!(),
+        }
+    }
+
+    fn new_env_name(&self, name: &str) -> String {
+        let current_name = self.current_env.name();
+        if current_name.starts_with(name) {
+            format!("{}+", current_name)
+        } else {
+            name.to_string()
         }
     }
 
@@ -331,6 +341,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         println!("{}", constraint);
         println!("{:?}", *expr);
+        // self.save_and_switch_env(self.new_env_name("loop"), )?;
         Ok(())
     }
 
@@ -469,14 +480,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let cond_str = self.expr_to_constraint(cond.clone())?;
 
-        self.save_and_switch_env(
-            if &self.current_env.name() == "then" {
-                format!("{}+", self.current_env.name())
-            } else {
-                "then".to_string()
-            },
-            then_block.clone(),
-        )?;
+        self.save_and_switch_env(self.new_env_name("then"), then_block.clone())?;
         let cond_constraint = Lir::new_assume(cond_str.clone(), cond.clone());
         self.current_env.add_assumption(cond_constraint);
         self.analyze_block(then_block)?;
@@ -485,14 +489,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         let mut else_env = None;
         if let Some(else_block) = else_opt {
-            self.save_and_switch_env(
-                if &self.current_env.name() == "else" {
-                    format!("{}+", self.current_env.name())
-                } else {
-                    "else".to_string()
-                },
-                else_block.clone(),
-            )?;
+            self.save_and_switch_env(self.new_env_name("else"), else_block.clone())?;
             let cond_constraint = Lir::new_assume(format!("(not {})", cond_str.clone()), cond);
             self.current_env.add_assumption(cond_constraint);
             self.analyze_block(else_block)?;
@@ -672,14 +669,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<String, AnalysisError> {
         let cond_str = self.expr_to_constraint(cond.clone())?;
 
-        self.save_and_switch_env(
-            if &self.current_env.name() == "then" {
-                format!("{}+", self.current_env.name())
-            } else {
-                "then".to_string()
-            },
-            then_block.clone(),
-        )?;
+        self.save_and_switch_env(self.new_env_name("then"), then_block.clone())?;
         let cond_constraint = Lir::new_assume(cond_str.clone(), cond.clone());
         self.current_env.add_assumption(cond_constraint);
         let then_value = self.block_to_constraint(then_block)?;
@@ -687,14 +677,7 @@ impl<'tcx> Analyzer<'tcx> {
         let then_env = self.restore_env();
 
         let else_block = else_opt.expect("Else block of if initializer not found");
-        self.save_and_switch_env(
-            if &self.current_env.name() == "else" {
-                format!("{}+", self.current_env.name())
-            } else {
-                "else".to_string()
-            },
-            else_block.clone(),
-        )?;
+        self.save_and_switch_env(self.new_env_name("else"), else_block.clone())?;
         let cond_constraint = Lir::new_assume(format!("(not {})", cond_str.clone()), cond);
         self.current_env.add_assumption(cond_constraint);
         let else_value = self.block_to_constraint(else_block)?;
