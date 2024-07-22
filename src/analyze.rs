@@ -12,6 +12,7 @@ use rustc_span::{
 };
 
 // std crates
+use std::boxed::Box;
 use std::collections::{HashMap as Map, VecDeque};
 use std::io::Write;
 use std::process::Command;
@@ -95,9 +96,9 @@ impl<'tcx> Env<'tcx> {
     }
 }
 
-enum AnalysisType {
+enum AnalysisType<'tcx> {
     Return(Option<String>),
-    Invariant(String),
+    Invariant(Rc<RExpr<'tcx>>),
     Other,
 }
 
@@ -119,7 +120,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let mut analyzer = Analyzer::new(fn_map, tcx);
         let main = analyzer.get_fn(main_id)?;
-        analyzer.analyze_local_fn(main, &[])
+        analyzer.analyze_main(main)
     }
 
     /// Utility functions
@@ -145,7 +146,6 @@ impl<'tcx> Analyzer<'tcx> {
             .expect("Run z3 failed");
 
         let mut stdin = child.stdin.take().expect("Open std failed");
-        let mut smt = self.get_current_assumptions_for_verify()?;
         smt += "(check-sat)\n";
         println!("{}", smt);
         stdin.write_all(smt.as_bytes()).expect("Write smt failed");
@@ -241,16 +241,13 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     /// Main analysis functions
-    /// - analyze_local_fn
+    /// - analyze_main
     /// - analyze_params
     /// - analyze_body
     /// - analyze_expr
     /// - analyze_loop
 
-    fn analyze_local_fn(
-        &mut self, rthir: Rc<RThir<'tcx>>, args: &[Rc<RExpr<'tcx>>],
-    ) -> Result<(), AnalysisError> {
-        self.analyze_params(&rthir.params, args)?;
+    fn analyze_main(&mut self, rthir: Rc<RThir<'tcx>>) -> Result<(), AnalysisError> {
         if let Some(body) = &rthir.body {
             self.analyze_body((*body).clone())?;
         }
@@ -258,7 +255,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_params(
-        &mut self, params: &[RParam<'tcx>], args: &[Rc<RExpr<'tcx>>],
+        &mut self, params: &Vec<RParam<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>,
     ) -> Result<(), AnalysisError> {
         use RExprKind::*;
         use RPatKind::*;
@@ -286,10 +283,11 @@ impl<'tcx> Analyzer<'tcx> {
         if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*body {
             let mut stmts_iter = stmts.iter();
             while let Some(stmt) = stmts_iter.next() {
-                match self.analyze_expr(stmt.clone())? {
+                let return_value = self.analyze_expr(stmt.clone())?;
+                match &return_value {
                     AnalysisType::Return(..) => break,
-                    AnalysisType::Invariant(constraint) => self.analyze_loop(
-                        constraint,
+                    AnalysisType::Invariant(expr) => self.analyze_loop(
+                        expr.clone(),
                         stmts_iter.next().expect("No loop expression found").clone(),
                     )?,
                     AnalysisType::Other => (),
@@ -304,7 +302,7 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<AnalysisType, AnalysisError> {
+    fn analyze_expr(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<AnalysisType<'tcx>, AnalysisError> {
         use RExprKind::*;
 
         let mut return_value = AnalysisType::Other;
@@ -314,7 +312,7 @@ impl<'tcx> Analyzer<'tcx> {
             VarRef { .. } => self.analyze_var_ref(expr)?,
             Binary { .. } => self.analyze_binary(expr)?,
             Pat { kind } => self.analyze_pat(&kind, expr)?,
-            Call { ty, args, .. } => return_value = self.analyze_fn(ty, &*args, expr)?,
+            Call { ty, args, .. } => return_value = self.analyze_fn(ty, args, expr)?,
             LetStmt { pattern, initializer, else_block } => {
                 self.analyze_let_stmt(pattern, initializer, else_block)?
             }
@@ -358,6 +356,16 @@ impl<'tcx> Analyzer<'tcx> {
     /// - analyze_if
     /// - analyze_block
 
+    fn analyze_local_fn(
+        &mut self, rthir: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>,
+    ) -> Result<(), AnalysisError> {
+        self.analyze_params(&rthir.params, args)?;
+        if let Some(body) = &rthir.body {
+            self.analyze_body((*body).clone())?;
+        }
+        Ok(())
+    }
+
     fn analyze_literal(&mut self, expr: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(expr.clone())?;
         self.add_assumption(constraint, expr);
@@ -390,8 +398,8 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_fn(
-        &mut self, ty: Ty<'tcx>, args: &[Rc<RExpr<'tcx>>], expr: Rc<RExpr<'tcx>>,
-    ) -> Result<AnalysisType, AnalysisError> {
+        &mut self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, expr: Rc<RExpr<'tcx>>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         match ty.kind() {
             TyKind::FnDef(def_id, ..) => {
                 let mut fn_info = self.get_fn_info(def_id);
@@ -414,8 +422,8 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_extern_fn(
-        &mut self, fn_info: Vec<String>, args: &[Rc<RExpr<'tcx>>],
-    ) -> Result<AnalysisType, AnalysisError> {
+        &mut self, fn_info: Vec<String>, args: Box<[Rc<RExpr<'tcx>>]>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         if fn_info[0] == "t3modules" {
             match fn_info[1].as_str() {
                 "t3assert" => self.analyze_t3assert(args),
@@ -543,7 +551,7 @@ impl<'tcx> Analyzer<'tcx> {
                 let rhs_str = self.expr_to_constraint(rhs.clone())?;
                 Ok(self.bin_op_to_constraint(*op, &lhs_str, &rhs_str)?)
             }
-            Call { ty, args, .. } => self.fn_to_constraint(*ty, args),
+            Call { ty, args, .. } => self.fn_to_constraint(*ty, args.clone()),
             If { cond, then, else_opt } => {
                 Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone())?)
             }
@@ -626,7 +634,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn fn_to_constraint(
-        &mut self, ty: Ty<'tcx>, args: &[Rc<RExpr<'tcx>>],
+        &mut self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>,
     ) -> Result<String, AnalysisError> {
         match ty.kind() {
             TyKind::FnDef(def_id, ..) => {
@@ -642,14 +650,14 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn local_fn_to_constraint(
-        &mut self, expr: Rc<RThir<'tcx>>, args: &[Rc<RExpr<'tcx>>],
+        &mut self, expr: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>,
     ) -> Result<String, AnalysisError> {
         self.analyze_params(&expr.params, args)?;
         self.block_to_constraint(expr.body.as_ref().expect("Body not found").clone())
     }
 
     fn extern_fn_to_constraint(
-        &self, fn_info: Vec<String>, _: &[Rc<RExpr<'tcx>>],
+        &self, fn_info: Vec<String>, _: Box<[Rc<RExpr<'tcx>>]>,
     ) -> Result<String, AnalysisError> {
         if fn_info[0] == "t3modules" {
             match fn_info[1].as_str() {
@@ -810,8 +818,8 @@ impl<'tcx> Analyzer<'tcx> {
     /// - analyze_invariant
 
     fn analyze_t3assert(
-        &mut self, args: &[Rc<RExpr<'tcx>>],
-    ) -> Result<AnalysisType, AnalysisError> {
+        &mut self, args: Box<[Rc<RExpr<'tcx>>]>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         self.analyze_t3assume(args)?;
         let smt = self.get_current_assumptions_for_verify()?;
         self.verify(smt)?;
@@ -819,17 +827,16 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_t3assume(
-        &mut self, args: &[Rc<RExpr<'tcx>>],
-    ) -> Result<AnalysisType, AnalysisError> {
+        &mut self, args: Box<[Rc<RExpr<'tcx>>]>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         let constraint = self.expr_to_constraint(args[0].clone())?;
         self.add_assumption(constraint, args[0].clone());
         Ok(AnalysisType::Other)
     }
 
     fn analyze_invariant(
-        &mut self, args: &[Rc<RExpr<'tcx>>],
-    ) -> Result<AnalysisType, AnalysisError> {
-        let constraint = self.expr_to_constraint(args[0].clone())?;
-        Ok(AnalysisType::Invariant(constraint))
+        &mut self, args: Box<[Rc<RExpr<'tcx>>]>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        Ok(AnalysisType::Invariant(Vec::from_iter(args.iter()).remove(0).clone()))
     }
 }
