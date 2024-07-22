@@ -136,7 +136,7 @@ impl<'tcx> Analyzer<'tcx> {
     /// - assign_new_value
     /// - new_env_name
 
-    fn verify(&self) -> Result<(), AnalysisError> {
+    fn verify(&self, mut smt: String) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
             .args(["-in", "-model"])
             .stdin(std::process::Stdio::piped())
@@ -813,7 +813,8 @@ impl<'tcx> Analyzer<'tcx> {
         &mut self, args: &[Rc<RExpr<'tcx>>],
     ) -> Result<AnalysisType, AnalysisError> {
         self.analyze_t3assume(args)?;
-        self.verify()?;
+        let smt = self.get_current_assumptions_for_verify()?;
+        self.verify(smt)?;
         Ok(AnalysisType::Other)
     }
 
