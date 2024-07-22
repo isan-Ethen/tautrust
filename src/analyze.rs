@@ -335,15 +335,36 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_loop(
-        &mut self, constraint: String, expr: Rc<RExpr<'tcx>>,
+        &mut self, invariant: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
     ) -> Result<(), AnalysisError> {
-        println!("{}", constraint);
-        println!("{:?}", *expr);
-        // self.save_and_switch_env(self.new_env_name("loop"), )?;
+        self.save_and_switch_env(self.new_env_name("loop"), expr.clone())?;
+        let constraint = self.expr_to_constraint(invariant.clone())?;
+        self.verify_before_loop(&constraint)?;
+        if let RExprKind::Loop { body } = expr.kind.clone() {
+            self.verify_inner_loop(constraint, invariant, body.clone())?;
+        } else {
+            return Err(AnalysisError::UnsupportedPattern(
+                "Multiple invariant is not suppoerted".into(),
+            ));
+        }
         Ok(())
     }
 
+    fn verify_before_loop(&self, constraint: &String) -> Result<(), AnalysisError> {
+        let mut smt = self.get_current_assumptions()?;
+        smt += &format!("(assert (not {}))\n", constraint);
+        self.verify(smt)
+    }
+
+    fn verify_inner_loop(
+        &mut self, constraint: String, invariant: Rc<RExpr<'tcx>>, body: Rc<RExpr<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        self.add_assumption(constraint, invariant.clone());
+        self.analyze_block(body)
+    }
+
     /// Sub analysis functions
+    /// - analyze_local_fn
     /// - analyze_literal
     /// - analyze_var_ref
     /// - analyze_binary
