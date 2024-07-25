@@ -326,6 +326,7 @@ impl<'tcx> Analyzer<'tcx> {
             AssignOp { op, lhs, rhs } => self.analyze_assign_op(op, lhs, rhs, expr)?,
             Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr)?,
             If { cond, then, else_opt } => self.analyze_if(cond, then, else_opt)?,
+            // Break { .. } => (),
             _ => {
                 println!("{:?}", expr.kind);
                 return Err(AnalysisError::UnsupportedPattern("Unknown expr".into()));
@@ -341,6 +342,7 @@ impl<'tcx> Analyzer<'tcx> {
         let constraint = self.expr_to_constraint(invariant.clone())?;
         self.verify_before_loop(&constraint)?;
         if let RExprKind::Loop { body } = expr.kind.clone() {
+            self.save_and_switch_env(self.new_env_name("inner_loop"), expr.clone())?;
             self.verify_inner_loop(constraint, invariant, body.clone())?;
         } else {
             return Err(AnalysisError::UnsupportedPattern(
@@ -357,10 +359,123 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn verify_inner_loop(
-        &mut self, constraint: String, invariant: Rc<RExpr<'tcx>>, body: Rc<RExpr<'tcx>>,
+        &mut self, constraint: String, invariant: Rc<RExpr<'tcx>>, block: Rc<RExpr<'tcx>>,
     ) -> Result<(), AnalysisError> {
+        self.set_var_map(block.clone(), invariant.clone());
         self.add_assumption(constraint, invariant.clone());
-        self.analyze_block(body)
+        let smt = self.get_current_assumptions_for_verify()?;
+        println!("{}", smt);
+        self.analyze_block(block)?;
+        let smt = self.get_current_assumptions_for_verify()?;
+        println!("{}", smt);
+        self.verify(smt)
+    }
+
+    fn set_var_map(&mut self, block: Rc<RExpr<'tcx>>, invariant: Rc<RExpr<'tcx>>) {
+        let inv_varv = Analyzer::search_inv(invariant);
+        let varv = Analyzer::search_used_var(block.clone());
+        let refresh_varv = varv.iter().filter(|var| !inv_varv.contains(var));
+        for var in refresh_varv {
+            let (current_name, ty) = self.current_env.var_map.get(var).unwrap().clone();
+            let new_name = format!("{}_{}", self.current_env.name(), current_name);
+            self.add_parameter(new_name.clone(), &ty, var, block.clone());
+            self.current_env.var_map.insert(*var, (new_name, ty.clone()));
+        }
+    }
+
+    fn search_inv(invariant: Rc<RExpr<'tcx>>) -> Vec<LocalVarId> {
+        let mut varv: Vec<LocalVarId> = Vec::new();
+        Analyzer::search_var(invariant, &mut varv);
+        varv
+    }
+
+    fn search_var(expr: Rc<RExpr<'tcx>>, varv: &mut Vec<LocalVarId>) {
+        use RExprKind::*;
+
+        match expr.kind.clone() {
+            VarRef { id } => {
+                varv.push(id.clone());
+            }
+            LogicalOp { lhs, rhs, .. } => {
+                Analyzer::search_var(lhs.clone(), varv);
+                Analyzer::search_var(rhs.clone(), varv);
+            }
+            Unary { arg, .. } => {
+                Analyzer::search_var(arg.clone(), varv);
+            }
+            Binary { lhs, rhs, .. } => {
+                Analyzer::search_var(lhs.clone(), varv);
+                Analyzer::search_var(rhs.clone(), varv);
+            }
+            _ => panic!("Unknown invariant pattern"),
+        }
+    }
+
+    fn search_used_var(block: Rc<RExpr<'tcx>>) -> Vec<LocalVarId> {
+        let mut varv: Vec<LocalVarId> = Vec::new();
+        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
+            for stmt in stmts {
+                Analyzer::search_var_expr(stmt.clone(), &mut varv, false);
+            }
+            if let Some(expr) = expr {
+                Analyzer::search_var_expr(expr.clone(), &mut varv, false);
+            }
+        }
+        varv
+    }
+
+    fn search_var_expr(expr: Rc<RExpr<'tcx>>, varv: &mut Vec<LocalVarId>, is_assign: bool) {
+        use RExprKind::*;
+
+        match &expr.kind {
+            Literal { .. } => (),
+            VarRef { id } => {
+                if is_assign {
+                    varv.push(id.clone());
+                }
+            }
+            LogicalOp { lhs, rhs, .. } => {
+                Analyzer::search_var_expr(lhs.clone(), varv, is_assign);
+                Analyzer::search_var_expr(rhs.clone(), varv, is_assign);
+            }
+            Unary { arg, .. } => {
+                Analyzer::search_var_expr(arg.clone(), varv, is_assign);
+            }
+            Binary { lhs, rhs, .. } => {
+                Analyzer::search_var_expr(lhs.clone(), varv, is_assign);
+                Analyzer::search_var_expr(rhs.clone(), varv, is_assign);
+            }
+            Call { .. } => (),
+            If { then, else_opt, .. } => {
+                Analyzer::search_var_expr(then.clone(), varv, is_assign);
+                if let Some(else_block) = else_opt {
+                    Analyzer::search_var_expr(else_block.clone(), varv, is_assign);
+                }
+            }
+            LetStmt { initializer, .. } => {
+                if let Some(initializer) = initializer {
+                    Analyzer::search_var_expr(initializer.clone(), varv, is_assign);
+                }
+            }
+            AssignOp { lhs, rhs, .. } => {
+                Analyzer::search_var_expr(lhs.clone(), varv, true);
+                Analyzer::search_var_expr(rhs.clone(), varv, false);
+            }
+            Assign { lhs, rhs } => {
+                Analyzer::search_var_expr(lhs.clone(), varv, true);
+                Analyzer::search_var_expr(rhs.clone(), varv, false);
+            }
+            Block { stmts, expr } => {
+                for stmt in stmts {
+                    Analyzer::search_var_expr(stmt.clone(), varv, is_assign);
+                }
+                if let Some(expr) = expr {
+                    Analyzer::search_var_expr(expr.clone(), varv, false);
+                }
+            }
+            // Break { .. } => (),
+            _ => panic!("Unknown pattern in loop: {:?}", expr),
+        }
     }
 
     /// Sub analysis functions
@@ -530,15 +645,33 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
-        if let RExpr { kind: RExprKind::Block { stmts, .. }, .. } = &*block {
+        if let RExpr { kind: RExprKind::Block { stmts, //expr
+                                                      .. }, .. } = &*block {
             for stmt in stmts {
                 self.analyze_expr(stmt.clone())?;
             }
+            // if let Some(expr) = expr {
+            //     self.analyze_expr(expr.clone())?;
+            // }
         } else {
             return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
         }
         Ok(())
     }
+
+    // fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+    //     if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
+    //         for stmt in stmts {
+    //             self.analyze_expr(stmt.clone())?;
+    //         }
+    //         if let Some(expr) = expr {
+    //             self.analyze_expr(expr.clone())?;
+    //         }
+    //     } else {
+    //         return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
+    //     }
+    //     Ok(())
+    // }
 
     /// Constraint generation functions
     /// - expr_to_constraint
