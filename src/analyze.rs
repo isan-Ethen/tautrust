@@ -21,79 +21,14 @@ use std::rc::Rc;
 // Own crates
 use crate::thir::rthir::*;
 mod lir;
-use lir::*;
+pub use lir::*;
+mod env;
+use env::Env;
 
 pub fn analyze<'tcx>(
     main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>,
 ) -> Result<(), AnalysisError> {
     Analyzer::run(main_id, fn_map, tcx)
-}
-
-struct Analyzer<'tcx> {
-    fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
-    tcx: TyCtxt<'tcx>,
-    env_stack: Vec<Env<'tcx>>,
-    current_env: Env<'tcx>,
-}
-
-#[derive(Clone)]
-struct Env<'tcx> {
-    name: String,
-    path: VecDeque<Lir<'tcx>>,
-    var_map: Map<LocalVarId, (String, Ty<'tcx>)>,
-}
-
-impl<'tcx> Env<'tcx> {
-    fn new() -> Self {
-        Self { name: "main".to_string(), path: VecDeque::new(), var_map: Map::new() }
-    }
-
-    fn from(
-        name: String, path: VecDeque<Lir<'tcx>>, var_map: Map<LocalVarId, (String, Ty<'tcx>)>,
-    ) -> Self {
-        Self { name, path, var_map }
-    }
-
-    fn name(&self) -> String { self.name.clone() }
-
-    fn len(&self) -> usize { self.path.len() }
-
-    fn get_assumptions_for_verify(&self) -> Result<String, AnalysisError> {
-        let mut smt = String::new();
-        let len = self.len();
-        let mut cnt = 0;
-        loop {
-            if len - 1 == cnt {
-                smt.push_str(&self.get_assumption(cnt).to_assert());
-                break;
-            }
-            smt.push_str(&self.get_assumption(cnt).to_smt()?);
-            cnt += 1;
-        }
-        Ok(smt)
-    }
-
-    fn get_assumptions(&self) -> Result<String, AnalysisError> {
-        let mut smt = String::new();
-        for assumption in self.path.iter() {
-            smt.push_str(&assumption.to_smt()?);
-        }
-        Ok(smt)
-    }
-
-    fn get_assumption(&self, index: usize) -> &Lir<'tcx> { &self.path[index] }
-
-    fn get_latest_span(&self) -> Span { self.path.back().expect("Lir not found").get_span() }
-
-    fn add_assumption(&mut self, lir: Lir<'tcx>) { self.path.push_back(lir); }
-
-    fn insert_var(&mut self, var_id: &LocalVarId, name: String, ty: &Ty<'tcx>) {
-        self.var_map.insert(var_id.clone(), (name, ty.clone()));
-    }
-
-    fn get_var(&self, var_id: &LocalVarId) -> (String, Ty<'tcx>) {
-        self.var_map.get(var_id).unwrap().clone()
-    }
 }
 
 enum AnalysisType<'tcx> {
@@ -108,6 +43,12 @@ pub enum AnalysisError {
     UnsupportedPattern(String),
     RandFunctions,
     VerifyError { span: Span },
+}
+struct Analyzer<'tcx> {
+    fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
+    tcx: TyCtxt<'tcx>,
+    env_stack: Vec<Env<'tcx>>,
+    current_env: Env<'tcx>,
 }
 
 impl<'tcx> Analyzer<'tcx> {
