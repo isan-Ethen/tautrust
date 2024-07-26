@@ -15,17 +15,15 @@ use std::rc::Rc;
 
 // Own crates
 use crate::thir::rthir::*;
-mod lir;
-pub use lir::*;
-mod helper_struct;
-pub use helper_struct::*;
-mod env;
-pub use env::Env;
 mod core;
+mod env;
 mod gen_cstr;
+mod helper_struct;
+mod lir;
 mod special;
 mod sub;
 mod util;
+pub use {env::Env, helper_struct::*, lir::*};
 
 pub fn analyze<'tcx>(
     main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>,

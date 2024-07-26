@@ -8,9 +8,7 @@ use rustc_span::def_id::LocalDefId;
 pub mod rthir;
 mod thir_printer;
 mod thir_reducer;
-use rthir::*;
-use thir_printer::ThirPrinter;
-use thir_reducer::*;
+use {rthir::*, thir_printer::ThirPrinter, thir_reducer::*};
 
 #[allow(unused)]
 pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
