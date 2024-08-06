@@ -45,7 +45,7 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn run(
         main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>,
     ) -> Result<(), AnalysisError> {
-        let mut analyzer = Analyzer::new(fn_map, tcx);
+        let analyzer = Analyzer::new(fn_map, tcx);
         let main = analyzer.get_fn(main_id)?;
         analyzer.analyze_main(main)
     }
