@@ -54,7 +54,7 @@ impl<'tcx> Analyzer<'tcx> {
     /// - analyze_loop
 
     fn analyze_loop(
-        &mut self, invariant: Rc<RExpr<'tcx>>,
+        &self, invariant: Rc<RExpr<'tcx>>,
         stmts_iter: &mut Peekable<impl Iterator<Item = Rc<RExpr<'tcx>>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         // verify before loop
@@ -81,7 +81,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn verify_before_loop(
-        &mut self, invariant: Rc<RExpr<'tcx>>, invariants: &mut Vec<Rc<RExpr<'tcx>>>,
+        &self, invariant: Rc<RExpr<'tcx>>, invariants: &mut Vec<Rc<RExpr<'tcx>>>,
         stmts_iter: &mut Peekable<impl Iterator<Item = Rc<RExpr<'tcx>>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(invariant.clone(), env)?;
@@ -117,7 +117,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn verify_inner_loop(
-        &mut self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+        &self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         self.set_var_map(block.clone(), invariants, env);
         self.analyze_block(block, env)?;
@@ -127,7 +127,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn set_var_map(
-        &mut self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+        &self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) {
         let inv_varv = Analyzer::search_inv(invariants);
         let varv = Analyzer::search_used_var(block.clone());
