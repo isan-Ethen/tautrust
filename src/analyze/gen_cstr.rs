@@ -5,7 +5,7 @@ use crate::analyze::*;
 
 impl<'tcx> Analyzer<'tcx> {
     pub fn expr_to_constraint(
-        &mut self, arg: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, arg: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<String, AnalysisError> {
         use RExprKind::*;
 
@@ -63,7 +63,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn logical_op_to_constraint(
-        &mut self, op: LogicalOp, lhs_str: &String, rhs_str: &String,
+        &self, op: LogicalOp, lhs_str: &String, rhs_str: &String,
     ) -> Result<String, AnalysisError> {
         use LogicalOp::*;
 
@@ -74,9 +74,7 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(format!("({} {} {})", op_str, lhs_str, rhs_str))
     }
 
-    pub fn un_op_to_constraint(
-        &mut self, op: UnOp, arg_str: &String,
-    ) -> Result<String, AnalysisError> {
+    pub fn un_op_to_constraint(&self, op: UnOp, arg_str: &String) -> Result<String, AnalysisError> {
         use UnOp::*;
 
         let op_str = match op {
@@ -88,7 +86,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn bin_op_to_constraint(
-        &mut self, op: BinOp, lhs_str: &String, rhs_str: &String,
+        &self, op: BinOp, lhs_str: &String, rhs_str: &String,
     ) -> Result<String, AnalysisError> {
         use BinOp::*;
 
@@ -113,7 +111,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn fn_to_constraint(
-        &mut self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+        &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<String, AnalysisError> {
         match ty.kind() {
             TyKind::FnDef(def_id, ..) => {
@@ -129,7 +127,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn local_fn_to_constraint(
-        &mut self, expr: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+        &self, expr: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<String, AnalysisError> {
         self.analyze_params(&expr.params, args, env)?;
         self.block_to_constraint(expr.body.as_ref().expect("Body not found").clone(), env)
@@ -151,7 +149,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn if_to_constraint(
-        &mut self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
         else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<String, AnalysisError> {
         let cond_str = self.expr_to_constraint(cond.clone(), env)?;
@@ -174,7 +172,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn block_to_constraint(
-        &mut self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<String, AnalysisError> {
         let mut return_value = String::new();
         if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = block.as_ref() {

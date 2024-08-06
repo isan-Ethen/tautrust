@@ -5,7 +5,7 @@ use crate::analyze::*;
 
 impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_local_fn(
-        &mut self, rthir: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+        &self, rthir: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         self.analyze_params(&rthir.params, args, env)?;
         if let Some(body) = &rthir.body {
@@ -15,7 +15,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_literal(
-        &mut self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(expr.clone(), env)?;
         env.add_assumption(constraint, expr);
@@ -23,7 +23,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_var_ref(
-        &mut self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(expr.clone(), env)?;
         env.add_assumption(constraint, expr);
@@ -31,7 +31,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_binary(
-        &mut self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(expr.clone(), env)?;
         env.add_assumption(constraint, expr);
@@ -39,7 +39,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_pat(
-        &mut self, kind: &RPatKind<'tcx>, pat: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, kind: &RPatKind<'tcx>, pat: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         use RPatKind::*;
 
@@ -52,7 +52,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_fn(
-        &mut self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, expr: Rc<RExpr<'tcx>>,
+        &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, expr: Rc<RExpr<'tcx>>,
         env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         match ty.kind() {
@@ -77,7 +77,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_extern_fn(
-        &mut self, fn_info: Vec<String>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+        &self, fn_info: Vec<String>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         if fn_info[0] == "t3modules" {
             match fn_info[1].as_str() {
@@ -92,7 +92,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_let_stmt(
-        &mut self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>,
+        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>,
         _: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         if let RExprKind::Pat { kind: RPatKind::Binding { name, ty, var, .. } } = &pattern.kind {
@@ -118,7 +118,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_assign_op(
-        &mut self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
+        &self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
         env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let rhs = self.expr_to_constraint(rhs, env)?;
@@ -129,7 +129,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_assign(
-        &mut self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
+        &self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
         env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let rhs = self.expr_to_constraint(rhs.clone(), env)?;
@@ -139,7 +139,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_if(
-        &mut self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
         else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let cond_str = self.expr_to_constraint(cond.clone(), env)?;
@@ -161,7 +161,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_block(
-        &mut self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         if let RExpr { kind: RExprKind::Block { stmts, //expr
                                                       .. }, .. } = block.as_ref() {
@@ -177,7 +177,7 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    // pub fn analyze_block(&mut self, block: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
+    // pub fn analyze_block(&self, block: Rc<RExpr<'tcx>>) -> Result<(), AnalysisError> {
     //     if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
     //         for stmt in stmts {
     //             self.analyze_expr(stmt.clone())?;
