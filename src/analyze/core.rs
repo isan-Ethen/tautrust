@@ -4,7 +4,7 @@
 use crate::analyze::*;
 
 impl<'tcx> Analyzer<'tcx> {
-    pub fn analyze_main(&mut self, rthir: Rc<RThir<'tcx>>) -> Result<(), AnalysisError> {
+    pub fn analyze_main(&self, rthir: Rc<RThir<'tcx>>) -> Result<(), AnalysisError> {
         if let Some(body) = &rthir.body {
             let mut main_env = Env::new();
             self.analyze_body((*body).clone(), &mut main_env)?;
@@ -13,7 +13,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_params(
-        &mut self, params: &Vec<RParam<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+        &self, params: &Vec<RParam<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         use RExprKind::*;
         use RPatKind::*;
@@ -38,7 +38,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_body(
-        &mut self, body: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, body: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = body.as_ref() {
             let mut stmts_iter = stmts.iter().cloned().peekable();
@@ -62,7 +62,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_expr(
-        &mut self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &self, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         use RExprKind::*;
 
