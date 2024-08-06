@@ -164,7 +164,7 @@ impl<'tcx> Analyzer<'tcx> {
         &mut self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         if let RExpr { kind: RExprKind::Block { stmts, //expr
-                                                      .. }, .. } = &*block {
+                                                      .. }, .. } = block.as_ref() {
             for stmt in stmts {
                 self.analyze_expr(stmt.clone(), env)?;
             }

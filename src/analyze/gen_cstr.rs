@@ -177,7 +177,7 @@ impl<'tcx> Analyzer<'tcx> {
         &mut self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<String, AnalysisError> {
         let mut return_value = String::new();
-        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
+        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = block.as_ref() {
             for stmt in stmts {
                 if let AnalysisType::Return(value) = self.analyze_expr(stmt.clone(), env)? {
                     return Ok(value.expect("No value with return"));

@@ -20,7 +20,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         for (param, arg) in params.iter().zip(args.iter()) {
             if let Some(pat) = &param.pat {
-                if let RExpr { kind: Pat { kind }, .. } = &**pat {
+                if let RExpr { kind: Pat { kind }, .. } = pat.as_ref() {
                     match kind {
                         Binding { name, ty, var, .. } => {
                             let env_name = format!("{}_{}", env.name, name);
@@ -40,17 +40,15 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_body(
         &mut self, body: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*body {
-            let mut stmts_iter = stmts.iter();
+        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = body.as_ref() {
+            let mut stmts_iter = stmts.iter().cloned().peekable();
             while let Some(stmt) = stmts_iter.next() {
                 let return_value = self.analyze_expr(stmt.clone(), env)?;
                 match &return_value {
                     AnalysisType::Return(..) => break,
-                    AnalysisType::Invariant(expr) => self.analyze_loop(
-                        expr.clone(),
-                        stmts_iter.next().expect("No loop expression found").clone(),
-                        env,
-                    )?,
+                    AnalysisType::Invariant(expr) => {
+                        self.analyze_loop(expr.clone(), &mut stmts_iter, env)?
+                    }
                     AnalysisType::Other => (),
                 }
             }
