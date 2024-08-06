@@ -11,6 +11,7 @@ use rustc_span::def_id::LocalDefId;
 // std crates
 use std::boxed::Box;
 use std::collections::HashMap as Map;
+use std::iter::Peekable;
 use std::rc::Rc;
 
 // Own crates
@@ -53,14 +54,24 @@ impl<'tcx> Analyzer<'tcx> {
     /// - analyze_loop
 
     fn analyze_loop(
-        &mut self, invariant: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &mut self, invariant: Rc<RExpr<'tcx>>,
+        stmts_iter: &mut Peekable<impl Iterator<Item = Rc<RExpr<'tcx>>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        let mut loop_env = env.gen_new_env("loop".to_string(), expr.clone())?;
-        let constraint = self.expr_to_constraint(invariant.clone(), &mut loop_env)?;
-        self.verify_before_loop(&constraint, env)?;
+        // verify before loop
+        let mut invariants = vec![invariant.clone()];
+        let mut before_loop_env = env.gen_new_env("loop".to_string(), invariant.clone())?;
+        self.verify_before_loop(
+            invariant.clone(),
+            &mut invariants,
+            stmts_iter,
+            &mut before_loop_env,
+        )?;
+
+        let expr = stmts_iter.next().unwrap();
         if let RExprKind::Loop { body } = expr.kind.clone() {
-            loop_env.gen_new_env("inner_loop".to_string(), expr.clone())?;
-            self.verify_inner_loop(constraint, invariant, body.clone(), env)?;
+            let mut loop_env =
+                before_loop_env.gen_new_env("inner_loop".to_string(), expr.clone())?;
+            self.verify_inner_loop(body.clone(), invariants, &mut loop_env)?;
         } else {
             return Err(AnalysisError::UnsupportedPattern(
                 "Multiple invariant is not suppoerted".into(),
@@ -70,21 +81,45 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn verify_before_loop(
-        &self, constraint: &String, env: &Env<'tcx>,
+        &mut self, invariant: Rc<RExpr<'tcx>>, invariants: &mut Vec<Rc<RExpr<'tcx>>>,
+        stmts_iter: &mut Peekable<impl Iterator<Item = Rc<RExpr<'tcx>>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        let mut smt = env.get_assumptions()?;
-        smt += &format!("(assert (not {}))\n", constraint);
-        self.verify(smt, env)
+        let constraint = self.expr_to_constraint(invariant.clone(), env)?;
+        env.add_assumption(constraint.clone(), invariant.clone());
+        let assumptions = env.get_assumptions_for_verify()?;
+        self.verify(assumptions, env)?;
+        while let Some(inv) = stmts_iter.next_if(|stmt| self.is_invariant(stmt.clone())) {
+            if let RExprKind::Call { args, .. } = &inv.kind {
+                invariants.push(args[0].clone());
+                let constraint = self.expr_to_constraint(args[0].clone(), env)?;
+                env.add_assumption(constraint, inv);
+                let assumptions = env.get_assumptions_for_verify()?;
+                self.verify(assumptions, env)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn is_invariant(&self, expr: Rc<RExpr<'tcx>>) -> bool {
+        match &expr.kind {
+            RExprKind::Call { ty, .. } => match ty.kind() {
+                TyKind::FnDef(def_id, ..) => {
+                    let fn_info = self.get_fn_info(def_id);
+                    match fn_info[1].as_str() {
+                        "invariant" => true,
+                        _ => false,
+                    }
+                }
+                _ => panic!("Call has not have FnDef"),
+            },
+            _ => false,
+        }
     }
 
     fn verify_inner_loop(
-        &mut self, constraint: String, invariant: Rc<RExpr<'tcx>>, block: Rc<RExpr<'tcx>>,
-        env: &mut Env<'tcx>,
+        &mut self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        self.set_var_map(block.clone(), invariant.clone(), env);
-        env.add_assumption(constraint, invariant.clone());
-        let smt = env.get_assumptions_for_verify()?;
-        println!("{}", smt);
+        self.set_var_map(block.clone(), invariants, env);
         self.analyze_block(block, env)?;
         let smt = env.get_assumptions_for_verify()?;
         println!("{}", smt);
@@ -92,10 +127,11 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn set_var_map(
-        &mut self, block: Rc<RExpr<'tcx>>, invariant: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+        &mut self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) {
-        let inv_varv = Analyzer::search_inv(invariant);
+        let inv_varv = Analyzer::search_inv(invariants);
         let varv = Analyzer::search_used_var(block.clone());
+        println!("{:?}", varv);
         let refresh_varv = varv.iter().filter(|var| !inv_varv.contains(var));
         for var in refresh_varv {
             let (current_name, ty) = env.var_map.get(var).unwrap().clone();
@@ -105,9 +141,12 @@ impl<'tcx> Analyzer<'tcx> {
         }
     }
 
-    fn search_inv(invariant: Rc<RExpr<'tcx>>) -> Vec<LocalVarId> {
+    fn search_inv(invariants: Vec<Rc<RExpr<'tcx>>>) -> Vec<LocalVarId> {
         let mut varv: Vec<LocalVarId> = Vec::new();
-        Analyzer::search_var(invariant, &mut varv);
+
+        for invariant in invariants {
+            Analyzer::search_var(invariant, &mut varv);
+        }
         varv
     }
 
@@ -129,13 +168,16 @@ impl<'tcx> Analyzer<'tcx> {
                 Analyzer::search_var(lhs.clone(), varv);
                 Analyzer::search_var(rhs.clone(), varv);
             }
-            _ => panic!("Unknown invariant pattern"),
+            _ => {
+                println!("{:?}", expr.kind);
+                panic!("Unknown invariant pattern")
+            }
         }
     }
 
     fn search_used_var(block: Rc<RExpr<'tcx>>) -> Vec<LocalVarId> {
         let mut varv: Vec<LocalVarId> = Vec::new();
-        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = &*block {
+        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = block.as_ref() {
             for stmt in stmts {
                 Analyzer::search_var_expr(stmt.clone(), &mut varv, false);
             }
@@ -195,7 +237,7 @@ impl<'tcx> Analyzer<'tcx> {
                     Analyzer::search_var_expr(expr.clone(), varv, false);
                 }
             }
-            // Break { .. } => (),
+            Break { .. } => (),
             _ => panic!("Unknown pattern in loop: {:?}", expr),
         }
     }
