@@ -117,7 +117,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn verify_loop_internals(
-        &mut self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+        &self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         self.set_var_map(block.clone(), invariants, env);
         self.analyze_block(block, env)?;
