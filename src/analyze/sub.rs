@@ -189,5 +189,5 @@ impl<'tcx> Analyzer<'tcx> {
     //         return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
     //     }
     //     Ok(())
+    // }
 }
-// }

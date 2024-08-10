@@ -67,16 +67,18 @@ impl<'tcx> Analyzer<'tcx> {
             &mut before_loop_env,
         )?;
 
-        let expr = stmts_iter.next().unwrap();
+        let expr = stmts_iter.next().expect("No loop expression!");
         if let RExprKind::Loop { body } = expr.kind.clone() {
+            let mut break_envs = Vec::new();
             let mut loop_env =
                 before_loop_env.gen_new_env("inner_loop".to_string(), expr.clone())?;
-            self.verify_loop_internals(body.clone(), invariants, &mut loop_env)?;
+            self.verify_loop_internals(body.clone(), invariants, &mut break_envs, &mut loop_env)?;
         } else {
             return Err(AnalysisError::UnsupportedPattern(
                 "Multiple invariant is not suppoerted".into(),
             ));
         }
+
         Ok(())
     }
 
@@ -117,7 +119,8 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn verify_loop_internals(
-        &self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+        &self, block: Rc<RExpr<'tcx>>, invariants: Vec<Rc<RExpr<'tcx>>>,
+        _break_envs: &mut Vec<Env<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         self.set_var_map(block.clone(), invariants, env);
         self.analyze_block(block, env)?;

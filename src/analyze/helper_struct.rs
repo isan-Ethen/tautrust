@@ -11,6 +11,7 @@ use crate::thir::rthir::*;
 pub enum AnalysisType<'tcx> {
     Return(Option<String>),
     Invariant(Rc<RExpr<'tcx>>),
+    Break,
     Other,
 }
 
