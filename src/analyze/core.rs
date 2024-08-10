@@ -49,6 +49,7 @@ impl<'tcx> Analyzer<'tcx> {
                     AnalysisType::Invariant(expr) => {
                         self.analyze_loop(expr.clone(), &mut stmts_iter, env)?
                     }
+                    AnalysisType::Break => break,
                     AnalysisType::Other => (),
                 }
             }
@@ -87,7 +88,7 @@ impl<'tcx> Analyzer<'tcx> {
             AssignOp { op, lhs, rhs } => self.analyze_assign_op(op, lhs, rhs, expr, env)?,
             Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr, env)?,
             If { cond, then, else_opt } => self.analyze_if(cond, then, else_opt, env)?,
-            // Break { .. } => (),
+            Break { .. } => return_value = AnalysisType::Break,
             _ => {
                 println!("{:?}", expr.kind);
                 return Err(AnalysisError::UnsupportedPattern("Unknown expr".into()));
