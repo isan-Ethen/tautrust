@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::collections::{HashMap as Map, VecDeque};
 
 // Own crates
-use crate::analyze::{lir::*, AnalysisError};
+use crate::analyze::{lir::*, AnalysisError, Analyzer};
 use crate::thir::rthir::*;
 
 #[derive(Clone)]
@@ -79,11 +79,7 @@ impl<'tcx> Env<'tcx> {
         match expr.kind {
             RExprKind::VarRef { id } => {
                 let (current_symbol, ty) = self.get_var(&id);
-                let new_symbol = if current_symbol.starts_with(self.name.as_str()) {
-                    format!("{}+", current_symbol)
-                } else {
-                    format!("{}_{}", self.name, current_symbol)
-                };
+                let new_symbol = Analyzer::span_to_str(&expr.span);
                 let new_parameter =
                     Lir::new_parameter(new_symbol.clone(), ty.clone(), expr.clone());
                 self.add_lir(new_parameter);
