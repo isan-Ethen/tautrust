@@ -1,5 +1,8 @@
 // rustc crates
-use rustc_span::def_id::{DefId, LocalDefId};
+use rustc_span::{
+    def_id::{DefId, LocalDefId},
+    Span,
+};
 
 // std crates
 use std::io::Write;
@@ -52,5 +55,17 @@ impl<'tcx> Analyzer<'tcx> {
             .filter(|s| !s.is_empty())
             .map(String::from)
             .collect()
+    }
+
+    pub fn span_to_str(span: &Span) -> String {
+        let span_str = format!("{:?}", span);
+        let parts: Vec<&str> = span_str.split(':').collect();
+        let file = parts[0].replace(".rs", "");
+        let line = parts[1];
+        let column = parts[2].split_whitespace().next().unwrap();
+
+        let sanitized_file = file.replace(|c: char| !c.is_alphanumeric(), "_");
+
+        format!("{}_L{}_C{}", sanitized_file, line, column)
     }
 }

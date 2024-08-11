@@ -95,8 +95,8 @@ impl<'tcx> Analyzer<'tcx> {
         &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>,
         _: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        if let RExprKind::Pat { kind: RPatKind::Binding { name, ty, var, .. } } = &pattern.kind {
-            let name = format!("{}_{}", env.name, name);
+        if let RExprKind::Pat { kind: RPatKind::Binding { ty, var, .. } } = &pattern.kind {
+            let name = Analyzer::span_to_str(&pattern.span);
             let declaration = Lir::new_parameter(name.clone(), ty.clone(), pattern.clone());
             env.add_lir(declaration);
             env.insert_var(var, name.clone(), ty);

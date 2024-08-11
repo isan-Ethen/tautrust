@@ -22,11 +22,11 @@ impl<'tcx> Analyzer<'tcx> {
             if let Some(pat) = &param.pat {
                 if let RExpr { kind: Pat { kind }, .. } = pat.as_ref() {
                     match kind {
-                        Binding { name, ty, var, .. } => {
-                            let env_name = format!("{}_{}", env.name, name);
-                            env.add_parameter(env_name.clone(), ty, var, pat.clone());
+                        Binding { ty, var, .. } => {
+                            let name = Analyzer::span_to_str(&pat.span);
+                            env.add_parameter(name.clone(), ty, var, pat.clone());
                             let value = self.expr_to_constraint(arg.clone(), env)?;
-                            env.add_assumption(format!("(= {} {})", env_name, value), arg.clone());
+                            env.add_assumption(format!("(= {} {})", name, value), arg.clone());
                         }
                         Wild => (),
                         _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
