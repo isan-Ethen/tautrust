@@ -11,30 +11,30 @@ use std::process::Command;
 // Own crates
 use crate::analyze::*;
 impl<'tcx> Analyzer<'tcx> {
-    pub fn verify(&self, mut smt: String, env: &Env<'tcx>) -> Result<(), AnalysisError> {
-        let mut child = Command::new("z3")
-            .args(["-in", "-model"])
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-            .expect("Run z3 failed");
+    // pub fn verify(&self, mut smt: String, env: &Env<'tcx>) -> Result<(), AnalysisError> {
+    //     let mut child = Command::new("z3")
+    //         .args(["-in", "-model"])
+    //         .stdin(std::process::Stdio::piped())
+    //         .stdout(std::process::Stdio::piped())
+    //         .spawn()
+    //         .expect("Run z3 failed");
 
-        let mut stdin = child.stdin.take().expect("Open std failed");
-        smt += "(check-sat)\n";
-        println!("{}", smt);
-        stdin.write_all(smt.as_bytes()).expect("Write smt failed");
-        drop(stdin);
+    //     let mut stdin = child.stdin.take().expect("Open std failed");
+    //     smt += "(check-sat)\n";
+    //     println!("{}", smt);
+    //     stdin.write_all(smt.as_bytes()).expect("Write smt failed");
+    //     drop(stdin);
 
-        let output = child.wait_with_output().expect("Get stdout failed");
-        let result = String::from_utf8(output.stdout).expect("Load result failed");
-        if &result != "unsat\n" {
-            return Err(AnalysisError::VerifyError { span: env.get_latest_span() });
-        }
+    //     let output = child.wait_with_output().expect("Get stdout failed");
+    //     let result = String::from_utf8(output.stdout).expect("Load result failed");
+    //     if &result != "unsat\n" {
+    //         return Err(AnalysisError::VerifyError { span: env.get_latest_span() });
+    //     }
 
-        println!("Verification success!\n");
+    //     println!("Verification success!\n");
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn get_fn(&self, fn_id: LocalDefId) -> Result<Rc<RThir<'tcx>>, AnalysisError> {
         self.fn_map.get(&fn_id).cloned().ok_or(AnalysisError::FunctionNotFound(fn_id))
@@ -67,5 +67,22 @@ impl<'tcx> Analyzer<'tcx> {
         let sanitized_file = file.replace(|c: char| !c.is_alphanumeric(), "_");
 
         format!("{}_L{}_C{}", sanitized_file, line, column)
+    }
+
+    pub fn expr_to_id(expr: Rc<RExpr<'tcx>>) -> LocalVarId {
+        match &expr.kind {
+            RExprKind::VarRef { id } => id.clone(),
+            RExprKind::Deref { arg, .. } => {
+                if let RExprKind::VarRef { id } = &arg.kind {
+                    id.clone()
+                } else {
+                    panic!()
+                }
+            }
+            _ => {
+                println!("{:?}", expr);
+                unreachable!()
+            }
+        }
     }
 }

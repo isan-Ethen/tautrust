@@ -3,7 +3,10 @@ use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_hir::BindingMode;
 use rustc_middle::middle::region;
-use rustc_middle::mir::{BinOp, BorrowKind, UnOp};
+use rustc_middle::mir::{
+    BinOp, //BorrowKind,
+    UnOp,
+};
 use rustc_middle::thir::*;
 use rustc_middle::ty::adjustment::PointerCoercion;
 use rustc_middle::ty::{self, CanonicalUserType, GenericArgsRef, Ty};
@@ -353,9 +356,12 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                 self.add_indented_string(&format!("var_hir_id: {:?}", var_hir_id), depth_lvl + 1);
                 self.add_indented_string("}", depth_lvl);
             }
-            Borrow { borrow_kind, arg } => {
+            Borrow {
+                //borrow_kind,
+                arg,
+            } => {
                 self.add_indented_string("Borrow (", depth_lvl);
-                self.add_indented_string(&format!("borrow_kind: {:?}", borrow_kind), depth_lvl + 1);
+                // self.add_indented_string(&format!("borrow_kind: {:?}", borrow_kind), depth_lvl + 1);
                 self.add_indented_string("arg:", depth_lvl + 1);
                 self.format_expr(arg, depth_lvl + 2);
                 self.add_indented_string(")", depth_lvl);
@@ -634,7 +640,7 @@ pub enum RExprKind<'tcx> {
         var_hir_id: LocalVarId,
     },
     Borrow {
-        borrow_kind: BorrowKind,
+        // borrow_kind: BorrowKind,
         arg: Rc<RExpr<'tcx>>,
     },
     Break {

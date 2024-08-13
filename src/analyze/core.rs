@@ -25,8 +25,8 @@ impl<'tcx> Analyzer<'tcx> {
                         Binding { ty, var, .. } => {
                             let name = Analyzer::span_to_str(&pat.span);
                             env.add_parameter(name.clone(), ty, var, pat.clone());
-                            let value = self.expr_to_constraint(arg.clone(), env)?;
-                            env.add_assumption(format!("(= {} {})", name, value), arg.clone());
+                            let constraint = self.expr_to_constraint(arg.clone(), env)?;
+                            env.assign_new_value(var, constraint);
                         }
                         Wild => (),
                         _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
@@ -47,7 +47,7 @@ impl<'tcx> Analyzer<'tcx> {
                 match &return_value {
                     AnalysisType::Return(..) => break,
                     AnalysisType::Invariant(expr) => {
-                        self.analyze_loop(expr.clone(), &mut stmts_iter, env)?
+                        // self.analyze_loop(expr.clone(), &mut stmts_iter, env)?
                     }
                     AnalysisType::Break => break,
                     AnalysisType::Other => (),
@@ -70,9 +70,9 @@ impl<'tcx> Analyzer<'tcx> {
         let mut return_value = AnalysisType::Other;
 
         match expr.kind.clone() {
-            Literal { .. } => self.analyze_literal(expr, env)?,
-            VarRef { .. } => self.analyze_var_ref(expr, env)?,
-            Binary { .. } => self.analyze_binary(expr, env)?,
+            Literal { .. } => (), // self.analyze_literal(expr, env)?,
+            VarRef { .. } => (),  // self.analyze_var_ref(expr, env)?,
+            Binary { lhs, rhs, .. } => self.analyze_binary(rhs, lhs, env)?,
             Pat { kind } => self.analyze_pat(&kind, expr, env)?,
             Call { ty, args, .. } => return_value = self.analyze_fn(ty, args, expr, env)?,
             LetStmt { pattern, initializer, else_block } => {
@@ -86,8 +86,9 @@ impl<'tcx> Analyzer<'tcx> {
                 }
             }
             AssignOp { op, lhs, rhs } => self.analyze_assign_op(op, lhs, rhs, expr, env)?,
-            Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, expr, env)?,
-            If { cond, then, else_opt } => self.analyze_if(cond, then, else_opt, env)?,
+            Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, env)?,
+            If { .. // cond, then, else_opt
+                    } => (), // self.analyze_if(cond, then, else_opt, env)?,
             Break { .. } => return_value = AnalysisType::Break,
             _ => {
                 println!("{:?}", expr.kind);
