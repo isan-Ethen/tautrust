@@ -56,14 +56,12 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_fn(
-        &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, expr: Rc<RExpr<'tcx>>,
-        env: &mut Env<'tcx>,
+        &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         match ty.kind() {
             TyKind::FnDef(def_id, ..) => {
-                let mut fn_info = self.get_fn_info(def_id);
+                let fn_info = self.get_fn_info(def_id);
                 if let Some(fun) = self.get_local_fn(def_id) {
-                    let fn_env = env.gen_new_env(fn_info.pop().expect("fn info not found"))?;
                     match self.analyze_local_fn(fun, args, env) {
                         Ok(()) => {
                             // env.merge_env(fn_env);
