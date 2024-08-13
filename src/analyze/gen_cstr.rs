@@ -27,8 +27,9 @@ impl<'tcx> Analyzer<'tcx> {
                 Ok(self.bin_op_to_constraint(*op, &lhs_str, &rhs_str)?)
             }
             Call { ty, args, .. } => self.fn_to_constraint(*ty, args.clone(), env),
-            If { .. //cond, then, else_opt
-                   } => panic!(), //{Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)}
+            If { cond, then, else_opt } => {
+                Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)
+            }
             Deref { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
             // なんとかするとこ
             Borrow { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
@@ -172,24 +173,24 @@ impl<'tcx> Analyzer<'tcx> {
         }
     }
 
-    // pub fn if_to_constraint(
-    //     &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
-    //     else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
-    // ) -> Result<String, AnalysisError> {
-    //     let cond_str = self.expr_to_constraint(cond.clone(), env)?;
+    pub fn if_to_constraint(
+        &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+    ) -> Result<String, AnalysisError> {
+        let cond_str = self.expr_to_constraint(cond.clone(), env)?;
 
-    //     let mut then_env = env.gen_new_env("then".to_string(), then_block.clone())?;
-    //     then_env.add_assumption(cond_str.clone(), cond.clone());
-    //     let then_value = self.block_to_constraint(then_block, &mut then_env)?;
+        let mut then_env = env.gen_new_env("then".to_string())?;
+        then_env.add_assume(cond_str.clone());
+        let then_value = self.block_to_constraint(then_block, &mut then_env)?;
 
-    //     let else_block = else_opt.expect("Else block of if initializer not found");
-    //     let mut else_env = env.gen_new_env("else".to_string(), else_block.clone())?;
-    //     else_env.add_assumption(format!("(not {})", cond_str.clone()), cond);
-    //     let else_value = self.block_to_constraint(else_block, &mut else_env)?;
+        let else_block = else_opt.expect("Else block of if initializer not found");
+        let mut else_env = env.gen_new_env("else".to_string())?;
+        else_env.add_assume(format!("(not {})", cond_str.clone()));
+        let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 
-    //     env.merge_then_else_env(cond_str.clone(), then_env, Some(else_env))?;
-    //     Ok(Analyzer::value_to_ite(cond_str, then_value, else_value))
-    // }
+        env.merge_then_else_env(cond_str.clone(), then_env, Some(else_env))?;
+        Ok(Analyzer::value_to_ite(cond_str, then_value, else_value))
+    }
 
     pub fn value_to_ite(cond_str: String, then_value: String, else_value: String) -> String {
         format!("(ite {} {} {})", cond_str, then_value, else_value)

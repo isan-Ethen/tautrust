@@ -87,8 +87,7 @@ impl<'tcx> Analyzer<'tcx> {
             }
             AssignOp { op, lhs, rhs } => self.analyze_assign_op(op, lhs, rhs, expr, env)?,
             Assign { lhs, rhs } => self.analyze_assign(lhs, rhs, env)?,
-            If { .. // cond, then, else_opt
-                    } => (), // self.analyze_if(cond, then, else_opt, env)?,
+            If { cond, then, else_opt } => self.analyze_if(cond, then, else_opt, env)?,
             Break { .. } => return_value = AnalysisType::Break,
             _ => {
                 println!("{:?}", expr.kind);
