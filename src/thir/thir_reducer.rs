@@ -127,10 +127,7 @@ impl<'tcx> ThirReducer<'tcx> {
                                 panic!("Unknown if borrow")
                             }
                         }
-                        _ => {
-                            println!("{:?}", &self.thir[*value].kind);
-                            self.reduce_expr(value)
-                        }
+                        _ => self.reduce_expr(value),
                     }
                 } else {
                     panic!("Unknown then pattern")

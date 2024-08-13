@@ -46,10 +46,7 @@ impl<'tcx> Analyzer<'tcx> {
                 let fn_info = self.get_fn_info(def_id);
                 if let Some(fun) = self.get_local_fn(def_id) {
                     match self.analyze_local_fn(fun, args, env) {
-                        Ok(()) => {
-                            // env.merge_env(fn_env);
-                            Ok(AnalysisType::Other)
-                        }
+                        Ok(()) => Ok(AnalysisType::Other),
                         Err(why) => Err(why),
                     }
                 } else {
