@@ -185,11 +185,9 @@ impl<'tcx> Env<'tcx> {
     fn adapt_cond_to_path(
         &mut self, cond_str: &String, path: &Vec<String>,
     ) -> Result<(), AnalysisError> {
-        // let mut adapted_path = Vec::new();
         for i in path.len()..self.len() {
             self.path[i] = format!("(-> {} {})", cond_str, self.path[i]);
         }
-        // self.path = adapted_path;
         Ok(())
     }
 }

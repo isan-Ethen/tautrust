@@ -107,7 +107,7 @@ impl<'tcx> Analyzer<'tcx> {
         env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         let rhs = self.expr_to_constraint(rhs, env)?;
-        let op_str = self.bin_op_to_smt(op)?;
+        let op_str = Analyzer::bin_op_to_smt(op)?;
         env.add_assumption(&Analyzer::expr_to_id(lhs), op_str, rhs, expr);
         Ok(())
     }

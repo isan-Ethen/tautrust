@@ -91,44 +91,25 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn bin_op_to_constraint(
         &self, op: BinOp, lhs_str: &String, rhs_str: &String,
     ) -> Result<String, AnalysisError> {
-        use BinOp::*;
-
-        let op_str = match op {
-            Add => "+",
-            Sub => "-",
-            Mul => "*",
-            Rem => "%",
-            Div => "/",
-            BitXor => "^",
-            BitAnd => "&",
-            BitOr => "|",
-            Eq => "=",
-            Lt => "<",
-            Le => "<=",
-            Ne => "!=",
-            Ge => ">=",
-            Gt => ">",
-            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
-        };
-        Ok(format!("({} {} {})", op_str, lhs_str, rhs_str))
+        Ok(format!("({} {} {})", Analyzer::bin_op_to_smt(op)?, lhs_str, rhs_str))
     }
 
-    pub fn bin_op_to_smt(&self, op: BinOp) -> Result<String, AnalysisError> {
+    pub fn bin_op_to_smt(op: BinOp) -> Result<String, AnalysisError> {
         use BinOp::*;
 
         let op_str = match op {
             Add => "+",
             Sub => "-",
             Mul => "*",
-            Rem => "%",
-            Div => "/",
+            Rem => "mod",
+            Div => "div",
             BitXor => "^",
             BitAnd => "&",
             BitOr => "|",
             Eq => "=",
             Lt => "<",
             Le => "<=",
-            Ne => "!=",
+            Ne => "distincst",
             Ge => ">=",
             Gt => ">",
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),

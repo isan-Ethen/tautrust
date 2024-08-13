@@ -5,6 +5,6 @@ fn multiple_conditions(n: i32) { t3assert(n * 5 >= 0 && n / 10 > 0); }
 
 fn main() {
     let x = rand_int();
-    t3assume(x > 0);
+    t3assume(x > 10);
     multiple_conditions(x);
 }
