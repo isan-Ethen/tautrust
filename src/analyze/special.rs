@@ -26,4 +26,10 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         Ok(AnalysisType::Invariant(Vec::from_iter(args.iter()).remove(0).clone()))
     }
+
+    pub fn analyze_drop(
+        &self, _args: Box<[Rc<RExpr<'tcx>>]>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        Ok(AnalysisType::Other)
+    }
 }

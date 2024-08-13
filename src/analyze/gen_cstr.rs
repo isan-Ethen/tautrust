@@ -30,6 +30,9 @@ impl<'tcx> Analyzer<'tcx> {
             If { cond, then, else_opt } => {
                 Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)
             }
+            Deref { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
+            // なんとかするとこ
+            Borrow { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
             _ => {
                 println!("{}", env.get_assumptions()?);
                 Err(AnalysisError::UnsupportedPattern(format!("name: {:?}", arg.kind)))
@@ -185,6 +188,8 @@ impl<'tcx> Analyzer<'tcx> {
                 return_value = self.expr_to_constraint(expr.clone(), env)?;
             }
         } else {
+            println!("{}", env.get_assumptions()?);
+            println!("{:?}", block);
             return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
         }
         Ok(return_value)

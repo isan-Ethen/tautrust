@@ -76,7 +76,7 @@ impl<'tcx> Env<'tcx> {
     pub fn assign_new_value(
         &mut self, expr: Rc<RExpr<'tcx>>,
     ) -> Result<(String, String), AnalysisError> {
-        match expr.kind {
+        match &expr.kind {
             RExprKind::VarRef { id } => {
                 let (current_symbol, ty) = self.get_var(&id);
                 let new_symbol = Analyzer::span_to_str(&expr.span);
@@ -86,7 +86,11 @@ impl<'tcx> Env<'tcx> {
                 self.insert_var(&id, new_symbol.clone(), &ty);
                 Ok((new_symbol, current_symbol))
             }
-            _ => unreachable!(),
+            RExprKind::Deref { arg, .. } => self.assign_new_value(arg.clone()),
+            _ => {
+                println!("{:?}", expr);
+                unreachable!()
+            }
         }
     }
 

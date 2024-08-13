@@ -28,11 +28,21 @@ impl<'tcx> Lir<'tcx> {
                 TyKind::Bool => Ok(format!("(declare-const {} Bool)\n", name)),
                 TyKind::Int(_) => Ok(format!("(declare-const {} Int)\n", name)),
                 TyKind::Float(_) => Ok(format!("(declare-const {} Real)\n", name)),
+                TyKind::Ref(_, ty, _) => Ok(Lir::ref_to_smt(ty, name)?),
                 _ => Err(AnalysisError::UnsupportedPattern(format!("name: {}, ty: {}", name, ty))),
             },
             Assert(constraint) => Ok(format!("(assert (not {}))\n", constraint)),
             Assume(constraint) => Ok(format!("(assert {})\n", constraint)),
             Assumptions(constraints) => Ok(constraints.clone()),
+        }
+    }
+
+    fn ref_to_smt(ty: &Ty<'tcx>, name: &String) -> Result<String, AnalysisError> {
+        match &ty.kind() {
+            TyKind::Bool => Ok(format!("(declare-const {} Bool)\n", name)),
+            TyKind::Int(_) => Ok(format!("(declare-const {} Int)\n", name)),
+            TyKind::Float(_) => Ok(format!("(declare-const {} Real)\n", name)),
+            _ => Err(AnalysisError::UnsupportedPattern(format!("name: {}, ty: {}", name, ty))),
         }
     }
 

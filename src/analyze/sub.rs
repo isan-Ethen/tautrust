@@ -46,6 +46,10 @@ impl<'tcx> Analyzer<'tcx> {
         match kind {
             Wild => (),
             Binding { name, ty, var, .. } => env.add_parameter(name.to_string(), ty, var, pat),
+            Deref { subpattern } => match self.analyze_expr(subpattern.clone(), env) {
+                Ok(_) => (),
+                Err(err) => return Err(err),
+            },
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
         }
         Ok(())
@@ -84,6 +88,7 @@ impl<'tcx> Analyzer<'tcx> {
                 "t3assert" => self.analyze_t3assert(args, env),
                 "t3assume" => self.analyze_t3assume(args, env),
                 "invariant" => self.analyze_invariant(args),
+                "t3drop" => self.analyze_drop(args),
                 _ => unreachable!(),
             }
         } else {

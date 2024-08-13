@@ -111,10 +111,48 @@ impl<'tcx> ThirReducer<'tcx> {
 
         match expr_kind {
             Scope { value, .. } => self.handle_scope(value),
+            // If { cond, then, else_opt, .. } => RExprKind::If {
+            //     cond: self.reduce_expr(cond),
+            //     then: self.reduce_expr(then),
+            //     else_opt: unwrap_option(else_opt),
+            // },
             If { cond, then, else_opt, .. } => RExprKind::If {
                 cond: self.reduce_expr(cond),
-                then: self.reduce_expr(then),
-                else_opt: unwrap_option(else_opt),
+                then: if let Scope { value, .. } = &self.thir[*then].kind {
+                    match &self.thir[*value].kind {
+                        Borrow { arg, .. } => {
+                            if let Deref { arg } = &self.thir[*arg].kind {
+                                self.reduce_expr(arg)
+                            } else {
+                                panic!("Unknown if borrow")
+                            }
+                        }
+                        _ => {
+                            println!("{:?}", &self.thir[*value].kind);
+                            self.reduce_expr(value)
+                        }
+                    }
+                } else {
+                    panic!("Unknown then pattern")
+                },
+                else_opt: if let Some(expr_id) = else_opt {
+                    if let Scope { value, .. } = &self.thir[*expr_id].kind {
+                        match &self.thir[*value].kind {
+                            Borrow { arg, .. } => {
+                                if let Deref { arg } = &self.thir[*arg].kind {
+                                    Some(self.reduce_expr(arg))
+                                } else {
+                                    panic!("Unknown if borrow")
+                                }
+                            }
+                            _ => Some(self.reduce_expr(value)),
+                        }
+                    } else {
+                        panic!("Unknown else_opt pattern")
+                    }
+                } else {
+                    None
+                },
             },
             Call { ty, fun, args, from_hir_call, fn_span } => RExprKind::Call {
                 ty: *ty,
@@ -178,7 +216,18 @@ impl<'tcx> ThirReducer<'tcx> {
                 RExprKind::UpvarRef { closure_def_id: *closure_def_id, var_hir_id: *var_hir_id }
             }
             Borrow { borrow_kind, arg } => {
-                RExprKind::Borrow { borrow_kind: *borrow_kind, arg: self.reduce_expr(arg) }
+                use rustc_middle::mir::MutBorrowKind;
+                match borrow_kind {
+                    rustc_middle::mir::BorrowKind::Mut { kind } => match kind {
+                        MutBorrowKind::TwoPhaseBorrow => self.handle_two_phase_borrow(arg),
+                        MutBorrowKind::Default => RExprKind::Borrow { arg: self.reduce_expr(arg) },
+                        _ => panic!("MutBorrowKind::ClosureCpature is not supported"),
+                    },
+                    _ => {
+                        println!("{:?}", borrow_kind);
+                        panic!("Other BorrowKinds are not supported!")
+                    }
+                }
             }
             Break { label, value } => {
                 RExprKind::Break { label: *label, value: unwrap_option(value) }
@@ -264,6 +313,11 @@ impl<'tcx> ThirReducer<'tcx> {
                 None
             },
         }
+    }
+
+    fn handle_two_phase_borrow(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
+        let expr = &self.thir[*expr_id];
+        self.reduce_expr_kind(&expr.kind)
     }
 
     fn handle_stmt(&self, stmt_id: StmtId) -> Rc<RExpr<'tcx>> {
