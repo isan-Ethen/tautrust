@@ -11,7 +11,7 @@ use rustc_span::def_id::LocalDefId;
 // std crates
 use std::boxed::Box;
 use std::collections::HashMap as Map;
-use std::iter::Peekable;
+// use std::iter::Peekable;
 use std::rc::Rc;
 
 // Own crates
@@ -24,7 +24,10 @@ mod lir;
 mod special;
 mod sub;
 mod util;
-pub use {env::Env, helper_struct::*, lir::*};
+pub use {
+    env::Env,
+    helper_struct::*, // lir::*
+};
 
 pub fn analyze<'tcx>(
     main_id: LocalDefId, fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>,
