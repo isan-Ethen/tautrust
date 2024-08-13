@@ -109,7 +109,7 @@ impl<'tcx> Analyzer<'tcx> {
             Eq => "=",
             Lt => "<",
             Le => "<=",
-            Ne => "distincst",
+            Ne => "distinct",
             Ge => ">=",
             Gt => ">",
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
