@@ -153,7 +153,7 @@ impl<'tcx> Env<'tcx> {
                             Lir::new(
                                 current_lir.name.clone(),
                                 current_lir.ty.clone(),
-                                format!("(ite {} {} {})", cond, current_lir.assume, lir.assume),
+                                format!("(ite {} {} {})", cond, lir.assume, current_lir.assume),
                                 current_lir.expr.clone(),
                             ),
                         );
