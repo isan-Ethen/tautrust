@@ -5,7 +5,7 @@ fn main() {
     let mut x = rand_int::<i8>();
     t3assume(x * x > 1);
 
-    if x < 0 {
+    if x > 0 {
         x *= -1;
     }
 
