@@ -46,7 +46,7 @@ impl<'tcx> Analyzer<'tcx> {
                 let return_value = self.analyze_expr(stmt.clone(), env)?;
                 match &return_value {
                     AnalysisType::Return(..) => break,
-                    AnalysisType::Invariant(expr) => {
+                    AnalysisType::Invariant(_expr) => {
                         // self.analyze_loop(expr.clone(), &mut stmts_iter, env)?
                     }
                     AnalysisType::Break => break,
@@ -74,7 +74,7 @@ impl<'tcx> Analyzer<'tcx> {
             VarRef { .. } => (),  // self.analyze_var_ref(expr, env)?,
             Binary { lhs, rhs, .. } => self.analyze_binary(rhs, lhs, env)?,
             Pat { kind } => self.analyze_pat(&kind, expr, env)?,
-            Call { ty, args, .. } => return_value = self.analyze_fn(ty, args, expr, env)?,
+            Call { ty, args, .. } => return_value = self.analyze_fn(ty, args, env)?,
             LetStmt { pattern, initializer, else_block } => {
                 self.analyze_let_stmt(pattern, initializer, else_block, env)?
             }
