@@ -62,7 +62,13 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn var_ref_to_constraint(
         &self, id: &LocalVarId, env: &Env<'tcx>,
     ) -> Result<String, AnalysisError> {
-        Ok(env.var_map.get(id).expect("var not found in ver_ref_to_constraint").assume.to_string())
+        Ok(env
+            .var_map
+            .get(id)
+            .expect("var not found in ver_ref_to_constraint")
+            .assume
+            .0
+            .to_string())
     }
 
     pub fn logical_op_to_constraint(

@@ -27,8 +27,13 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_drop(
-        &self, _args: Box<[Rc<RExpr<'tcx>>]>,
+        &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        if let RExprKind::VarRef { id } = args[0].kind {
+            let arg = env.var_map.get(&id).expect("Var not found in t3drop");
+            let name = arg.name.clone();
+            env.add_assume(format!("(= {} {})", arg.assume.0, name))
+        }
         Ok(AnalysisType::Other)
     }
 }
