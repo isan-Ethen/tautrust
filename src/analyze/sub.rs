@@ -1,5 +1,5 @@
 // rustc crates
-use rustc_middle::ty::Mutability;
+use rustc_middle::ty::{FloatTy, IntTy, Mutability};
 
 // std crates
 // Own crates
@@ -135,15 +135,67 @@ impl<'tcx> Analyzer<'tcx> {
                 },
                 _ => {
                     env.add_parameter(ty, &var.clone(), pattern.clone());
+                    fn assume_ty_range(name: String, ty: Ty<'_>, env: &mut Env<'_>) {
+                        match ty.kind() {
+                            TyKind::Int(int_ty) => {
+                                fn int_range<T: From<i128>>(int_ty: IntTy) -> (T, T) {
+                                    match int_ty {
+                                        IntTy::Isize => (
+                                            T::from(isize::MIN as i128),
+                                            T::from(isize::MAX as i128),
+                                        ),
+                                        IntTy::I8 => {
+                                            (T::from(i8::MIN as i128), T::from(i8::MAX as i128))
+                                        }
+                                        IntTy::I16 => {
+                                            (T::from(i16::MIN as i128), T::from(i16::MAX as i128))
+                                        }
+                                        IntTy::I32 => {
+                                            (T::from(i32::MIN as i128), T::from(i32::MAX as i128))
+                                        }
+                                        IntTy::I64 => {
+                                            (T::from(i64::MIN as i128), T::from(i64::MAX as i128))
+                                        }
+                                        IntTy::I128 => (T::from(i128::MIN), T::from(i128::MAX)),
+                                    }
+                                }
+                                let (min, max): (i128, i128) = int_range(int_ty.clone());
+                                env.add_assume(format!(
+                                    "(and (>= {} {}) (<= {} {}))",
+                                    name, min, name, max
+                                ))
+                            }
+                            TyKind::Float(float_ty) => {
+                                fn float_range<T: From<f64>>(float_ty: FloatTy) -> (T, T) {
+                                    match float_ty {
+                                        FloatTy::F32 => {
+                                            (T::from(f32::MIN as f64), T::from(f32::MAX as f64))
+                                        }
+                                        FloatTy::F64 => (T::from(f64::MIN), T::from(f64::MAX)),
+                                        _ => panic!("type {:?} is not supported!", float_ty),
+                                    }
+                                }
+                                let (min, max): (f64, f64) = float_range(float_ty.clone());
+                                env.add_assume(format!(
+                                    "(and (>= {} {}) (<= {} {}))",
+                                    name, min, name, max
+                                ))
+                            }
+                            _ => (),
+                        }
+                    }
                     if let Some(init) = initializer {
                         match self.expr_to_constraint(init.clone(), env) {
-                            Ok(value) => env.assign_new_value(var, value),
+                            Ok(value) => {
+                                env.assign_new_value(var, value.clone());
+                            }
                             Err(err) => match err {
                                 AnalysisError::RandFunctions => {
                                     let rand =
                                         format!("rand_{}", Analyzer::span_to_str(&pattern.span));
                                     env.add_rand(rand.clone(), ty);
-                                    env.assign_new_value(var, rand)
+                                    env.assign_new_value(var, rand.clone());
+                                    assume_ty_range(rand.clone(), ty.clone(), env)
                                 }
                                 _ => return Err(err),
                             },
