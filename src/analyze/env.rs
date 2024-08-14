@@ -111,10 +111,9 @@ impl<'tcx> Env<'tcx> {
         var.adapt_assume(operation, arg, expr);
     }
 
-    pub fn add_parameter(
-        &mut self, name: String, ty: &Ty<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>,
-    ) {
-        self.var_map.insert(var_id.clone(), Lir::new(name, ty.clone(), String::new(), pat));
+    pub fn add_parameter(&mut self, ty: &Ty<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>) {
+        self.var_map
+            .insert(var_id.clone(), Lir::new(ty.clone(), vec![String::new()], pat).unwrap());
     }
 
     pub fn add_mutable_ref(&mut self, var_id: &LocalVarId, lir: Lir<'tcx>) {
@@ -127,7 +126,7 @@ impl<'tcx> Env<'tcx> {
 
     pub fn assign_new_value(&mut self, target_id: &LocalVarId, constraint: String) {
         let target = self.var_map.get_mut(target_id).expect("target not found");
-        target.assume.0 = constraint;
+        target.set_assume(constraint);
     }
 
     pub fn new_env_name(&self, name: &str) -> String {
@@ -151,11 +150,16 @@ impl<'tcx> Env<'tcx> {
                     new_var_map.insert(
                         var_id.clone(),
                         Lir::new(
-                            current_lir.name.clone(),
-                            current_lir.ty.clone(),
-                            format!("(ite {} {} {})", cond, then_lir.assume.0, else_lir.assume.0),
+                            current_lir.get_ty(),
+                            vec![format!(
+                                "(ite {} {} {})",
+                                cond,
+                                then_lir.get_assume(),
+                                else_lir.get_assume()
+                            )],
                             current_lir.expr.clone(),
-                        ),
+                        )
+                        .unwrap(),
                     );
                 }
             }
@@ -165,15 +169,20 @@ impl<'tcx> Env<'tcx> {
             let current_var_map = self.var_map.clone();
             for (var_id, current_lir) in current_var_map.iter() {
                 if let Some(lir) = then_env.var_map.get(var_id) {
-                    if current_lir.assume != lir.assume {
+                    if current_lir.get_assume() != lir.get_assume() {
                         new_var_map.insert(
                             var_id.clone(),
                             Lir::new(
-                                current_lir.name.clone(),
-                                current_lir.ty.clone(),
-                                format!("(ite {} {} {})", cond, lir.assume.0, current_lir.assume.0),
+                                current_lir.get_ty(),
+                                vec![format!(
+                                    "(ite {} {} {})",
+                                    cond,
+                                    lir.get_assume(),
+                                    current_lir.get_assume()
+                                )],
                                 current_lir.expr.clone(),
-                            ),
+                            )
+                            .unwrap(),
                         );
                     } else {
                         new_var_map.insert(var_id.clone(), current_lir.clone());

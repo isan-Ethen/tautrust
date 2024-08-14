@@ -66,8 +66,7 @@ impl<'tcx> Analyzer<'tcx> {
             .var_map
             .get(id)
             .expect("var not found in ver_ref_to_constraint")
-            .assume
-            .0
+            .get_assume()
             .to_string())
     }
 

@@ -23,8 +23,7 @@ impl<'tcx> Analyzer<'tcx> {
                 if let RExpr { kind: Pat { kind }, .. } = pat.as_ref() {
                     match kind {
                         Binding { ty, var, .. } => {
-                            let name = Analyzer::span_to_str(&pat.span);
-                            env.add_parameter(name.clone(), ty, var, pat.clone());
+                            env.add_parameter(ty, var, pat.clone());
                             let constraint = self.expr_to_constraint(arg.clone(), env)?;
                             env.assign_new_value(var, constraint);
                         }

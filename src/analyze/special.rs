@@ -31,8 +31,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         if let RExprKind::VarRef { id } = args[0].kind {
             let arg = env.var_map.get(&id).expect("Var not found in t3drop");
-            let name = arg.name.clone();
-            env.add_assume(format!("(= {} {})", arg.assume.0, name))
+            env.add_assume(format!("(= {} {})", arg.get_assume(), arg.get_assume_by_index(1)))
         }
         Ok(AnalysisType::Other)
     }

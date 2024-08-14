@@ -15,6 +15,7 @@ impl<'tcx> Analyzer<'tcx> {
         }
         Ok(())
     }
+
     pub fn analyze_binary(
         &self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
@@ -30,7 +31,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         match kind {
             Wild => (),
-            Binding { name, ty, var, .. } => env.add_parameter(name.to_string(), ty, var, pat),
+            Binding { ty, var, .. } => env.add_parameter(ty, var, pat),
             Deref { subpattern } => match self.analyze_expr(subpattern.clone(), env) {
                 Ok(_) => (),
                 Err(err) => return Err(err),
@@ -83,8 +84,7 @@ impl<'tcx> Analyzer<'tcx> {
             match ty.kind() {
                 TyKind::Ref(_region, ref_ty, mutability) => match mutability {
                     Mutability::Not => {
-                        let name = Analyzer::span_to_str(&pattern.span);
-                        env.add_parameter(name.clone(), ref_ty, &var.clone(), pattern.clone());
+                        env.add_parameter(ref_ty, &var.clone(), pattern.clone());
                         if let Some(init) = initializer {
                             match self.expr_to_constraint(init.clone(), env) {
                                 Ok(value) => env.assign_new_value(var, value),
@@ -112,11 +112,15 @@ impl<'tcx> Analyzer<'tcx> {
                                             .var_map
                                             .get_mut(&id)
                                             .expect("var not found in Mutable");
-                                        let temp = mut_init.assume.0.clone();
-                                        mut_init.assume.0 = name.clone();
+                                        let temp = mut_init.get_assume().clone();
+                                        mut_init.set_assume(name.clone());
                                         env.smt_vars.push((name.clone(), ty.clone()));
-                                        let lir =
-                                            lir::Lir::new(name, ty.clone(), temp, pattern.clone());
+                                        let lir = lir::Lir::new(
+                                            ty.clone(),
+                                            vec![temp, name],
+                                            pattern.clone(),
+                                        )
+                                        .unwrap();
                                         env.add_mutable_ref(&var.clone(), lir);
                                     }
                                 }
@@ -130,8 +134,7 @@ impl<'tcx> Analyzer<'tcx> {
                     }
                 },
                 _ => {
-                    let name = Analyzer::span_to_str(&pattern.span);
-                    env.add_parameter(name.clone(), ty, &var.clone(), pattern.clone());
+                    env.add_parameter(ty, &var.clone(), pattern.clone());
                     if let Some(init) = initializer {
                         match self.expr_to_constraint(init.clone(), env) {
                             Ok(value) => env.assign_new_value(var, value),
@@ -169,7 +172,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(rhs, env)?;
         let var = env.var_map.get_mut(&Analyzer::expr_to_id(lhs)).expect("Assign target not found");
-        var.assume.0 = constraint;
+        var.set_assume(constraint);
         Ok(())
     }
 
