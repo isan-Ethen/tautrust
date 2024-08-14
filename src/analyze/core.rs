@@ -25,7 +25,7 @@ impl<'tcx> Analyzer<'tcx> {
                         Binding { ty, var, .. } => {
                             env.add_parameter(ty, var, pat.clone());
                             let constraint = self.expr_to_constraint(arg.clone(), env)?;
-                            env.assign_new_value(var, constraint);
+                            env.assign_new_value(var, constraint.get_assume().to_string());
                         }
                         Wild => (),
                         _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
@@ -79,7 +79,9 @@ impl<'tcx> Analyzer<'tcx> {
             }
             Return { value } => {
                 if let Some(expr) = value {
-                    return_value = AnalysisType::Return(Some(self.expr_to_constraint(expr, env)?));
+                    return_value = AnalysisType::Return(Some(
+                        self.expr_to_constraint(expr, env)?.get_assume().to_string(),
+                    ));
                 } else {
                     return_value = AnalysisType::Return(None);
                 }

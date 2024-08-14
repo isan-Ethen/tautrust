@@ -38,7 +38,7 @@ impl<'tcx> Env<'tcx> {
         Self { name, smt_vars, path, var_map }
     }
 
-    pub fn verify(&mut self, assert: String, span: Span) -> Result<(), AnalysisError> {
+    pub fn verify(&mut self, assert: &String, span: Span) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
             .args(["-in", "-model"])
             .stdin(std::process::Stdio::piped())
@@ -108,12 +108,12 @@ impl<'tcx> Env<'tcx> {
         &mut self, var_id: &LocalVarId, operation: String, arg: String, expr: Rc<RExpr<'tcx>>,
     ) {
         let var = self.var_map.get_mut(var_id).expect("Variable not found");
-        var.adapt_assume(operation, arg, expr);
+        var.adapt_assume(&operation, &arg, expr);
     }
 
     pub fn add_parameter(&mut self, ty: &Ty<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>) {
         self.var_map
-            .insert(var_id.clone(), Lir::new(ty.clone(), vec![String::new()], pat).unwrap());
+            .insert(var_id.clone(), Lir::new(ty.kind().clone(), vec![String::new()], pat).unwrap());
     }
 
     pub fn add_mutable_ref(&mut self, var_id: &LocalVarId, lir: Lir<'tcx>) {
