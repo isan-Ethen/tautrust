@@ -1,7 +1,10 @@
 // rustc crates
 // std crates
 // Own crates
-use crate::analyze::*;
+use crate::analyze::{
+    //lir::*,
+    *,
+};
 
 impl<'tcx> Analyzer<'tcx> {
     pub fn expr_to_constraint(
@@ -42,16 +45,16 @@ impl<'tcx> Analyzer<'tcx> {
 
     pub fn literal_to_constraint(lit: &'tcx Lit, neg: bool) -> Result<String, AnalysisError> {
         match lit.node {
-            LitKind::Str(symbol, _) => Ok(symbol.to_string()),
-            LitKind::Char(c) => Ok(format!("'{}'", c)),
+            // LitKind::Str(symbol, _) => Ok(symbol.to_string()),
+            // LitKind::Char(c) => Ok(format!("'{}'", c)),
             LitKind::Int(n, _) => Ok(if neg { format!("-{}", n) } else { format!("{}", n) }),
             LitKind::Float(symbol, _) => {
                 Ok(if neg { format!("-{}", symbol) } else { format!("{}", symbol) })
             }
             LitKind::Bool(b) => Ok(b.to_string()),
-            LitKind::ByteStr(ref bytes, _) => {
-                Ok(format!("b\"{}\"", String::from_utf8_lossy(bytes)))
-            }
+            // LitKind::ByteStr(ref bytes, _) => {
+            //     Ok(format!("b\"{}\"", String::from_utf8_lossy(bytes)))
+            // }
             _ => Err(AnalysisError::UnsupportedPattern(format!(
                 "Unsupported literal pattern: {}",
                 lit.node
