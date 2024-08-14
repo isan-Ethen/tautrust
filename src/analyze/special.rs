@@ -8,7 +8,7 @@ impl<'tcx> Analyzer<'tcx> {
         &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         let constraint = self.expr_to_constraint(args[0].clone(), env)?;
-        env.verify(constraint, args[0].span)?;
+        env.verify(constraint.get_assume(), args[0].span)?;
         Ok(AnalysisType::Other)
     }
 
@@ -16,7 +16,7 @@ impl<'tcx> Analyzer<'tcx> {
         &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         let constraint = self.expr_to_constraint(args[0].clone(), env)?;
-        env.add_assume(constraint);
+        env.add_assume(constraint.get_assume().to_string());
         Ok(AnalysisType::Other)
     }
 

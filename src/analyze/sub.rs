@@ -87,7 +87,9 @@ impl<'tcx> Analyzer<'tcx> {
                         env.add_parameter(ref_ty, &var.clone(), pattern.clone());
                         if let Some(init) = initializer {
                             match self.expr_to_constraint(init.clone(), env) {
-                                Ok(value) => env.assign_new_value(var, value),
+                                Ok(value) => {
+                                    env.assign_new_value(var, value.get_assume().to_string())
+                                }
                                 Err(err) => match err {
                                     AnalysisError::RandFunctions => {
                                         let rand = format!(
@@ -116,7 +118,7 @@ impl<'tcx> Analyzer<'tcx> {
                                         mut_init.set_assume(name.clone());
                                         env.smt_vars.push((name.clone(), ty.clone()));
                                         let lir = lir::Lir::new(
-                                            ty.clone(),
+                                            ty.kind().clone(),
                                             vec![temp, name],
                                             pattern.clone(),
                                         )
@@ -137,7 +139,7 @@ impl<'tcx> Analyzer<'tcx> {
                     env.add_parameter(ty, &var.clone(), pattern.clone());
                     if let Some(init) = initializer {
                         match self.expr_to_constraint(init.clone(), env) {
-                            Ok(value) => env.assign_new_value(var, value),
+                            Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
                             Err(err) => match err {
                                 AnalysisError::RandFunctions => {
                                     let rand =
@@ -163,7 +165,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let rhs = self.expr_to_constraint(rhs, env)?;
         let op_str = Analyzer::bin_op_to_smt(op)?;
-        env.add_assumption(&Analyzer::expr_to_id(lhs), op_str, rhs, expr);
+        env.add_assumption(&Analyzer::expr_to_id(lhs), op_str, rhs.get_assume().to_string(), expr);
         Ok(())
     }
 
@@ -172,7 +174,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(rhs, env)?;
         let var = env.var_map.get_mut(&Analyzer::expr_to_id(lhs)).expect("Assign target not found");
-        var.set_assume(constraint);
+        var.set_assume(constraint.get_assume().to_string());
         Ok(())
     }
 
@@ -180,7 +182,7 @@ impl<'tcx> Analyzer<'tcx> {
         &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
         else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        let cond_str = self.expr_to_constraint(cond.clone(), env)?;
+        let cond_str = self.expr_to_constraint(cond.clone(), env)?.get_assume().to_string();
 
         let mut then_env = env.gen_new_env("then".to_string())?;
         then_env.add_assume(cond_str.clone());
