@@ -46,7 +46,9 @@ impl<'tcx> Env<'tcx> {
             .spawn()
             .expect("Run z3 failed");
 
-        let mut smt = self.get_assumptions()?;
+        let mut smt =
+            "(declare-datatypes (T1 T2) ((Pair (mk-pair (first T1) (second T2)))))\n".to_string();
+        smt.push_str(&self.get_assumptions()?);
         smt.push_str(&format!("(assert (not {}))\n", assert));
 
         let mut stdin = child.stdin.take().expect("Open std failed");
@@ -86,6 +88,18 @@ impl<'tcx> Env<'tcx> {
             TyKind::Bool => Ok(format!("(declare-const {} Bool)\n", var.0)),
             TyKind::Int(_) => Ok(format!("(declare-const {} Int)\n", var.0)),
             TyKind::Float(_) => Ok(format!("(declare-const {} Real)\n", var.0)),
+            TyKind::Ref(_, ty, _) => {
+                Ok(format!("(declare-const {} {})\n", var.0, Env::type_to_str(&ty)?,))
+            }
+            _ => Err(AnalysisError::UnsupportedPattern("Unknown TyKind".into())),
+        }
+    }
+
+    pub fn type_to_str(ty: &Ty<'tcx>) -> Result<String, AnalysisError> {
+        match ty.kind() {
+            TyKind::Bool => Ok("Bool".into()),
+            TyKind::Int(_) => Ok("Int".into()),
+            TyKind::Float(_) => Ok("Real".into()),
             _ => Err(AnalysisError::UnsupportedPattern("Unknown TyKind".into())),
         }
     }
@@ -103,13 +117,17 @@ impl<'tcx> Env<'tcx> {
         self.var_map.insert(var_id.clone(), Lir::new(name, ty.clone(), String::new(), pat));
     }
 
+    pub fn add_mutable_ref(&mut self, var_id: &LocalVarId, lir: Lir<'tcx>) {
+        self.var_map.insert(var_id.clone(), lir);
+    }
+
     pub fn add_rand(&mut self, name: String, ty: &Ty<'tcx>) {
         self.smt_vars.push((name, ty.clone()));
     }
 
     pub fn assign_new_value(&mut self, target_id: &LocalVarId, constraint: String) {
         let target = self.var_map.get_mut(target_id).expect("target not found");
-        target.assume = constraint;
+        target.assume.0 = constraint;
     }
 
     pub fn new_env_name(&self, name: &str) -> String {
@@ -135,7 +153,7 @@ impl<'tcx> Env<'tcx> {
                         Lir::new(
                             current_lir.name.clone(),
                             current_lir.ty.clone(),
-                            format!("(ite {} {} {})", cond, then_lir.assume, else_lir.assume),
+                            format!("(ite {} {} {})", cond, then_lir.assume.0, else_lir.assume.0),
                             current_lir.expr.clone(),
                         ),
                     );
@@ -153,7 +171,7 @@ impl<'tcx> Env<'tcx> {
                             Lir::new(
                                 current_lir.name.clone(),
                                 current_lir.ty.clone(),
-                                format!("(ite {} {} {})", cond, lir.assume, current_lir.assume),
+                                format!("(ite {} {} {})", cond, lir.assume.0, current_lir.assume.0),
                                 current_lir.expr.clone(),
                             ),
                         );

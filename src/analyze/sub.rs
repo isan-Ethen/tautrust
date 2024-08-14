@@ -1,4 +1,6 @@
 // rustc crates
+use rustc_middle::ty::Mutability;
+
 // std crates
 // Own crates
 use crate::analyze::*;
@@ -65,7 +67,7 @@ impl<'tcx> Analyzer<'tcx> {
                 "t3assert" => self.analyze_t3assert(args, env),
                 "t3assume" => self.analyze_t3assume(args, env),
                 "invariant" => self.analyze_invariant(args),
-                "t3drop" => self.analyze_drop(args),
+                "t3drop" => self.analyze_drop(args, env),
                 _ => unreachable!(),
             }
         } else {
@@ -78,19 +80,72 @@ impl<'tcx> Analyzer<'tcx> {
         _: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         if let RExprKind::Pat { kind: RPatKind::Binding { ty, var, .. } } = &pattern.kind {
-            let name = Analyzer::span_to_str(&pattern.span);
-            env.add_parameter(name.clone(), ty, &var.clone(), pattern.clone());
-            if let Some(init) = initializer {
-                match self.expr_to_constraint(init.clone(), env) {
-                    Ok(value) => env.assign_new_value(var, value),
-                    Err(err) => match err {
-                        AnalysisError::RandFunctions => {
-                            let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
-                            env.add_rand(rand.clone(), ty);
-                            env.assign_new_value(var, rand)
+            match ty.kind() {
+                TyKind::Ref(_region, ref_ty, mutability) => match mutability {
+                    Mutability::Not => {
+                        let name = Analyzer::span_to_str(&pattern.span);
+                        env.add_parameter(name.clone(), ref_ty, &var.clone(), pattern.clone());
+                        if let Some(init) = initializer {
+                            match self.expr_to_constraint(init.clone(), env) {
+                                Ok(value) => env.assign_new_value(var, value),
+                                Err(err) => match err {
+                                    AnalysisError::RandFunctions => {
+                                        let rand = format!(
+                                            "rand_{}",
+                                            Analyzer::span_to_str(&pattern.span)
+                                        );
+                                        env.add_rand(rand.clone(), ref_ty);
+                                        env.assign_new_value(var, rand)
+                                    }
+                                    _ => return Err(err),
+                                },
+                            }
                         }
-                        _ => return Err(err),
-                    },
+                    }
+                    Mutability::Mut => {
+                        if let Some(init) = initializer {
+                            let name = Analyzer::span_to_str(&pattern.span);
+                            match &init.kind {
+                                RExprKind::Borrow { arg } => {
+                                    if let RExprKind::VarRef { id } = arg.kind {
+                                        let mut_init = env
+                                            .var_map
+                                            .get_mut(&id)
+                                            .expect("var not found in Mutable");
+                                        let temp = mut_init.assume.0.clone();
+                                        mut_init.assume.0 = name.clone();
+                                        env.smt_vars.push((name.clone(), ty.clone()));
+                                        let lir =
+                                            lir::Lir::new(name, ty.clone(), temp, pattern.clone());
+                                        env.add_mutable_ref(&var.clone(), lir);
+                                    }
+                                }
+                                // RExprKind::If { cond, then, else_opt } => {}
+                                _ => {
+                                    println!("{:?}", init);
+                                    panic!("Other mutable reference initializer is not supported: {:?}", pattern.span)
+                                }
+                            }
+                        }
+                    }
+                },
+                _ => {
+                    let name = Analyzer::span_to_str(&pattern.span);
+                    env.add_parameter(name.clone(), ty, &var.clone(), pattern.clone());
+                    if let Some(init) = initializer {
+                        match self.expr_to_constraint(init.clone(), env) {
+                            Ok(value) => env.assign_new_value(var, value),
+                            Err(err) => match err {
+                                AnalysisError::RandFunctions => {
+                                    let rand =
+                                        format!("rand_{}", Analyzer::span_to_str(&pattern.span));
+                                    env.add_rand(rand.clone(), ty);
+                                    env.assign_new_value(var, rand)
+                                }
+                                _ => return Err(err),
+                            },
+                        }
+                    }
                 }
             }
         } else {
@@ -114,7 +169,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(rhs, env)?;
         let var = env.var_map.get_mut(&Analyzer::expr_to_id(lhs)).expect("Assign target not found");
-        var.assume = constraint;
+        var.assume.0 = constraint;
         Ok(())
     }
 
