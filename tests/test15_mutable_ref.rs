@@ -2,8 +2,15 @@ extern crate t3modules;
 use t3modules::*;
 
 fn mutable_ref(ma: &mut i32, mb: &mut i32) {
-    let mc = if *ma >= *mb { ma } else { mb };
+    let mc = if *ma >= *mb {
+        t3drop(mb);
+        ma
+    } else {
+        t3drop(ma);
+        mb
+    };
     *mc += 1;
+    t3drop(mc);
 }
 
 fn main() {

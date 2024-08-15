@@ -128,6 +128,11 @@ impl<'tcx> Env<'tcx> {
         target.set_assume(constraint);
     }
 
+    pub fn assign_assume(&mut self, target_id: &LocalVarId, assume: LirKind<'tcx>) {
+        let target = self.var_map.get_mut(target_id).expect("target not found");
+        target.kind = assume;
+    }
+
     pub fn new_env_name(&self, name: &str) -> String {
         if self.name.starts_with(name) {
             format!("{}+", self.name)
@@ -170,20 +175,14 @@ impl<'tcx> Env<'tcx> {
             for (var_id, current_lir) in current_var_map.iter() {
                 if let Some(lir) = then_env.var_map.get(var_id) {
                     if current_lir.get_assume() != lir.get_assume() {
-                        new_var_map.insert(
-                            var_id.clone(),
-                            Lir::new(
-                                current_lir.get_ty(),
-                                vec![format!(
-                                    "(ite {} {} {})",
-                                    cond,
-                                    lir.get_assume(),
-                                    current_lir.get_assume()
-                                )],
-                                current_lir.expr.clone(),
-                            )
-                            .unwrap(),
-                        );
+                        let mut new_lir = current_lir.clone();
+                        new_lir.set_assume(format!(
+                            "(ite {} {} {})",
+                            cond,
+                            lir.get_assume(),
+                            current_lir.get_assume()
+                        ));
+                        new_var_map.insert(var_id.clone(), new_lir.clone());
                     } else {
                         new_var_map.insert(var_id.clone(), current_lir.clone());
                     }
