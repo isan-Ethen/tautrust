@@ -46,8 +46,7 @@ impl<'tcx> Env<'tcx> {
             .spawn()
             .expect("Run z3 failed");
 
-        let mut smt =
-            "(declare-datatypes (T1 T2) ((Pair (mk-pair (first T1) (second T2)))))\n".to_string();
+        let mut smt = String::new();
         smt.push_str(&self.get_assumptions()?);
         smt.push_str(&format!("(assert (not {}))\n", assert));
 
@@ -138,9 +137,10 @@ impl<'tcx> Env<'tcx> {
     }
 
     pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
-        self.path.extend_from_slice(&then_env.path[self.len() + 1..]);
+        let len = self.len();
+        self.path.extend_from_slice(&then_env.path[len + 1..]);
         if let Some(else_env) = else_env {
-            self.path.extend_from_slice(&else_env.path[self.len() + 1..]);
+            self.path.extend_from_slice(&else_env.path[len + 1..]);
             let mut new_var_map = Map::new();
             let current_var_map = self.var_map.clone();
             for (var_id, current_lir) in current_var_map.iter() {
@@ -201,19 +201,18 @@ impl<'tcx> Env<'tcx> {
     pub fn merge_then_else_env(
         &mut self, cond_str: String, mut then_env: Env<'tcx>, mut else_env: Option<Env<'tcx>>,
     ) -> Result<(), AnalysisError> {
-        then_env.adapt_cond_to_path(&cond_str, &self.path)?;
+        let len = self.len();
+        then_env.adapt_cond_to_path(&cond_str, &len)?;
         if let Some(else_env) = &mut else_env {
-            else_env.adapt_cond_to_path(&format!("(not {})", cond_str), &self.path)?;
+            else_env.adapt_cond_to_path(&format!("(not {})", cond_str), &len)?;
         }
         self.merge_env(cond_str, then_env, else_env);
         Ok(())
     }
 
-    fn adapt_cond_to_path(
-        &mut self, cond_str: &String, path: &Vec<String>,
-    ) -> Result<(), AnalysisError> {
-        for i in path.len()..self.len() {
-            self.path[i] = format!("(-> {} {})", cond_str, self.path[i]);
+    fn adapt_cond_to_path(&mut self, cond_str: &String, len: &usize) -> Result<(), AnalysisError> {
+        for i in *len..self.len() {
+            self.path[i] = format!("(=> {} {})", cond_str, self.path[i]);
         }
         Ok(())
     }
