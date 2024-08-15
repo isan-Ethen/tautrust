@@ -3,9 +3,11 @@ use t3modules::*;
 
 fn take_max<'a>(a: &'a mut i32, b: &'a mut i32) -> &'a mut i32 {
     let c = if *a >= *b {
+        t3assert(*a >= *b);
         t3drop(b);
         a
     } else {
+        t3assert(*a < *b);
         t3drop(a);
         b
     };
