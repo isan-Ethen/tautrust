@@ -38,7 +38,7 @@ impl<'tcx> Env<'tcx> {
         Self { name, smt_vars, path, var_map }
     }
 
-    pub fn verify(&mut self, assert: String, span: Span) -> Result<(), AnalysisError> {
+    pub fn verify(&mut self, assert: &String, span: Span) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
             .args(["-in", "-model"])
             .stdin(std::process::Stdio::piped())
@@ -46,8 +46,7 @@ impl<'tcx> Env<'tcx> {
             .spawn()
             .expect("Run z3 failed");
 
-        let mut smt =
-            "(declare-datatypes (T1 T2) ((Pair (mk-pair (first T1) (second T2)))))\n".to_string();
+        let mut smt = String::new();
         smt.push_str(&self.get_assumptions()?);
         smt.push_str(&format!("(assert (not {}))\n", assert));
 
@@ -108,12 +107,12 @@ impl<'tcx> Env<'tcx> {
         &mut self, var_id: &LocalVarId, operation: String, arg: String, expr: Rc<RExpr<'tcx>>,
     ) {
         let var = self.var_map.get_mut(var_id).expect("Variable not found");
-        var.adapt_assume(operation, arg, expr);
+        var.adapt_assume(&operation, &arg, expr);
     }
 
     pub fn add_parameter(&mut self, ty: &Ty<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>) {
         self.var_map
-            .insert(var_id.clone(), Lir::new(ty.clone(), vec![String::new()], pat).unwrap());
+            .insert(var_id.clone(), Lir::new(ty.kind().clone(), vec![String::new()], pat).unwrap());
     }
 
     pub fn add_mutable_ref(&mut self, var_id: &LocalVarId, lir: Lir<'tcx>) {
@@ -129,6 +128,11 @@ impl<'tcx> Env<'tcx> {
         target.set_assume(constraint);
     }
 
+    pub fn assign_assume(&mut self, target_id: &LocalVarId, assume: LirKind<'tcx>) {
+        let target = self.var_map.get_mut(target_id).expect("target not found");
+        target.kind = assume;
+    }
+
     pub fn new_env_name(&self, name: &str) -> String {
         if self.name.starts_with(name) {
             format!("{}+", self.name)
@@ -138,9 +142,10 @@ impl<'tcx> Env<'tcx> {
     }
 
     pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
-        self.path.extend_from_slice(&then_env.path[self.len() + 1..]);
+        let len = self.len();
+        self.path.extend_from_slice(&then_env.path[len + 1..]);
         if let Some(else_env) = else_env {
-            self.path.extend_from_slice(&else_env.path[self.len() + 1..]);
+            self.path.extend_from_slice(&else_env.path[len + 1..]);
             let mut new_var_map = Map::new();
             let current_var_map = self.var_map.clone();
             for (var_id, current_lir) in current_var_map.iter() {
@@ -170,20 +175,14 @@ impl<'tcx> Env<'tcx> {
             for (var_id, current_lir) in current_var_map.iter() {
                 if let Some(lir) = then_env.var_map.get(var_id) {
                     if current_lir.get_assume() != lir.get_assume() {
-                        new_var_map.insert(
-                            var_id.clone(),
-                            Lir::new(
-                                current_lir.get_ty(),
-                                vec![format!(
-                                    "(ite {} {} {})",
-                                    cond,
-                                    lir.get_assume(),
-                                    current_lir.get_assume()
-                                )],
-                                current_lir.expr.clone(),
-                            )
-                            .unwrap(),
-                        );
+                        let mut new_lir = current_lir.clone();
+                        new_lir.set_assume(format!(
+                            "(ite {} {} {})",
+                            cond,
+                            lir.get_assume(),
+                            current_lir.get_assume()
+                        ));
+                        new_var_map.insert(var_id.clone(), new_lir.clone());
                     } else {
                         new_var_map.insert(var_id.clone(), current_lir.clone());
                     }
@@ -201,19 +200,18 @@ impl<'tcx> Env<'tcx> {
     pub fn merge_then_else_env(
         &mut self, cond_str: String, mut then_env: Env<'tcx>, mut else_env: Option<Env<'tcx>>,
     ) -> Result<(), AnalysisError> {
-        then_env.adapt_cond_to_path(&cond_str, &self.path)?;
+        let len = self.len();
+        then_env.adapt_cond_to_path(&cond_str, &len)?;
         if let Some(else_env) = &mut else_env {
-            else_env.adapt_cond_to_path(&format!("(not {})", cond_str), &self.path)?;
+            else_env.adapt_cond_to_path(&format!("(not {})", cond_str), &len)?;
         }
         self.merge_env(cond_str, then_env, else_env);
         Ok(())
     }
 
-    fn adapt_cond_to_path(
-        &mut self, cond_str: &String, path: &Vec<String>,
-    ) -> Result<(), AnalysisError> {
-        for i in path.len()..self.len() {
-            self.path[i] = format!("(-> {} {})", cond_str, self.path[i]);
+    fn adapt_cond_to_path(&mut self, cond_str: &String, len: &usize) -> Result<(), AnalysisError> {
+        for i in *len..self.len() {
+            self.path[i] = format!("(=> {} {})", cond_str, self.path[i]);
         }
         Ok(())
     }

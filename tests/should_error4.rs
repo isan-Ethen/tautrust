@@ -21,5 +21,5 @@ fn main() {
     *mc += 1;
 
     t3drop(mc);
-    t3assert(a != b);
+    t3assert(a == b);
 }

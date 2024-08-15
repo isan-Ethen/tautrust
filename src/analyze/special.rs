@@ -8,7 +8,7 @@ impl<'tcx> Analyzer<'tcx> {
         &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         let constraint = self.expr_to_constraint(args[0].clone(), env)?;
-        env.verify(constraint, args[0].span)?;
+        env.verify(constraint.get_assume(), args[0].span)?;
         Ok(AnalysisType::Other)
     }
 
@@ -16,7 +16,7 @@ impl<'tcx> Analyzer<'tcx> {
         &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         let constraint = self.expr_to_constraint(args[0].clone(), env)?;
-        env.add_assume(constraint);
+        env.add_assume(constraint.get_assume().to_string());
         Ok(AnalysisType::Other)
     }
 
@@ -31,7 +31,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         if let RExprKind::VarRef { id } = args[0].kind {
             let arg = env.var_map.get(&id).expect("Var not found in t3drop");
-            env.add_assume(format!("(= {} {})", arg.get_assume(), arg.get_assume_by_index(1)))
+            env.add_assume(format!("(= {} {})", arg.get_assume(), arg.get_assume_by_index(vec![1])))
         }
         Ok(AnalysisType::Other)
     }
