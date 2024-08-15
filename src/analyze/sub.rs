@@ -3,7 +3,7 @@ use rustc_middle::ty::Mutability;
 
 // std crates
 // Own crates
-use crate::analyze::*;
+use crate::analyze::{lir::*, *};
 
 impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_local_fn(
@@ -126,7 +126,17 @@ impl<'tcx> Analyzer<'tcx> {
                                         env.add_mutable_ref(&var.clone(), lir);
                                     }
                                 }
-                                // RExprKind::If { cond, then, else_opt } => {}
+                                RExprKind::If { cond, then, else_opt } => {
+                                    let lir = self.if_to_mut(
+                                        cond.clone(),
+                                        then.clone(),
+                                        else_opt.clone(),
+                                        env,
+                                    )?;
+                                    env.smt_vars.push((name.clone(), ty.clone()));
+                                    let lir = Lir { kind: lir, expr: pattern.clone() };
+                                    env.add_mutable_ref(&var.clone(), lir);
+                                }
                                 _ => {
                                     println!("{:?}", init);
                                     panic!("Other mutable reference initializer is not supported: {:?}", pattern.span)
@@ -157,6 +167,39 @@ impl<'tcx> Analyzer<'tcx> {
             unreachable!();
         }
         Ok(())
+    }
+
+    pub fn if_to_mut(
+        &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        let cond = self.expr_to_constraint(cond, env)?;
+        let cond_str = cond.get_assume();
+
+        let mut then_env = env.gen_new_env("then".to_string())?;
+        then_env.add_assume(cond_str.to_string());
+        let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
+
+        let else_block = else_opt.expect("Else block of if initializer not found");
+        let mut else_env = env.gen_new_env("else".to_string())?;
+        else_env.add_assume(format!("(not {})", cond_str));
+        let else_value = self.block_to_constraint(else_block, &mut else_env)?;
+
+        env.merge_then_else_env(cond_str.to_string(), then_env, Some(else_env))?;
+        then_value.set_assume(Analyzer::value_to_ite(
+            cond_str,
+            then_value.get_assume(),
+            else_value.get_assume(),
+        ));
+        then_value.set_assume_by_index(
+            Analyzer::value_to_ite(
+                cond_str,
+                then_value.get_assume_by_index(vec![1]),
+                else_value.get_assume_by_index(vec![1]),
+            ),
+            vec![1],
+        );
+        Ok(then_value)
     }
 
     pub fn analyze_assign_op(

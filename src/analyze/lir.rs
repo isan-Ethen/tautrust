@@ -37,8 +37,8 @@ impl<'tcx> Lir<'tcx> {
 
     pub fn set_assume(&mut self, constraint: String) { self.kind.set_assume(constraint) }
 
-    pub fn get_assume_by_index(&self, index: usize) -> &String {
-        self.kind.get_assume_by_index(index)
+    pub fn get_assume_by_index(&self, indices: Vec<usize>) -> &String {
+        self.kind.get_assume_by_index(indices)
     }
 
     pub fn adapt_assume(&mut self, operation: &String, arg: &String, expr: Rc<RExpr<'tcx>>) {
@@ -82,6 +82,15 @@ impl<'tcx> LirKind<'tcx> {
         }
     }
 
+    pub fn get_assume_by_index(&self, mut indices: Vec<usize>) -> &String {
+        match self {
+            LirKind::Aggregate { fields, .. } => {
+                fields[indices.remove(0)].get_assume_by_index(indices)
+            }
+            LirKind::Path { assume, .. } => assume,
+        }
+    }
+
     pub fn set_assume(&mut self, new_assume: String) {
         match self {
             LirKind::Path { assume, .. } => *assume = new_assume,
@@ -89,10 +98,12 @@ impl<'tcx> LirKind<'tcx> {
         }
     }
 
-    pub fn get_assume_by_index(&self, index: usize) -> &String {
+    pub fn set_assume_by_index(&mut self, new_assume: String, mut indices: Vec<usize>) {
         match self {
-            LirKind::Aggregate { fields, .. } => fields[index].get_assume(),
-            _ => panic!("I'm Path!"),
+            LirKind::Path { assume, .. } => *assume = new_assume,
+            LirKind::Aggregate { fields, .. } => {
+                fields[indices.remove(0)].set_assume_by_index(new_assume, indices)
+            }
         }
     }
 
