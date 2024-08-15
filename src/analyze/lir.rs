@@ -23,7 +23,9 @@ impl<'tcx> Lir<'tcx> {
         let kind = match ty {
             TyKind::Bool | TyKind::Int(_) | TyKind::Float(_) => LirKind::new(ty, assume[0].clone()),
             TyKind::Ref(_, ty, _) => LirKind::new_aggregate(ty.clone(), assume),
-            _ => return Err(AnalysisError::UnsupportedPattern("Unknown TyKind".into())),
+            _ => {
+                return Err(AnalysisError::UnsupportedPattern(format!("Unknown TyKind: {:?}", ty)))
+            }
         };
 
         Ok(Self { kind, expr })

@@ -89,8 +89,24 @@ impl<'tcx> ThirReducer<'tcx> {
     }
 
     fn reduce_body(&self) -> Option<Rc<RExpr<'tcx>>> {
+        use rustc_middle::thir::ExprKind::*;
+        // let expr_id = ExprId::from_usize(self.thir.exprs.len() - 1);
+        // Some(self.reduce_expr(&expr_id))
         let expr_id = ExprId::from_usize(self.thir.exprs.len() - 1);
-        Some(self.reduce_expr(&expr_id))
+        if let Scope { value, .. } = &self.thir[expr_id].kind {
+            match &self.thir[*value].kind {
+                Borrow { arg, .. } => {
+                    if let Deref { arg } = &self.thir[*arg].kind {
+                        Some(self.reduce_expr(arg))
+                    } else {
+                        panic!("Unknown if borrow")
+                    }
+                }
+                _ => Some(self.reduce_expr(value)),
+            }
+        } else {
+            panic!("Unknown then pattern")
+        }
     }
 
     fn reduce_expr(&self, expr_id: &ExprId) -> Rc<RExpr<'tcx>> {

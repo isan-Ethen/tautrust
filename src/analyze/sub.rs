@@ -31,7 +31,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         match kind {
             Wild => (),
-            Binding { ty, var, .. } => env.add_parameter(ty, var, pat),
+            Binding { ty, var, .. } => env.add_parameter(ty.kind(), var, pat),
             Deref { subpattern } => match self.analyze_expr(subpattern.clone(), env) {
                 Ok(_) => (),
                 Err(err) => return Err(err),
@@ -84,7 +84,7 @@ impl<'tcx> Analyzer<'tcx> {
             match ty.kind() {
                 TyKind::Ref(_region, ref_ty, mutability) => match mutability {
                     Mutability::Not => {
-                        env.add_parameter(ref_ty, &var.clone(), pattern.clone());
+                        env.add_parameter(ref_ty.kind(), &var.clone(), pattern.clone());
                         if let Some(init) = initializer {
                             match self.expr_to_constraint(init.clone(), env) {
                                 Ok(value) => {
@@ -96,7 +96,7 @@ impl<'tcx> Analyzer<'tcx> {
                                             "rand_{}",
                                             Analyzer::span_to_str(&pattern.span)
                                         );
-                                        env.add_rand(rand.clone(), ref_ty);
+                                        env.add_rand(rand.clone(), ref_ty.kind());
                                         env.assign_new_value(var, rand)
                                     }
                                     _ => return Err(err),
@@ -116,7 +116,7 @@ impl<'tcx> Analyzer<'tcx> {
                                             .expect("var not found in Mutable");
                                         let temp = mut_init.get_assume().clone();
                                         mut_init.set_assume(name.clone());
-                                        env.smt_vars.push((name.clone(), ty.clone()));
+                                        env.smt_vars.push((name.clone(), ty.kind().clone()));
                                         let lir = lir::Lir::new(
                                             ty.kind().clone(),
                                             vec![temp, name],
@@ -133,8 +133,15 @@ impl<'tcx> Analyzer<'tcx> {
                                         else_opt.clone(),
                                         env,
                                     )?;
-                                    env.smt_vars.push((name.clone(), ty.clone()));
+                                    env.smt_vars.push((name.clone(), ty.kind().clone()));
                                     let lir = Lir { kind: lir, expr: pattern.clone() };
+                                    env.add_mutable_ref(&var.clone(), lir);
+                                }
+                                RExprKind::Call { ty, args, .. } => {
+                                    let return_value =
+                                        self.fn_to_constraint(*ty, args.clone(), env)?;
+                                    env.smt_vars.push((name.clone(), return_value.get_ty()));
+                                    let lir = Lir { kind: return_value, expr: pattern.clone() };
                                     env.add_mutable_ref(&var.clone(), lir);
                                 }
                                 _ => {
@@ -146,7 +153,7 @@ impl<'tcx> Analyzer<'tcx> {
                     }
                 },
                 _ => {
-                    env.add_parameter(ty, &var.clone(), pattern.clone());
+                    env.add_parameter(ty.kind(), &var.clone(), pattern.clone());
                     if let Some(init) = initializer {
                         match self.expr_to_constraint(init.clone(), env) {
                             Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
@@ -154,7 +161,7 @@ impl<'tcx> Analyzer<'tcx> {
                                 AnalysisError::RandFunctions => {
                                     let rand =
                                         format!("rand_{}", Analyzer::span_to_str(&pattern.span));
-                                    env.add_rand(rand.clone(), ty);
+                                    env.add_rand(rand.clone(), ty.kind());
                                     env.assign_new_value(var, rand)
                                 }
                                 _ => return Err(err),

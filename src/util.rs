@@ -12,6 +12,7 @@ use crate::thir::{rthir::*, *};
 pub fn get_fn_map<'tcx>(tcx: &TyCtxt<'tcx>) -> Map<LocalDefId, Rc<RThir<'tcx>>> {
     let mut map: Map<LocalDefId, Rc<RThir<'tcx>>> = Map::new();
     tcx.mir_keys(()).iter().for_each(|&key| {
+        // println!("{}", thir_tree(tcx, key));
         let rthir = generate_rthir(&tcx, key).expect("Generate ReducedTHIR failed");
         // println!("{:?}, {:?}", key, rthir);
         map.insert(key, Rc::new(rthir));
