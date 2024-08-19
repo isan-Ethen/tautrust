@@ -31,7 +31,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         match kind {
             Wild => (),
-            Binding { ty, var, .. } => env.add_parameter(ty, var, pat),
+            Binding { ty, var, .. } => env.add_parameter(ty.kind(), var, pat),
             Deref { subpattern } => match self.analyze_expr(subpattern.clone(), env) {
                 Ok(_) => (),
                 Err(err) => return Err(err),
@@ -84,7 +84,7 @@ impl<'tcx> Analyzer<'tcx> {
             match ty.kind() {
                 TyKind::Ref(_region, ref_ty, mutability) => match mutability {
                     Mutability::Not => {
-                        env.add_parameter(ref_ty, &var.clone(), pattern.clone());
+                        env.add_parameter(ref_ty.kind(), &var.clone(), pattern.clone());
                         if let Some(init) = initializer {
                             match self.expr_to_constraint(init.clone(), env) {
                                 Ok(value) => {
@@ -96,7 +96,7 @@ impl<'tcx> Analyzer<'tcx> {
                                             "rand_{}",
                                             Analyzer::span_to_str(&pattern.span)
                                         );
-                                        env.add_rand(rand.clone(), ref_ty);
+                                        env.add_rand(rand.clone(), ref_ty.kind());
                                         env.assign_new_value(var, rand)
                                     }
                                     _ => return Err(err),
@@ -116,7 +116,7 @@ impl<'tcx> Analyzer<'tcx> {
                                             .expect("var not found in Mutable");
                                         let temp = mut_init.get_assume().clone();
                                         mut_init.set_assume(name.clone());
-                                        env.smt_vars.push((name.clone(), ty.clone()));
+                                        env.smt_vars.push((name.clone(), ty.kind().clone()));
                                         let lir = lir::Lir::new(
                                             ty.kind().clone(),
                                             vec![temp, name],
@@ -133,8 +133,15 @@ impl<'tcx> Analyzer<'tcx> {
                                         else_opt.clone(),
                                         env,
                                     )?;
-                                    env.smt_vars.push((name.clone(), ty.clone()));
+                                    env.smt_vars.push((name.clone(), ty.kind().clone()));
                                     let lir = Lir { kind: lir, expr: pattern.clone() };
+                                    env.add_mutable_ref(&var.clone(), lir);
+                                }
+                                RExprKind::Call { ty, args, .. } => {
+                                    let return_value =
+                                        self.fn_to_constraint(*ty, args.clone(), env)?;
+                                    env.smt_vars.push((name.clone(), return_value.get_ty()));
+                                    let lir = Lir { kind: return_value, expr: pattern.clone() };
                                     env.add_mutable_ref(&var.clone(), lir);
                                 }
                                 _ => {
@@ -146,56 +153,56 @@ impl<'tcx> Analyzer<'tcx> {
                     }
                 },
                 _ => {
-                    env.add_parameter(ty, &var.clone(), pattern.clone());
-                    fn assume_ty_range(name: String, ty: Ty<'_>, env: &mut Env<'_>) {
-                        match ty.kind() {
-                            TyKind::Int(int_ty) => {
-                                fn int_range<T: From<i128>>(int_ty: IntTy) -> (T, T) {
-                                    match int_ty {
-                                        IntTy::Isize => (
-                                            T::from(isize::MIN as i128),
-                                            T::from(isize::MAX as i128),
-                                        ),
-                                        IntTy::I8 => {
-                                            (T::from(i8::MIN as i128), T::from(i8::MAX as i128))
-                                        }
-                                        IntTy::I16 => {
-                                            (T::from(i16::MIN as i128), T::from(i16::MAX as i128))
-                                        }
-                                        IntTy::I32 => {
-                                            (T::from(i32::MIN as i128), T::from(i32::MAX as i128))
-                                        }
-                                        IntTy::I64 => {
-                                            (T::from(i64::MIN as i128), T::from(i64::MAX as i128))
-                                        }
-                                        IntTy::I128 => (T::from(i128::MIN), T::from(i128::MAX)),
-                                    }
-                                }
-                                let (min, max): (i128, i128) = int_range(int_ty.clone());
-                                env.add_assume(format!(
-                                    "(and (>= {} {}) (<= {} {}))",
-                                    name, min, name, max
-                                ))
-                            }
-                            TyKind::Float(float_ty) => {
-                                fn float_range<T: From<f64>>(float_ty: FloatTy) -> (T, T) {
-                                    match float_ty {
-                                        FloatTy::F32 => {
-                                            (T::from(f32::MIN as f64), T::from(f32::MAX as f64))
-                                        }
-                                        FloatTy::F64 => (T::from(f64::MIN), T::from(f64::MAX)),
-                                        _ => panic!("type {:?} is not supported!", float_ty),
-                                    }
-                                }
-                                let (min, max): (f64, f64) = float_range(float_ty.clone());
-                                env.add_assume(format!(
-                                    "(and (>= {} {}) (<= {} {}))",
-                                    name, min, name, max
-                                ))
-                            }
-                            _ => (),
-                        }
-                    }
+                    //fn assume_ty_range(name: String, ty: Ty<'_>, env: &mut Env<'_>) {
+                    //    match ty.kind() {
+                    //        TyKind::Int(int_ty) => {
+                    //            fn int_range<T: From<i128>>(int_ty: IntTy) -> (T, T) {
+                    //                match int_ty {
+                    //                    IntTy::Isize => (
+                    //                        T::from(isize::MIN as i128),
+                    //                        T::from(isize::MAX as i128),
+                    //                    ),
+                    //                    IntTy::I8 => {
+                    //                        (T::from(i8::MIN as i128), T::from(i8::MAX as i128))
+                    //                    }
+                    //                    IntTy::I16 => {
+                    //                        (T::from(i16::MIN as i128), T::from(i16::MAX as i128))
+                    //                    }
+                    //                    IntTy::I32 => {
+                    //                        (T::from(i32::MIN as i128), T::from(i32::MAX as i128))
+                    //                    }
+                    //                    IntTy::I64 => {
+                    //                        (T::from(i64::MIN as i128), T::from(i64::MAX as i128))
+                    //                    }
+                    //                    IntTy::I128 => (T::from(i128::MIN), T::from(i128::MAX)),
+                    //                }
+                    //            }
+                    //            let (min, max): (i128, i128) = int_range(int_ty.clone());
+                    //            env.add_assume(format!(
+                    //                "(and (>= {} {}) (<= {} {}))",
+                    //                name, min, name, max
+                    //            ))
+                    //        }
+                    //        TyKind::Float(float_ty) => {
+                    //            fn float_range<T: From<f64>>(float_ty: FloatTy) -> (T, T) {
+                    //                match float_ty {
+                    //                    FloatTy::F32 => {
+                    //                        (T::from(f32::MIN as f64), T::from(f32::MAX as f64))
+                    //                    }
+                    //                    FloatTy::F64 => (T::from(f64::MIN), T::from(f64::MAX)),
+                    //                    _ => panic!("type {:?} is not supported!", float_ty),
+                    //                }
+                    //            }
+                    //            let (min, max): (f64, f64) = float_range(float_ty.clone());
+                    //            env.add_assume(format!(
+                    //                "(and (>= {} {}) (<= {} {}))",
+                    //                name, min, name, max
+                    //            ))
+                    //        }
+                    //        _ => (),
+                    //    }
+                    //}
+                    env.add_parameter(ty.kind(), &var.clone(), pattern.clone());
                     if let Some(init) = initializer {
                         match self.expr_to_constraint(init.clone(), env) {
                             Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
@@ -203,9 +210,9 @@ impl<'tcx> Analyzer<'tcx> {
                                 AnalysisError::RandFunctions => {
                                     let rand =
                                         format!("rand_{}", Analyzer::span_to_str(&pattern.span));
-                                    env.add_rand(rand.clone(), ty);
-                                    env.assign_new_value(var, rand.clone());
-                                    assume_ty_range(rand.clone(), ty.clone(), env)
+                                    // assume_ty_range(rand.clone(), ty.clone(), env)
+                                    env.add_rand(rand.clone(), ty.kind());
+                                    env.assign_new_value(var, rand)
                                 }
                                 _ => return Err(err),
                             },

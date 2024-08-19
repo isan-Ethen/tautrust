@@ -1,7 +1,9 @@
 // rustc crates
 use rustc_ast::ast::LitKind;
 use rustc_hir::Lit;
-use rustc_middle::mir::{BinOp, UnOp};
+use rustc_middle::mir::{
+    BinOp, // UnOp
+};
 use rustc_middle::thir::LocalVarId;
 use rustc_middle::thir::LogicalOp;
 use rustc_middle::ty::TyCtxt;

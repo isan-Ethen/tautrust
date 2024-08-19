@@ -1,6 +1,6 @@
 // rustc crates
 use rustc_middle::thir::LocalVarId;
-use rustc_middle::ty::{Ty, TyKind};
+use rustc_middle::ty::TyKind;
 use rustc_span::Span;
 use std::rc::Rc;
 
@@ -16,7 +16,7 @@ use crate::thir::rthir::*;
 #[derive(Clone)]
 pub struct Env<'tcx> {
     pub name: String,
-    pub smt_vars: Vec<(String, Ty<'tcx>)>,
+    pub smt_vars: Vec<(String, TyKind<'tcx>)>,
     pub path: Vec<String>,
     pub var_map: Map<LocalVarId, Lir<'tcx>>,
 }
@@ -32,7 +32,7 @@ impl<'tcx> Env<'tcx> {
     }
 
     pub fn from(
-        name: String, smt_vars: Vec<(String, Ty<'tcx>)>, path: Vec<String>,
+        name: String, smt_vars: Vec<(String, TyKind<'tcx>)>, path: Vec<String>,
         var_map: Map<LocalVarId, Lir<'tcx>>,
     ) -> Self {
         Self { name, smt_vars, path, var_map }
@@ -82,24 +82,30 @@ impl<'tcx> Env<'tcx> {
         Ok(smt)
     }
 
-    pub fn to_smt(&self, var: &(String, Ty<'tcx>)) -> Result<String, AnalysisError> {
-        match var.1.kind() {
+    pub fn to_smt(&self, var: &(String, TyKind<'tcx>)) -> Result<String, AnalysisError> {
+        match var.1 {
             TyKind::Bool => Ok(format!("(declare-const {} Bool)\n", var.0)),
             TyKind::Int(_) => Ok(format!("(declare-const {} Int)\n", var.0)),
             TyKind::Float(_) => Ok(format!("(declare-const {} Real)\n", var.0)),
             TyKind::Ref(_, ty, _) => {
-                Ok(format!("(declare-const {} {})\n", var.0, Env::type_to_str(&ty)?,))
+                Ok(format!("(declare-const {} {})\n", var.0, Env::type_to_str(&ty.kind())?,))
             }
-            _ => Err(AnalysisError::UnsupportedPattern("Unknown TyKind".into())),
+            _ => Err(AnalysisError::UnsupportedPattern(format!(
+                "Unknown TyKind: {:?} in to_smt",
+                var.1
+            ))),
         }
     }
 
-    pub fn type_to_str(ty: &Ty<'tcx>) -> Result<String, AnalysisError> {
-        match ty.kind() {
+    pub fn type_to_str(ty: &TyKind<'tcx>) -> Result<String, AnalysisError> {
+        match ty {
             TyKind::Bool => Ok("Bool".into()),
             TyKind::Int(_) => Ok("Int".into()),
             TyKind::Float(_) => Ok("Real".into()),
-            _ => Err(AnalysisError::UnsupportedPattern("Unknown TyKind".into())),
+            _ => Err(AnalysisError::UnsupportedPattern(format!(
+                "Unknown TyKind: {:?} in type_to_str",
+                ty
+            ))),
         }
     }
 
@@ -110,16 +116,16 @@ impl<'tcx> Env<'tcx> {
         var.adapt_assume(&operation, &arg, expr);
     }
 
-    pub fn add_parameter(&mut self, ty: &Ty<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>) {
+    pub fn add_parameter(&mut self, ty: &TyKind<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>) {
         self.var_map
-            .insert(var_id.clone(), Lir::new(ty.kind().clone(), vec![String::new()], pat).unwrap());
+            .insert(var_id.clone(), Lir::new(ty.clone(), vec![String::new()], pat).unwrap());
     }
 
     pub fn add_mutable_ref(&mut self, var_id: &LocalVarId, lir: Lir<'tcx>) {
         self.var_map.insert(var_id.clone(), lir);
     }
 
-    pub fn add_rand(&mut self, name: String, ty: &Ty<'tcx>) {
+    pub fn add_rand(&mut self, name: String, ty: &TyKind<'tcx>) {
         self.smt_vars.push((name, ty.clone()));
     }
 
