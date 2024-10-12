@@ -150,52 +150,55 @@ impl<'tcx> Env<'tcx> {
     pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
         let len = self.len();
         self.path.extend_from_slice(&then_env.path[len + 1..]);
-        if let Some(else_env) = else_env {
+
+        if let Some(ref else_env) = else_env {
             self.path.extend_from_slice(&else_env.path[len + 1..]);
-            let mut new_var_map = Map::new();
-            let current_var_map = self.var_map.clone();
-            for (var_id, current_lir) in current_var_map.iter() {
-                if let (Some(then_lir), Some(else_lir)) =
-                    (then_env.var_map.get(var_id), else_env.var_map.get(var_id))
-                {
-                    new_var_map.insert(
-                        var_id.clone(),
-                        Lir::new(
-                            current_lir.get_ty(),
-                            vec![format!(
-                                "(ite {} {} {})",
-                                cond,
-                                then_lir.get_assume(),
-                                else_lir.get_assume()
-                            )],
-                            current_lir.expr.clone(),
-                        )
-                        .unwrap(),
-                    );
-                }
-            }
-            self.var_map = new_var_map;
-        } else {
-            let mut new_var_map = Map::new();
-            let current_var_map = self.var_map.clone();
-            for (var_id, current_lir) in current_var_map.iter() {
-                if let Some(lir) = then_env.var_map.get(var_id) {
-                    if current_lir.get_assume() != lir.get_assume() {
-                        let mut new_lir = current_lir.clone();
-                        new_lir.set_assume(format!(
-                            "(ite {} {} {})",
-                            cond,
-                            lir.get_assume(),
-                            current_lir.get_assume()
-                        ));
-                        new_var_map.insert(var_id.clone(), new_lir.clone());
+        }
+
+        let mut new_var_map = Map::new();
+        let current_var_map = self.var_map.clone();
+
+        for (var_id, current_lir) in current_var_map.iter() {
+            let new_lir = match (
+                then_env.var_map.get(var_id),
+                else_env.as_ref().and_then(|e| e.var_map.get(var_id)),
+            ) {
+                (Some(then_lir), Some(else_lir)) => {
+                    let assume = vec![format!(
+                        "(ite {} {} {})",
+                        cond,
+                        then_lir.get_assume(),
+                        else_lir.get_assume()
+                    )];
+                    if then_lir.get_assume() != else_lir.get_assume() {
+                        Lir::new(current_lir.get_ty(), assume, current_lir.expr.clone())
+                            .expect("failed to make lir")
                     } else {
-                        new_var_map.insert(var_id.clone(), current_lir.clone());
+                        current_lir.clone()
                     }
                 }
-            }
-            self.var_map = new_var_map;
+                (Some(then_lir), None) => {
+                    if current_lir.get_assume() != then_lir.get_assume() {
+                        let mut updated_lir = current_lir.clone();
+                        let assume = format!(
+                            "(ite {} {} {})",
+                            cond,
+                            then_lir.get_assume(),
+                            current_lir.get_assume()
+                        );
+                        updated_lir.set_assume(assume);
+                        updated_lir
+                    } else {
+                        current_lir.clone()
+                    }
+                }
+                _ => current_lir.clone(),
+            };
+
+            new_var_map.insert(var_id.clone(), new_lir);
         }
+
+        self.var_map = new_var_map;
     }
 
     pub fn gen_new_env(&self, name: String) -> Result<Env<'tcx>, AnalysisError> {
