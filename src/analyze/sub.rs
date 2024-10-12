@@ -91,7 +91,7 @@ impl<'tcx> Analyzer<'tcx> {
                         env,
                     )?,
                     Mutability::Mut => {
-                        self.process_mutable_ref(pattern.clone(), initializer, env, var, ty)?
+                        self.process_mutable_ref(pattern.clone(), initializer, var, ty, env)?
                     }
                 },
                 _ => {
@@ -126,8 +126,8 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn process_mutable_ref(
-        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
-        var: &LocalVarId, ty: &Ty<'tcx>,
+        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, var: &LocalVarId,
+        ty: &Ty<'tcx>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         if let Some(init) = initializer {
             let name = Analyzer::span_to_str(&pattern.span);
@@ -160,8 +160,8 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     fn process_borrow_mut(
-        pattern: Rc<RExpr<'tcx>>, arg: &Rc<RExpr<'tcx>>, name: String, ty: &Ty<'tcx>,
-        var: &LocalVarId, env: &mut Env<'tcx>,
+        pattern: Rc<RExpr<'tcx>>, arg: &RExpr<'tcx>, name: String, ty: &Ty<'tcx>, var: &LocalVarId,
+        env: &mut Env<'tcx>,
     ) {
         if let RExprKind::VarRef { id } = arg.kind {
             let mut_init = env.var_map.get_mut(&id).expect("var not found in Mutable");
