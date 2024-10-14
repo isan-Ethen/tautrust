@@ -8,6 +8,7 @@ use std::rc::Rc;
 use crate::thir::rthir::*;
 
 #[derive(Debug)]
+#[allow(unused)]
 pub enum AnalysisType<'tcx> {
     Return(Option<String>),
     Invariant(Rc<RExpr<'tcx>>),

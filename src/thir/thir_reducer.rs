@@ -204,7 +204,7 @@ impl<'tcx> ThirReducer<'tcx> {
                         _ => panic!("MutBorrowKind::ClosureCpature is not supported"),
                     },
                     _ => {
-                        println!("{:?}", borrow_kind);
+                        println!("{borrow_kind:?}");
                         panic!("Other BorrowKinds are not supported!")
                     }
                 }

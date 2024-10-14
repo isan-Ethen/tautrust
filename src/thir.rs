@@ -19,7 +19,7 @@ pub fn thir_tree(tcx: &TyCtxt<'_>, owner_def: LocalDefId) -> String {
             printer.print();
             printer.into_buffer()
         }
-        Err(_) => "error".into(),
+        Err(_) => "valid thir not found".into(),
     }
 }
 

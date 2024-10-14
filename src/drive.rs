@@ -29,7 +29,7 @@ pub fn drive_tautrust(tcx: TyCtxt) {
             println!("\x1b[92mAll verification success!\x1b[0m\n");
         }
     } else {
-        panic!("No main function!")
+        eprintln!("No main function!")
     }
 }
 

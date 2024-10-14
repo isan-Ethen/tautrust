@@ -7,7 +7,7 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_main(&self, rthir: Rc<RThir<'tcx>>) -> Result<(), AnalysisError> {
         if let Some(body) = &rthir.body {
             let mut main_env = Env::new();
-            self.analyze_body((*body).clone(), &mut main_env)?;
+            self.analyze_body(body.clone(), &mut main_env)?;
         }
         Ok(())
     }
@@ -59,7 +59,7 @@ impl<'tcx> Analyzer<'tcx> {
     fn analyze_statements<I>(&self, stmts: I, env: &mut Env<'tcx>) -> Result<(), AnalysisError>
     where I: Iterator<Item = Rc<RExpr<'tcx>>> {
         for stmt in stmts {
-            let return_value = self.analyze_expr(stmt.clone(), env)?;
+            let return_value = self.analyze_expr(stmt, env)?;
             if matches!(return_value, AnalysisType::Return(..) | AnalysisType::Break) {
                 break;
             }
@@ -98,9 +98,7 @@ impl<'tcx> Analyzer<'tcx> {
         &self, value: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         if let Some(expr) = value {
-            Ok(AnalysisType::Return(Some(
-                self.expr_to_constraint(expr, env)?.get_assume().to_string(),
-            )))
+            Ok(AnalysisType::Return(Some(self.expr_to_constraint(expr, env)?.get_assume().into())))
         } else {
             Ok(AnalysisType::Return(None))
         }

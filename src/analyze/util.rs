@@ -31,7 +31,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn span_to_str(span: &Span) -> String {
-        let span_str = format!("{:?}", span);
+        let span_str = format!("{span:?}");
         let parts: Vec<&str> = span_str.split(':').collect();
         let file = parts[0].replace(".rs", "");
         let line = parts[1];
@@ -39,7 +39,7 @@ impl<'tcx> Analyzer<'tcx> {
 
         let sanitized_file = file.replace(|c: char| !c.is_alphanumeric(), "_");
 
-        format!("{}_L{}_C{}", sanitized_file, line, column)
+        format!("{sanitized_file}_L{line}_C{column}")
     }
 
     pub fn expr_to_id(expr: Rc<RExpr<'tcx>>) -> LocalVarId {
@@ -47,13 +47,13 @@ impl<'tcx> Analyzer<'tcx> {
             RExprKind::VarRef { id } => id.clone(),
             RExprKind::Deref { arg, .. } => {
                 if let RExprKind::VarRef { id } = &arg.kind {
-                    id.clone()
+                    *id
                 } else {
                     panic!()
                 }
             }
             _ => {
-                println!("{:?}", expr);
+                eprintln!("{expr:?}");
                 unreachable!()
             }
         }

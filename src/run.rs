@@ -6,7 +6,6 @@ use rustc_interface::{
     },
     Queries,
 };
-// use rustc_session::config::OptLevel;
 
 // std crates
 use std::env::args as get_args;
@@ -20,13 +19,6 @@ pub static FILE: OnceLock<String> = OnceLock::new();
 struct MyCallbacks {}
 
 impl Callbacks for MyCallbacks {
-    // fn config(&mut self, config: &mut Config) {
-    //     let opts = &mut config.opts;
-    //     opts.optimize = OptLevel::Aggressive;
-    //     opts.debug_assertions = false;
-    // }
-
-    // Stop the compilation after handling hir
     fn after_crate_root_parsing<'tcx>(
         &mut self, _compiler: &Compiler, queries: &'tcx Queries<'tcx>,
     ) -> Compilation {
