@@ -37,7 +37,6 @@ impl<'tcx> Analyzer<'tcx> {
                 Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)
             }
             Deref { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
-            // なんとかするとこ
             Borrow { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
             _ => {
                 println!("{}", env.get_assumptions()?);
@@ -52,11 +51,11 @@ impl<'tcx> Analyzer<'tcx> {
         match lit.node {
             LitKind::Int(n, _) => Ok(LirKind::new(
                 TyKind::Int(IntTy::I32),
-                if neg { format!("-{}", n) } else { format!("{}", n) },
+                if neg { format!("-{n}") } else { format!("{n}") },
             )),
             LitKind::Float(symbol, _) => Ok(LirKind::new(
                 TyKind::Float(FloatTy::F64),
-                if neg { format!("-{}", symbol) } else { format!("{}", symbol) },
+                if neg { format!("-{symbol}") } else { format!("{symbol}") },
             )),
             LitKind::Bool(b) => Ok(LirKind::new(TyKind::Bool, b.to_string())),
             _ => Err(AnalysisError::UnsupportedPattern(format!(
@@ -119,7 +118,7 @@ impl<'tcx> Analyzer<'tcx> {
             Ne => "distinct",
             Ge => ">=",
             Gt => ">",
-            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", op))),
+            _ => return Err(AnalysisError::UnsupportedPattern(format!("{op:?}"))),
         };
         Ok(op_str.to_string())
     }
@@ -168,16 +167,16 @@ impl<'tcx> Analyzer<'tcx> {
         let cond = self.expr_to_constraint(cond, env)?;
         let cond_str = cond.get_assume();
 
-        let mut then_env = env.gen_new_env("then".to_string())?;
+        let mut then_env = env.gen_new_env("then".into())?;
         then_env.add_assume(cond_str.to_string());
         let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
 
         let else_block = else_opt.expect("Else block of if initializer not found");
-        let mut else_env = env.gen_new_env("else".to_string())?;
-        else_env.add_assume(format!("(not {})", cond_str));
+        let mut else_env = env.gen_new_env("else".into())?;
+        else_env.add_assume(format!("(not {cond_str})"));
         let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 
-        env.merge_then_else_env(cond_str.to_string(), then_env, Some(else_env))?;
+        env.merge_then_else_env(cond_str.clone(), then_env, Some(else_env))?;
         then_value.set_assume(Analyzer::value_to_ite(
             cond_str,
             then_value.get_assume(),
@@ -187,7 +186,7 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn value_to_ite(cond_str: &String, then_value: &String, else_value: &String) -> String {
-        format!("(ite {} {} {})", cond_str, then_value, else_value)
+        format!("(ite {cond_str} {then_value} {else_value})")
     }
 
     pub fn block_to_constraint(

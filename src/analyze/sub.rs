@@ -1,4 +1,5 @@
 // rustc crates
+use rustc_middle::thir::LocalVarId;
 use rustc_middle::ty::Mutability;
 
 // std crates
@@ -11,7 +12,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         self.analyze_params(&rthir.params, args, env)?;
         if let Some(body) = &rthir.body {
-            self.analyze_body((*body).clone(), env)?;
+            self.analyze_body(body.clone(), env)?;
         }
         Ok(())
     }
@@ -19,8 +20,8 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_binary(
         &self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        self.analyze_expr(lhs.clone(), env)?;
-        self.analyze_expr(rhs.clone(), env)?;
+        self.analyze_expr(lhs, env)?;
+        self.analyze_expr(rhs, env)?;
         Ok(())
     }
 
@@ -77,101 +78,122 @@ impl<'tcx> Analyzer<'tcx> {
     }
 
     pub fn analyze_let_stmt(
-        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>,
-        _: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        if let RExprKind::Pat { kind: RPatKind::Binding { ty, var, .. } } = &pattern.kind {
-            match ty.kind() {
-                TyKind::Ref(_region, ref_ty, mutability) => match mutability {
-                    Mutability::Not => {
-                        env.add_parameter(ref_ty.kind(), &var.clone(), pattern.clone());
-                        if let Some(init) = initializer {
-                            match self.expr_to_constraint(init.clone(), env) {
-                                Ok(value) => {
-                                    env.assign_new_value(var, value.get_assume().to_string())
-                                }
-                                Err(err) => match err {
-                                    AnalysisError::RandFunctions => {
-                                        let rand = format!(
-                                            "rand_{}",
-                                            Analyzer::span_to_str(&pattern.span)
-                                        );
-                                        env.add_rand(rand.clone(), ref_ty.kind());
-                                        env.assign_new_value(var, rand)
-                                    }
-                                    _ => return Err(err),
-                                },
-                            }
-                        }
-                    }
-                    Mutability::Mut => {
-                        if let Some(init) = initializer {
-                            let name = Analyzer::span_to_str(&pattern.span);
-                            match &init.kind {
-                                RExprKind::Borrow { arg } => {
-                                    if let RExprKind::VarRef { id } = arg.kind {
-                                        let mut_init = env
-                                            .var_map
-                                            .get_mut(&id)
-                                            .expect("var not found in Mutable");
-                                        let temp = mut_init.get_assume().clone();
-                                        mut_init.set_assume(name.clone());
-                                        env.smt_vars.push((name.clone(), ty.kind().clone()));
-                                        let lir = lir::Lir::new(
-                                            ty.kind().clone(),
-                                            vec![temp, name],
-                                            pattern.clone(),
-                                        )
-                                        .unwrap();
-                                        env.add_mutable_ref(&var.clone(), lir);
-                                    }
-                                }
-                                RExprKind::If { cond, then, else_opt } => {
-                                    let lir = self.if_to_mut(
-                                        cond.clone(),
-                                        then.clone(),
-                                        else_opt.clone(),
-                                        env,
-                                    )?;
-                                    env.smt_vars.push((name.clone(), ty.kind().clone()));
-                                    let lir = Lir { kind: lir, expr: pattern.clone() };
-                                    env.add_mutable_ref(&var.clone(), lir);
-                                }
-                                RExprKind::Call { ty, args, .. } => {
-                                    let return_value =
-                                        self.fn_to_constraint(*ty, args.clone(), env)?;
-                                    env.smt_vars.push((name.clone(), return_value.get_ty()));
-                                    let lir = Lir { kind: return_value, expr: pattern.clone() };
-                                    env.add_mutable_ref(&var.clone(), lir);
-                                }
-                                _ => {
-                                    println!("{:?}", init);
-                                    panic!("Other mutable reference initializer is not supported: {:?}", pattern.span)
-                                }
-                            }
-                        }
-                    }
-                },
-                _ => {
-                    env.add_parameter(ty.kind(), &var.clone(), pattern.clone());
-                    if let Some(init) = initializer {
-                        match self.expr_to_constraint(init.clone(), env) {
-                            Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
-                            Err(err) => match err {
-                                AnalysisError::RandFunctions => {
-                                    let rand =
-                                        format!("rand_{}", Analyzer::span_to_str(&pattern.span));
-                                    env.add_rand(rand.clone(), ty.kind());
-                                    env.assign_new_value(var, rand)
-                                }
-                                _ => return Err(err),
-                            },
-                        }
-                    }
-                }
-            }
+        if let RExprKind::Pat { kind: RPatKind::Binding { ty, var, .. } } = &pattern.clone().kind {
+            self.process_binding(pattern, initializer, ty, var, env)?
         } else {
             unreachable!();
+        }
+        Ok(())
+    }
+
+    pub fn process_binding(
+        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, ty: &Ty<'tcx>,
+        var: &LocalVarId, env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        match ty.kind() {
+            TyKind::Ref(_region, ref_ty, mutability) => match mutability {
+                Mutability::Not => {
+                    self.process_non_mutable_ref(pattern, initializer, ref_ty, var, env)
+                }
+                Mutability::Mut => self.process_mutable_ref(pattern, initializer, ty, var, env),
+            },
+            _ => self.process_non_reference(pattern, initializer, ty, var, env),
+        }
+    }
+
+    pub fn process_non_mutable_ref(
+        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, ref_ty: &Ty<'tcx>,
+        var: &LocalVarId, env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        env.add_parameter(ref_ty.kind(), var, pattern.clone());
+        if let Some(init) = initializer {
+            match self.expr_to_constraint(init, env) {
+                Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
+                Err(err) => match err {
+                    AnalysisError::RandFunctions => {
+                        let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
+                        env.add_rand(rand.clone(), ref_ty.kind());
+                        env.assign_new_value(var, rand)
+                    }
+                    _ => return Err(err),
+                },
+            }
+        }
+        Ok(())
+    }
+
+    pub fn process_mutable_ref(
+        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, ty: &Ty<'tcx>,
+        var: &LocalVarId, env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        if let Some(init) = initializer {
+            let name = Analyzer::span_to_str(&pattern.span);
+            match &init.kind.clone() {
+                RExprKind::Borrow { arg } => {
+                    Analyzer::process_borrow_mut(pattern, arg, name, ty, var, env)
+                }
+                RExprKind::If { cond, then, else_opt } => {
+                    let lir = self.if_to_mut(cond.clone(), then.clone(), else_opt.clone(), env)?;
+                    env.smt_vars.push((name, ty.kind().clone()));
+                    let lir = Lir { kind: lir, expr: pattern };
+                    env.add_mutable_ref(var, lir);
+                }
+                RExprKind::Call { ty, args, .. } => {
+                    let return_value = self.fn_to_constraint(*ty, args.clone(), env)?;
+                    env.smt_vars.push((name, return_value.get_ty()));
+                    let lir = Lir { kind: return_value, expr: pattern };
+                    env.add_mutable_ref(var, lir);
+                }
+                RExprKind::Deref { arg } => {
+                    env.add_parameter(ty.kind(), var, arg.clone());
+                    let constraint = self.expr_to_constraint(arg.clone(), env)?;
+                    env.assign_assume(var, constraint.clone());
+                }
+                _ => {
+                    println!("{init:?}");
+                    panic!(
+                        "Other mutable reference initializer is not supported: {:?}",
+                        pattern.span
+                    )
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn process_borrow_mut(
+        pattern: Rc<RExpr<'tcx>>, arg: &RExpr<'tcx>, name: String, ty: &Ty<'tcx>, var: &LocalVarId,
+        env: &mut Env<'tcx>,
+    ) {
+        if let RExprKind::VarRef { id } = arg.kind {
+            let mut_init = env.var_map.get_mut(&id).expect("var not found in Mutable");
+            let temp = mut_init.get_assume().clone();
+            mut_init.set_assume(name.clone());
+            env.smt_vars.push((name.clone(), *ty.kind()));
+            let lir = lir::Lir::new(*ty.kind(), vec![temp, name], pattern).unwrap();
+            env.add_mutable_ref(&var, lir);
+        }
+    }
+
+    pub fn process_non_reference(
+        &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, ty: &Ty<'tcx>,
+        var: &LocalVarId, env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        env.add_parameter(ty.kind(), &var, pattern.clone());
+        if let Some(init) = initializer {
+            match self.expr_to_constraint(init, env) {
+                Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
+                Err(err) => match err {
+                    AnalysisError::RandFunctions => {
+                        let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
+                        env.add_rand(rand.clone(), ty.kind());
+                        env.assign_new_value(var, rand)
+                    }
+                    _ => return Err(err),
+                },
+            }
         }
         Ok(())
     }
@@ -183,13 +205,13 @@ impl<'tcx> Analyzer<'tcx> {
         let cond = self.expr_to_constraint(cond, env)?;
         let cond_str = cond.get_assume();
 
-        let mut then_env = env.gen_new_env("then".to_string())?;
+        let mut then_env = env.gen_new_env("then".into())?;
         then_env.add_assume(cond_str.to_string());
         let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
 
         let else_block = else_opt.expect("Else block of if initializer not found");
-        let mut else_env = env.gen_new_env("else".to_string())?;
-        else_env.add_assume(format!("(not {})", cond_str));
+        let mut else_env = env.gen_new_env("else".into())?;
+        else_env.add_assume(format!("(not {cond_str})"));
         let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 
         env.merge_then_else_env(cond_str.to_string(), then_env, Some(else_env))?;
@@ -224,7 +246,7 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let constraint = self.expr_to_constraint(rhs, env)?;
         let var = env.var_map.get_mut(&Analyzer::expr_to_id(lhs)).expect("Assign target not found");
-        var.set_assume(constraint.get_assume().to_string());
+        var.set_assume(constraint.get_assume().into());
         Ok(())
     }
 
@@ -232,16 +254,16 @@ impl<'tcx> Analyzer<'tcx> {
         &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
         else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        let cond_str = self.expr_to_constraint(cond.clone(), env)?.get_assume().to_string();
+        let cond_str: String = self.expr_to_constraint(cond.clone(), env)?.get_assume().into();
 
-        let mut then_env = env.gen_new_env("then".to_string())?;
+        let mut then_env = env.gen_new_env("then".into())?;
         then_env.add_assume(cond_str.clone());
         self.analyze_block(then_block, &mut then_env)?;
 
         let mut else_env = None;
         if let Some(else_block) = else_opt {
-            let mut else_env_ = env.gen_new_env("else".to_string())?;
-            else_env_.add_assume(format!("(not {})", cond_str.clone()));
+            let mut else_env_ = env.gen_new_env("else".into())?;
+            else_env_.add_assume(format!("(not {})", cond_str));
             self.analyze_block(else_block, &mut else_env_)?;
             else_env = Some(else_env_)
         }
@@ -253,8 +275,7 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_block(
         &self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        if let RExpr { kind: RExprKind::Block { stmts, //expr
-                                                      .. }, .. } = block.as_ref() {
+        if let RExpr { kind: RExprKind::Block { stmts, .. }, .. } = block.as_ref() {
             for stmt in stmts {
                 self.analyze_expr(stmt.clone(), env)?;
             }

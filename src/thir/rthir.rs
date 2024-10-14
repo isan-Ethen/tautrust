@@ -8,8 +8,7 @@ use rustc_middle::mir::{
     UnOp,
 };
 use rustc_middle::thir::*;
-use rustc_middle::ty::adjustment::PointerCoercion;
-use rustc_middle::ty::{self, CanonicalUserType, GenericArgsRef, Ty};
+use rustc_middle::ty::{CanonicalUserType, Ty};
 use rustc_span::{Span, Symbol};
 use rustc_target::abi::{FieldIdx, VariantIdx};
 
@@ -107,20 +106,13 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             RPatKind::Wild => {
                 self.add_indented_string("Wild", depth_lvl + 1);
             }
-            RPatKind::AscribeUserType { ascription, subpattern } => {
-                self.add_indented_string("AscribeUserType: {", depth_lvl + 1);
-                self.add_indented_string(&format!("ascription: {:?}", ascription), depth_lvl + 2);
-                self.add_indented_string("subpattern:", depth_lvl + 2);
-                self.format_expr(subpattern, depth_lvl + 3);
-                self.add_indented_string("}", depth_lvl + 1);
-            }
             RPatKind::Binding { name, mode, var, ty, subpattern, is_primary } => {
                 self.add_indented_string("Binding {", depth_lvl + 1);
-                self.add_indented_string(&format!("name: {:?}", name), depth_lvl + 2);
-                self.add_indented_string(&format!("mode: {:?}", mode), depth_lvl + 2);
-                self.add_indented_string(&format!("var: {:?}", var), depth_lvl + 2);
-                self.add_indented_string(&format!("ty: {:?}", ty), depth_lvl + 2);
-                self.add_indented_string(&format!("is_primary: {:?}", is_primary), depth_lvl + 2);
+                self.add_indented_string(&format!("name: {name:?}"), depth_lvl + 2);
+                self.add_indented_string(&format!("mode: {mode:?}"), depth_lvl + 2);
+                self.add_indented_string(&format!("var: {var:?}"), depth_lvl + 2);
+                self.add_indented_string(&format!("ty: {ty:?}"), depth_lvl + 2);
+                self.add_indented_string(&format!("is_primary: {is_primary:?}"), depth_lvl + 2);
 
                 if let Some(subpattern) = subpattern {
                     self.add_indented_string("subpattern: Some( ", depth_lvl + 2);
@@ -140,13 +132,10 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             }
             RPatKind::DerefPattern { subpattern, mutability } => {
                 self.add_indented_string("DerefPattern { ", depth_lvl + 1);
-                self.add_indented_string(&format!("mutability: {:?}", mutability), depth_lvl + 2);
+                self.add_indented_string(&format!("mutability: {mutability:?}"), depth_lvl + 2);
                 self.add_indented_string("subpattern:", depth_lvl + 2);
                 self.format_expr(subpattern, depth_lvl + 2);
                 self.add_indented_string("}", depth_lvl + 1);
-            }
-            RPatKind::Range(pat_range) => {
-                self.add_indented_string(&format!("Range ( {:?} )", pat_range), depth_lvl + 1);
             }
             RPatKind::Or { pats } => {
                 self.add_indented_string("Or {", depth_lvl + 1);
@@ -165,7 +154,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
     fn format_expr(&mut self, expr: &Rc<RExpr<'tcx>>, depth_lvl: usize) {
         let RExpr { span, kind } = &**expr;
         self.add_indented_string("Expr {", depth_lvl);
-        self.add_indented_string(&format!("span: {:?}", span), depth_lvl + 1);
+        self.add_indented_string(&format!("span: {span:?}"), depth_lvl + 1);
         self.add_indented_string("kind:", depth_lvl + 1);
         self.format_expr_kind(&kind, depth_lvl + 2);
         self.add_indented_string("}", depth_lvl);
@@ -196,12 +185,9 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             }
             Call { fun, args, ty, from_hir_call, fn_span } => {
                 self.add_indented_string("Call {", depth_lvl);
-                self.add_indented_string(&format!("ty: {:?}", ty), depth_lvl + 1);
-                self.add_indented_string(
-                    &format!("from_hir_call: {}", from_hir_call),
-                    depth_lvl + 1,
-                );
-                self.add_indented_string(&format!("fn_span: {:?}", fn_span), depth_lvl + 1);
+                self.add_indented_string(&format!("ty: {ty:?}"), depth_lvl + 1);
+                self.add_indented_string(&format!("from_hir_call: {from_hir_call}"), depth_lvl + 1);
+                self.add_indented_string(&format!("fn_span: {fn_span:?}"), depth_lvl + 1);
                 self.add_indented_string("fun:", depth_lvl + 1);
                 self.format_expr(fun, depth_lvl + 2);
 
@@ -224,7 +210,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             }
             Binary { op, lhs, rhs } => {
                 self.add_indented_string("Binary {", depth_lvl);
-                self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+                self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
                 self.add_indented_string("lhs:", depth_lvl + 1);
                 self.format_expr(lhs, depth_lvl + 2);
                 self.add_indented_string("rhs:", depth_lvl + 1);
@@ -233,7 +219,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             }
             LogicalOp { op, lhs, rhs } => {
                 self.add_indented_string("LogicalOp {", depth_lvl);
-                self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+                self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
                 self.add_indented_string("lhs:", depth_lvl + 1);
                 self.format_expr(lhs, depth_lvl + 2);
                 self.add_indented_string("rhs:", depth_lvl + 1);
@@ -242,47 +228,16 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             }
             Unary { op, arg } => {
                 self.add_indented_string("Unary {", depth_lvl);
-                self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+                self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
                 self.add_indented_string("arg:", depth_lvl + 1);
                 self.format_expr(arg, depth_lvl + 2);
                 self.add_indented_string("}", depth_lvl);
-            }
-            Cast { source } => {
-                self.add_indented_string("Cast {", depth_lvl);
-                self.add_indented_string("source:", depth_lvl + 1);
-                self.format_expr(source, depth_lvl + 2);
-                self.add_indented_string("}", depth_lvl);
-            }
-            PointerCoercion { cast, source } => {
-                self.add_indented_string("Pointer {", depth_lvl);
-                self.add_indented_string(&format!("cast: {:?}", cast), depth_lvl + 1);
-                self.add_indented_string("source:", depth_lvl + 1);
-                self.format_expr(source, depth_lvl + 2);
-                self.add_indented_string("}", depth_lvl);
-            }
-            Loop { body } => {
-                self.add_indented_string("Loop (", depth_lvl);
-                self.add_indented_string("body:", depth_lvl + 1);
-                self.format_expr(body, depth_lvl + 2);
-                self.add_indented_string(")", depth_lvl);
             }
             LetBinding { expr, pat } => {
                 self.add_indented_string("LetBinding {", depth_lvl);
                 self.add_indented_string("expr:", depth_lvl + 1);
                 self.format_expr(expr, depth_lvl + 2);
-                self.add_indented_string(&format!("pat: {:?}", pat), depth_lvl + 1);
-                self.add_indented_string("}", depth_lvl);
-            }
-            Match { scrutinee, arms, .. } => {
-                self.add_indented_string("Match {", depth_lvl);
-                self.add_indented_string("scrutinee:", depth_lvl + 1);
-                self.format_expr(scrutinee, depth_lvl + 2);
-
-                self.add_indented_string("arms: [", depth_lvl + 1);
-                for arm_id in arms.iter() {
-                    self.format_expr(arm_id, depth_lvl + 2);
-                }
-                self.add_indented_string("]", depth_lvl + 1);
+                self.add_indented_string(&format!("pat: {pat:?}"), depth_lvl + 1);
                 self.add_indented_string("}", depth_lvl);
             }
             Block { stmts, expr } => {
@@ -317,7 +272,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             }
             AssignOp { op, lhs, rhs } => {
                 self.add_indented_string("AssignOp {", depth_lvl);
-                self.add_indented_string(&format!("op: {:?}", op), depth_lvl + 1);
+                self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
                 self.add_indented_string("lhs:", depth_lvl + 1);
                 self.format_expr(lhs, depth_lvl + 2);
                 self.add_indented_string("rhs:", depth_lvl + 1);
@@ -327,33 +282,26 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             Field { lhs, variant_index, name } => {
                 self.add_indented_string("Field {", depth_lvl);
                 self.add_indented_string(
-                    &format!("variant_index: {:?}", variant_index),
+                    &format!("variant_index: {variant_index:?}"),
                     depth_lvl + 1,
                 );
-                self.add_indented_string(&format!("name: {:?}", name), depth_lvl + 1);
-                self.add_indented_string("lhs:", depth_lvl + 1);
-                self.format_expr(lhs, depth_lvl + 2);
-                self.add_indented_string("}", depth_lvl);
-            }
-            Index { lhs, index } => {
-                self.add_indented_string("Index {", depth_lvl);
-                self.add_indented_string(&format!("index: {:?}", index), depth_lvl + 1);
+                self.add_indented_string(&format!("name: {name:?}"), depth_lvl + 1);
                 self.add_indented_string("lhs:", depth_lvl + 1);
                 self.format_expr(lhs, depth_lvl + 2);
                 self.add_indented_string("}", depth_lvl);
             }
             VarRef { id } => {
                 self.add_indented_string("VarRef {", depth_lvl);
-                self.add_indented_string(&format!("id: {:?}", id), depth_lvl + 1);
+                self.add_indented_string(&format!("id: {id:?}"), depth_lvl + 1);
                 self.add_indented_string("}", depth_lvl);
             }
             UpvarRef { closure_def_id, var_hir_id } => {
                 self.add_indented_string("UpvarRef {", depth_lvl);
                 self.add_indented_string(
-                    &format!("closure_def_id: {:?}", closure_def_id),
+                    &format!("closure_def_id: {closure_def_id:?}"),
                     depth_lvl + 1,
                 );
-                self.add_indented_string(&format!("var_hir_id: {:?}", var_hir_id), depth_lvl + 1);
+                self.add_indented_string(&format!("var_hir_id: {var_hir_id:?}"), depth_lvl + 1);
                 self.add_indented_string("}", depth_lvl);
             }
             Borrow {
@@ -368,7 +316,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             }
             Break { label, value } => {
                 self.add_indented_string("Break (", depth_lvl);
-                self.add_indented_string(&format!("label: {:?}", label), depth_lvl + 1);
+                self.add_indented_string(&format!("label: {label:?}"), depth_lvl + 1);
 
                 if let Some(value) = value {
                     self.add_indented_string("value:", depth_lvl + 1);
@@ -376,11 +324,6 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                 }
 
                 self.add_indented_string(")", depth_lvl);
-            }
-            Continue { label } => {
-                self.add_indented_string("Continue {", depth_lvl);
-                self.add_indented_string(&format!("label: {:?}", label), depth_lvl + 1);
-                self.add_indented_string("}", depth_lvl);
             }
             Return { value } => {
                 self.add_indented_string("Return {", depth_lvl);
@@ -392,74 +335,16 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
                 self.add_indented_string("}", depth_lvl);
             }
-            Repeat { value, count } => {
-                self.add_indented_string("Repeat {", depth_lvl);
-                self.add_indented_string(&format!("count: {:?}", count), depth_lvl + 1);
-                self.add_indented_string("value:", depth_lvl + 1);
-                self.format_expr(value, depth_lvl + 2);
-                self.add_indented_string("}", depth_lvl);
-            }
-            Array { fields } => {
-                self.add_indented_string("Array {", depth_lvl);
-                self.add_indented_string("fields: [", depth_lvl + 1);
-                for field in fields.iter() {
-                    self.format_expr(field, depth_lvl + 2);
-                }
-                self.add_indented_string("]", depth_lvl + 1);
-                self.add_indented_string("}", depth_lvl);
-            }
-            Tuple { fields } => {
-                self.add_indented_string("Tuple {", depth_lvl);
-                self.add_indented_string("fields: [", depth_lvl + 1);
-                for field_id in fields.iter() {
-                    self.format_expr(field_id, depth_lvl + 2);
-                }
-                self.add_indented_string("]", depth_lvl + 1);
-                self.add_indented_string("}", depth_lvl);
-            }
-            PlaceTypeAscription { source, user_ty } => {
-                self.add_indented_string("PlaceTypeAscription {", depth_lvl);
-                self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-                self.add_indented_string("source:", depth_lvl + 1);
-                self.format_expr(source, depth_lvl + 2);
-                self.add_indented_string("}", depth_lvl);
-            }
-            ValueTypeAscription { source, user_ty } => {
-                self.add_indented_string("ValueTypeAscription {", depth_lvl);
-                self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-                self.add_indented_string("source:", depth_lvl + 1);
-                self.format_expr(source, depth_lvl + 2);
-                self.add_indented_string("}", depth_lvl);
-            }
             Literal { lit, neg } => {
                 self.add_indented_string(
                     &format!("Literal( lit: {:?}, neg: {:?})\n", lit, neg),
                     depth_lvl,
                 );
             }
-            NonHirLiteral { lit, user_ty } => {
-                self.add_indented_string("NonHirLiteral {", depth_lvl);
-                self.add_indented_string(&format!("lit: {:?}", lit), depth_lvl + 1);
-                self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-                self.add_indented_string("}", depth_lvl);
-            }
             ZstLiteral { user_ty } => {
-                self.add_indented_string(&format!("ZstLiteral(user_ty: {:?})", user_ty), depth_lvl);
+                self.add_indented_string(&format!("ZstLiteral(user_ty: {user_ty:?})"), depth_lvl);
             }
-            NamedConst { def_id, args, user_ty } => {
-                self.add_indented_string("NamedConst {", depth_lvl);
-                self.add_indented_string(&format!("def_id: {:?}", def_id), depth_lvl + 1);
-                self.add_indented_string(&format!("user_ty: {:?}", user_ty), depth_lvl + 1);
-                self.add_indented_string(&format!("args: {:?}", args), depth_lvl + 1);
-                self.add_indented_string("}", depth_lvl);
-            }
-            ConstParam { param, def_id } => {
-                self.add_indented_string("ConstParam {", depth_lvl);
-                self.add_indented_string(&format!("def_id: {:?}", def_id), depth_lvl + 1);
-                self.add_indented_string(&format!("param: {:?}", param), depth_lvl + 1);
-                self.add_indented_string("}", depth_lvl);
-            }
-            LetStmt { pattern, initializer, else_block } => {
+            LetStmt { pattern, initializer } => {
                 self.add_indented_string("LetStmt {", depth_lvl + 1);
 
                 self.add_indented_string("pattern:", depth_lvl + 2);
@@ -473,31 +358,7 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                 } else {
                     self.add_indented_string("initializer: None", depth_lvl + 2);
                 }
-
-                if let Some(else_block) = else_block {
-                    self.add_indented_string("else_block: Some(", depth_lvl + 2);
-                    self.format_expr(else_block, depth_lvl + 3);
-                    self.add_indented_string(")", depth_lvl + 2);
-                } else {
-                    self.add_indented_string("else_block: None", depth_lvl + 2);
-                }
-
                 self.add_indented_string("}", depth_lvl + 1);
-            }
-            Arm { pattern, guard, body } => {
-                self.add_indented_string("pattern:", depth_lvl + 1);
-                self.format_expr(pattern, depth_lvl + 2);
-
-                if let Some(guard) = guard {
-                    self.add_indented_string("guard: ", depth_lvl + 1);
-                    self.format_expr(guard, depth_lvl + 2);
-                } else {
-                    self.add_indented_string("guard: None", depth_lvl + 1);
-                }
-
-                self.add_indented_string("body: ", depth_lvl + 1);
-                self.format_expr(body, depth_lvl + 2);
-                self.add_indented_string("}", depth_lvl);
             }
         }
     }
@@ -516,11 +377,6 @@ impl<'tcx> RParam<'tcx> {
 pub enum RPatKind<'tcx> {
     Wild,
 
-    AscribeUserType {
-        ascription: Ascription<'tcx>,
-        subpattern: Rc<RExpr<'tcx>>,
-    },
-
     Binding {
         name: Symbol,
         mode: BindingMode,
@@ -538,8 +394,6 @@ pub enum RPatKind<'tcx> {
         subpattern: Rc<RExpr<'tcx>>,
         mutability: hir::Mutability,
     },
-
-    Range(Box<PatRange<'tcx>>),
 
     Or {
         pats: Box<[Rc<RExpr<'tcx>>]>,
@@ -589,26 +443,12 @@ pub enum RExprKind<'tcx> {
         op: UnOp,
         arg: Rc<RExpr<'tcx>>,
     },
-    Cast {
-        source: Rc<RExpr<'tcx>>,
-    },
-    PointerCoercion {
-        cast: PointerCoercion,
-        source: Rc<RExpr<'tcx>>,
-    },
-    Loop {
-        body: Rc<RExpr<'tcx>>,
-    },
     LetBinding {
         expr: Rc<RExpr<'tcx>>,
         pat: Rc<RExpr<'tcx>>,
     },
     Pat {
         kind: RPatKind<'tcx>,
-    },
-    Match {
-        scrutinee: Rc<RExpr<'tcx>>,
-        arms: Vec<Rc<RExpr<'tcx>>>,
     },
     Block {
         stmts: Vec<Rc<RExpr<'tcx>>>,
@@ -628,10 +468,6 @@ pub enum RExprKind<'tcx> {
         variant_index: VariantIdx,
         name: FieldIdx,
     },
-    Index {
-        lhs: Rc<RExpr<'tcx>>,
-        index: Rc<RExpr<'tcx>>,
-    },
     VarRef {
         id: LocalVarId,
     },
@@ -647,58 +483,18 @@ pub enum RExprKind<'tcx> {
         label: region::Scope,
         value: Option<Rc<RExpr<'tcx>>>,
     },
-    Continue {
-        label: region::Scope,
-    },
     Return {
         value: Option<Rc<RExpr<'tcx>>>,
-    },
-    Repeat {
-        value: Rc<RExpr<'tcx>>,
-        count: ty::Const<'tcx>,
-    },
-    Array {
-        fields: Box<[Rc<RExpr<'tcx>>]>,
-    },
-    Tuple {
-        fields: Box<[Rc<RExpr<'tcx>>]>,
-    },
-    PlaceTypeAscription {
-        source: Rc<RExpr<'tcx>>,
-        user_ty: UserTy<'tcx>,
-    },
-    ValueTypeAscription {
-        source: Rc<RExpr<'tcx>>,
-        user_ty: UserTy<'tcx>,
     },
     Literal {
         lit: &'tcx hir::Lit,
         neg: bool,
     },
-    NonHirLiteral {
-        lit: ty::ScalarInt,
-        user_ty: UserTy<'tcx>,
-    },
     ZstLiteral {
         user_ty: UserTy<'tcx>,
-    },
-    NamedConst {
-        def_id: DefId,
-        args: GenericArgsRef<'tcx>,
-        user_ty: UserTy<'tcx>,
-    },
-    ConstParam {
-        param: ty::ParamConst,
-        def_id: DefId,
     },
     LetStmt {
         pattern: Rc<RExpr<'tcx>>,
         initializer: Option<Rc<RExpr<'tcx>>>,
-        else_block: Option<Rc<RExpr<'tcx>>>,
-    },
-    Arm {
-        pattern: Rc<RExpr<'tcx>>,
-        guard: Option<Rc<RExpr<'tcx>>>,
-        body: Rc<RExpr<'tcx>>,
     },
 }

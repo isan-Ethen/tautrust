@@ -26,10 +26,10 @@ pub fn drive_tautrust(tcx: TyCtxt) {
                 _ => unreachable!(),
             }
         } else {
-            println!("All verification success!")
+            println!("\x1b[92mAll verification success!\x1b[0m\n");
         }
     } else {
-        panic!("No main function!")
+        eprintln!("No main function!")
     }
 }
 

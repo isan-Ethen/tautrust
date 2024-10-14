@@ -1,6 +1,5 @@
 // rustc crates
 use rustc_middle::thir::*;
-use rustc_span::Span;
 
 // std crates
 use std::rc::Rc;
@@ -49,20 +48,8 @@ impl<'tcx> ThirReducer<'tcx> {
     }
 
     fn reduce_pattern_kind(&self, pat_kind: &PatKind<'tcx>) -> RPatKind<'tcx> {
-        let boxed_slice_to_new = |boxed_slice: &Box<[Box<Pat<'tcx>>]>| {
-            boxed_slice
-                .iter()
-                .map(|pat| self.reduce_pattern(pat))
-                .collect::<Vec<Rc<RExpr<'tcx>>>>()
-                .into_boxed_slice()
-        };
-
         match pat_kind {
             PatKind::Wild => RPatKind::Wild,
-            PatKind::AscribeUserType { ascription, subpattern } => RPatKind::AscribeUserType {
-                ascription: ascription.clone(),
-                subpattern: self.reduce_pattern(subpattern),
-            },
             PatKind::Binding { name, mode, var, ty, subpattern, is_primary } => RPatKind::Binding {
                 name: *name,
                 mode: *mode,
@@ -82,16 +69,19 @@ impl<'tcx> ThirReducer<'tcx> {
                 subpattern: self.reduce_pattern(subpattern),
                 mutability: *mutability,
             },
-            PatKind::Range(patrange) => RPatKind::Range(patrange.clone()),
-            PatKind::Or { pats } => RPatKind::Or { pats: boxed_slice_to_new(pats) },
+            PatKind::Or { pats } => RPatKind::Or {
+                pats: pats
+                    .iter()
+                    .map(|pat| self.reduce_pattern(pat))
+                    .collect::<Vec<Rc<RExpr<'tcx>>>>()
+                    .into_boxed_slice(),
+            },
             _ => unimplemented!(),
         }
     }
 
     fn reduce_body(&self) -> Option<Rc<RExpr<'tcx>>> {
         use rustc_middle::thir::ExprKind::*;
-        // let expr_id = ExprId::from_usize(self.thir.exprs.len() - 1);
-        // Some(self.reduce_expr(&expr_id))
         let expr_id = ExprId::from_usize(self.thir.exprs.len() - 1);
         if let Scope { value, .. } = &self.thir[expr_id].kind {
             match &self.thir[*value].kind {
@@ -127,11 +117,6 @@ impl<'tcx> ThirReducer<'tcx> {
 
         match expr_kind {
             Scope { value, .. } => self.handle_scope(value),
-            // If { cond, then, else_opt, .. } => RExprKind::If {
-            //     cond: self.reduce_expr(cond),
-            //     then: self.reduce_expr(then),
-            //     else_opt: unwrap_option(else_opt),
-            // },
             If { cond, then, else_opt, .. } => RExprKind::If {
                 cond: self.reduce_expr(cond),
                 then: if let Scope { value, .. } = &self.thir[*then].kind {
@@ -186,26 +171,11 @@ impl<'tcx> ThirReducer<'tcx> {
                 rhs: self.reduce_expr(rhs),
             },
             Unary { op, arg } => RExprKind::Unary { op: *op, arg: self.reduce_expr(arg) },
-            Cast { source } => RExprKind::Cast { source: self.reduce_expr(source) },
             Use { source } => self.handle_use(source),
             NeverToAny { source } => self.handle_never_to_any(source),
-            PointerCoercion { cast, source } => {
-                RExprKind::PointerCoercion { cast: *cast, source: self.reduce_expr(source) }
-            }
-            Loop { body } => RExprKind::Loop { body: self.reduce_expr(body) },
             Let { expr, pat } => RExprKind::LetBinding {
                 expr: self.reduce_expr(expr),
                 pat: self.reduce_pattern(pat),
-            },
-            Match { scrutinee, arms, .. } => RExprKind::Match {
-                scrutinee: self.reduce_expr(scrutinee),
-                arms: arms
-                    .iter()
-                    .map(|arm| {
-                        let (arm, span) = self.handle_arm(arm);
-                        Rc::new(RExpr::new(arm, span))
-                    })
-                    .collect(),
             },
             Block { block } => self.handle_block(block),
             Assign { lhs, rhs } => {
@@ -221,9 +191,6 @@ impl<'tcx> ThirReducer<'tcx> {
                 variant_index: *variant_index,
                 name: *name,
             },
-            Index { lhs, index } => {
-                RExprKind::Index { lhs: self.reduce_expr(lhs), index: self.reduce_expr(index) }
-            }
             VarRef { id } => RExprKind::VarRef { id: *id },
             UpvarRef { closure_def_id, var_hir_id } => {
                 RExprKind::UpvarRef { closure_def_id: *closure_def_id, var_hir_id: *var_hir_id }
@@ -237,7 +204,7 @@ impl<'tcx> ThirReducer<'tcx> {
                         _ => panic!("MutBorrowKind::ClosureCpature is not supported"),
                     },
                     _ => {
-                        println!("{:?}", borrow_kind);
+                        println!("{borrow_kind:?}");
                         panic!("Other BorrowKinds are not supported!")
                     }
                 }
@@ -245,36 +212,9 @@ impl<'tcx> ThirReducer<'tcx> {
             Break { label, value } => {
                 RExprKind::Break { label: *label, value: unwrap_option(value) }
             }
-            Continue { label } => RExprKind::Continue { label: *label },
             Return { value } => RExprKind::Return { value: unwrap_option(value) },
-            Repeat { value, count } => {
-                RExprKind::Repeat { value: self.reduce_expr(value), count: *count }
-            }
-            Array { fields } => {
-                RExprKind::Array { fields: fields.iter().map(|f| self.reduce_expr(f)).collect() }
-            }
-            Tuple { fields } => {
-                RExprKind::Tuple { fields: fields.iter().map(|f| self.reduce_expr(f)).collect() }
-            }
-            PlaceTypeAscription { source, user_ty } => RExprKind::PlaceTypeAscription {
-                source: self.reduce_expr(source),
-                user_ty: user_ty.clone(),
-            },
-            ValueTypeAscription { source, user_ty } => RExprKind::ValueTypeAscription {
-                source: self.reduce_expr(source),
-                user_ty: user_ty.clone(),
-            },
             Literal { lit, neg } => RExprKind::Literal { lit: *lit, neg: *neg },
-            NonHirLiteral { lit, user_ty } => {
-                RExprKind::NonHirLiteral { lit: *lit, user_ty: user_ty.clone() }
-            }
             ZstLiteral { user_ty } => RExprKind::ZstLiteral { user_ty: user_ty.clone() },
-            NamedConst { def_id, args, user_ty } => {
-                RExprKind::NamedConst { def_id: *def_id, args: *args, user_ty: user_ty.clone() }
-            }
-            ConstParam { param, def_id } => {
-                RExprKind::ConstParam { param: *param, def_id: *def_id }
-            }
             _ => unimplemented!(),
         }
     }
@@ -292,22 +232,6 @@ impl<'tcx> ThirReducer<'tcx> {
     fn handle_never_to_any(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
         let never_to_any = &self.thir[*expr_id];
         self.reduce_expr_kind(&never_to_any.kind)
-    }
-
-    fn handle_arm(&self, arm_id: &ArmId) -> (RExprKind<'tcx>, Span) {
-        let arm = &self.thir.arms[*arm_id];
-        (
-            RExprKind::Arm {
-                pattern: self.reduce_pattern(&arm.pattern),
-                guard: if let Some(expr_id) = arm.guard {
-                    Some(self.reduce_expr(&expr_id))
-                } else {
-                    None
-                },
-                body: self.reduce_expr(&arm.body),
-            },
-            arm.span,
-        )
     }
 
     fn handle_block(&self, block_id: &BlockId) -> RExprKind<'tcx> {
@@ -337,16 +261,11 @@ impl<'tcx> ThirReducer<'tcx> {
         let Stmt { kind } = &self.thir.stmts[stmt_id];
         match kind {
             StmtKind::Expr { expr, .. } => self.reduce_expr(expr),
-            StmtKind::Let { pattern, initializer, else_block, span, .. } => Rc::new(RExpr::new(
+            StmtKind::Let { pattern, initializer, span, .. } => Rc::new(RExpr::new(
                 RExprKind::LetStmt {
                     pattern: self.reduce_pattern(pattern),
                     initializer: if let Some(expr_id) = initializer {
                         Some(self.reduce_expr(&expr_id))
-                    } else {
-                        None
-                    },
-                    else_block: if let Some(block_id) = else_block {
-                        Some(Rc::new(RExpr::new(self.handle_block(&block_id), *span)))
                     } else {
                         None
                     },

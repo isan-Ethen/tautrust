@@ -10,7 +10,7 @@ use std::io::Write;
 use std::process::Command;
 
 // Own crates
-use crate::analyze::{lir::*, AnalysisError};
+use crate::analyze::{lir::*, AnalysisError, Analyzer};
 use crate::thir::rthir::*;
 
 #[derive(Clone)]
@@ -23,12 +23,7 @@ pub struct Env<'tcx> {
 
 impl<'tcx> Env<'tcx> {
     pub fn new() -> Self {
-        Self {
-            name: "main".to_string(),
-            smt_vars: Vec::new(),
-            path: Vec::new(),
-            var_map: Map::new(),
-        }
+        Self { name: "main".into(), smt_vars: Vec::new(), path: Vec::new(), var_map: Map::new() }
     }
 
     pub fn from(
@@ -48,11 +43,11 @@ impl<'tcx> Env<'tcx> {
 
         let mut smt = String::new();
         smt.push_str(&self.get_assumptions()?);
-        smt.push_str(&format!("(assert (not {}))\n", assert));
+        smt.push_str(&format!("(assert (not {assert}))\n"));
 
         let mut stdin = child.stdin.take().expect("Open std failed");
         smt += "(check-sat)\n";
-        println!("{}", smt);
+        println!("{smt}");
         stdin.write_all(smt.as_bytes()).expect("Write smt failed");
         drop(stdin);
 
@@ -77,7 +72,7 @@ impl<'tcx> Env<'tcx> {
             smt.push_str(&self.to_smt(smt_var)?);
         }
         for constraint in self.path.iter() {
-            smt.push_str(&format!("(assert {})\n", constraint));
+            smt.push_str(&format!("(assert {constraint})\n"));
         }
         Ok(smt)
     }
@@ -117,17 +112,14 @@ impl<'tcx> Env<'tcx> {
     }
 
     pub fn add_parameter(&mut self, ty: &TyKind<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>) {
-        self.var_map
-            .insert(var_id.clone(), Lir::new(ty.clone(), vec![String::new()], pat).unwrap());
+        self.var_map.insert(*var_id, Lir::new(*ty, vec![String::new()], pat).unwrap());
     }
 
     pub fn add_mutable_ref(&mut self, var_id: &LocalVarId, lir: Lir<'tcx>) {
-        self.var_map.insert(var_id.clone(), lir);
+        self.var_map.insert(*var_id, lir);
     }
 
-    pub fn add_rand(&mut self, name: String, ty: &TyKind<'tcx>) {
-        self.smt_vars.push((name, ty.clone()));
-    }
+    pub fn add_rand(&mut self, name: String, ty: &TyKind<'tcx>) { self.smt_vars.push((name, *ty)); }
 
     pub fn assign_new_value(&mut self, target_id: &LocalVarId, constraint: String) {
         let target = self.var_map.get_mut(target_id).expect("target not found");
@@ -143,59 +135,60 @@ impl<'tcx> Env<'tcx> {
         if self.name.starts_with(name) {
             format!("{}+", self.name)
         } else {
-            name.to_string()
+            name.into()
         }
     }
 
     pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
         let len = self.len();
         self.path.extend_from_slice(&then_env.path[len + 1..]);
-        if let Some(else_env) = else_env {
+
+        if let Some(ref else_env) = else_env {
             self.path.extend_from_slice(&else_env.path[len + 1..]);
-            let mut new_var_map = Map::new();
-            let current_var_map = self.var_map.clone();
-            for (var_id, current_lir) in current_var_map.iter() {
-                if let (Some(then_lir), Some(else_lir)) =
-                    (then_env.var_map.get(var_id), else_env.var_map.get(var_id))
-                {
-                    new_var_map.insert(
-                        var_id.clone(),
-                        Lir::new(
-                            current_lir.get_ty(),
-                            vec![format!(
-                                "(ite {} {} {})",
-                                cond,
-                                then_lir.get_assume(),
-                                else_lir.get_assume()
-                            )],
-                            current_lir.expr.clone(),
-                        )
-                        .unwrap(),
-                    );
-                }
-            }
-            self.var_map = new_var_map;
-        } else {
-            let mut new_var_map = Map::new();
-            let current_var_map = self.var_map.clone();
-            for (var_id, current_lir) in current_var_map.iter() {
-                if let Some(lir) = then_env.var_map.get(var_id) {
-                    if current_lir.get_assume() != lir.get_assume() {
-                        let mut new_lir = current_lir.clone();
-                        new_lir.set_assume(format!(
-                            "(ite {} {} {})",
-                            cond,
-                            lir.get_assume(),
-                            current_lir.get_assume()
-                        ));
-                        new_var_map.insert(var_id.clone(), new_lir.clone());
+        }
+
+        let mut new_var_map = Map::new();
+        let current_var_map = self.var_map.clone();
+
+        for (var_id, current_lir) in current_var_map {
+            let new_lir = match (
+                then_env.var_map.get(&var_id),
+                else_env.as_ref().and_then(|e| e.var_map.get(&var_id)),
+            ) {
+                (Some(then_lir), Some(else_lir)) => {
+                    let assume = vec![Analyzer::value_to_ite(
+                        &cond,
+                        then_lir.get_assume(),
+                        else_lir.get_assume(),
+                    )];
+                    if then_lir.get_assume() != else_lir.get_assume() {
+                        Lir::new(current_lir.get_ty(), assume, current_lir.expr.clone())
+                            .expect("failed to make lir")
                     } else {
-                        new_var_map.insert(var_id.clone(), current_lir.clone());
+                        current_lir
                     }
                 }
-            }
-            self.var_map = new_var_map;
+                (Some(then_lir), None) => {
+                    if current_lir.get_assume() != then_lir.get_assume() {
+                        let assume = Analyzer::value_to_ite(
+                            &cond,
+                            then_lir.get_assume(),
+                            current_lir.get_assume(),
+                        );
+                        let mut updated_lir = current_lir;
+                        updated_lir.set_assume(assume);
+                        updated_lir
+                    } else {
+                        current_lir
+                    }
+                }
+                _ => current_lir,
+            };
+
+            new_var_map.insert(var_id, new_lir);
         }
+
+        self.var_map = new_var_map;
     }
 
     pub fn gen_new_env(&self, name: String) -> Result<Env<'tcx>, AnalysisError> {
@@ -217,7 +210,7 @@ impl<'tcx> Env<'tcx> {
 
     fn adapt_cond_to_path(&mut self, cond_str: &String, len: &usize) -> Result<(), AnalysisError> {
         for i in *len..self.len() {
-            self.path[i] = format!("(=> {} {})", cond_str, self.path[i]);
+            self.path[i] = format!("(=> {cond_str} {})", self.path[i]);
         }
         Ok(())
     }

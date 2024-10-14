@@ -22,10 +22,8 @@ impl<'tcx> Lir<'tcx> {
     ) -> Result<Self, AnalysisError> {
         let kind = match ty {
             TyKind::Bool | TyKind::Int(_) | TyKind::Float(_) => LirKind::new(ty, assume[0].clone()),
-            TyKind::Ref(_, ty, _) => LirKind::new_aggregate(ty.clone(), assume),
-            _ => {
-                return Err(AnalysisError::UnsupportedPattern(format!("Unknown TyKind: {:?}", ty)))
-            }
+            TyKind::Ref(_, ty, _) => LirKind::new_aggregate(ty, assume),
+            _ => return Err(AnalysisError::UnsupportedPattern(format!("Unknown TyKind: {ty:?}"))),
         };
 
         Ok(Self { kind, expr })
@@ -62,11 +60,8 @@ impl<'tcx> LirKind<'tcx> {
 
     pub fn new_aggregate(ty: Ty<'tcx>, args: Vec<String>) -> Self {
         LirKind::Aggregate {
-            _ty: ty.clone(),
-            fields: args
-                .iter()
-                .map(|arg| LirKind::new(ty.kind().clone(), arg.to_string()))
-                .collect(),
+            _ty: ty,
+            fields: args.iter().map(|arg| LirKind::new(*ty.kind(), arg.to_string())).collect(),
         }
     }
 
