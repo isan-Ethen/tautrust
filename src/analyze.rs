@@ -5,13 +5,15 @@ use rustc_middle::mir::{
     BinOp, // UnOp
 };
 use rustc_middle::thir::LocalVarId;
-use rustc_middle::thir::LogicalOp;
+// use rustc_middle::thir::LogicalOp;
 use rustc_middle::ty::TyCtxt;
-use rustc_middle::ty::{Ty, TyKind};
+use rustc_middle::ty::{
+    Ty, //TyKind
+};
 use rustc_span::def_id::LocalDefId;
 
 // std crates
-use std::boxed::Box;
+// use std::boxed::Box;
 use std::collections::HashMap as Map;
 // use std::iter::Peekable;
 use std::rc::Rc;
@@ -39,12 +41,13 @@ pub fn analyze<'tcx>(
 
 struct Analyzer<'tcx> {
     fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
-    tcx: TyCtxt<'tcx>,
+    // tcx: TyCtxt<'tcx>,
 }
 
 impl<'tcx> Analyzer<'tcx> {
-    pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>) -> Self {
-        Self { fn_map, tcx }
+    pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, _tcx: TyCtxt<'tcx>) -> Self {
+        Self { fn_map, //tcx 
+                       }
     }
 
     pub fn run(

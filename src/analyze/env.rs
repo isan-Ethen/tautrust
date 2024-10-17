@@ -10,7 +10,10 @@ use std::io::Write;
 use std::process::Command;
 
 // Own crates
-use crate::analyze::{lir::*, AnalysisError, Analyzer};
+use crate::analyze::{
+    lir::*,
+    AnalysisError, //Analyzer
+};
 use crate::thir::rthir::*;
 
 #[derive(Clone)]
@@ -139,79 +142,79 @@ impl<'tcx> Env<'tcx> {
         }
     }
 
-    pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
-        let len = self.len();
-        self.path.extend_from_slice(&then_env.path[len + 1..]);
+    // pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
+    //     let len = self.len();
+    //     self.path.extend_from_slice(&then_env.path[len + 1..]);
 
-        if let Some(ref else_env) = else_env {
-            self.path.extend_from_slice(&else_env.path[len + 1..]);
-        }
+    //     if let Some(ref else_env) = else_env {
+    //         self.path.extend_from_slice(&else_env.path[len + 1..]);
+    //     }
 
-        let mut new_var_map = Map::new();
-        let current_var_map = self.var_map.clone();
+    //     let mut new_var_map = Map::new();
+    //     let current_var_map = self.var_map.clone();
 
-        for (var_id, current_lir) in current_var_map {
-            let new_lir = match (
-                then_env.var_map.get(&var_id),
-                else_env.as_ref().and_then(|e| e.var_map.get(&var_id)),
-            ) {
-                (Some(then_lir), Some(else_lir)) => {
-                    let assume = vec![Analyzer::value_to_ite(
-                        &cond,
-                        then_lir.get_assume(),
-                        else_lir.get_assume(),
-                    )];
-                    if then_lir.get_assume() != else_lir.get_assume() {
-                        Lir::new(current_lir.get_ty(), assume, current_lir.expr.clone())
-                            .expect("failed to make lir")
-                    } else {
-                        current_lir
-                    }
-                }
-                (Some(then_lir), None) => {
-                    if current_lir.get_assume() != then_lir.get_assume() {
-                        let assume = Analyzer::value_to_ite(
-                            &cond,
-                            then_lir.get_assume(),
-                            current_lir.get_assume(),
-                        );
-                        let mut updated_lir = current_lir;
-                        updated_lir.set_assume(assume);
-                        updated_lir
-                    } else {
-                        current_lir
-                    }
-                }
-                _ => current_lir,
-            };
+    //     for (var_id, current_lir) in current_var_map {
+    //         let new_lir = match (
+    //             then_env.var_map.get(&var_id),
+    //             else_env.as_ref().and_then(|e| e.var_map.get(&var_id)),
+    //         ) {
+    //             (Some(then_lir), Some(else_lir)) => {
+    //                 let assume = vec![Analyzer::value_to_ite(
+    //                     &cond,
+    //                     then_lir.get_assume(),
+    //                     else_lir.get_assume(),
+    //                 )];
+    //                 if then_lir.get_assume() != else_lir.get_assume() {
+    //                     Lir::new(current_lir.get_ty(), assume, current_lir.expr.clone())
+    //                         .expect("failed to make lir")
+    //                 } else {
+    //                     current_lir
+    //                 }
+    //             }
+    //             (Some(then_lir), None) => {
+    //                 if current_lir.get_assume() != then_lir.get_assume() {
+    //                     let assume = Analyzer::value_to_ite(
+    //                         &cond,
+    //                         then_lir.get_assume(),
+    //                         current_lir.get_assume(),
+    //                     );
+    //                     let mut updated_lir = current_lir;
+    //                     updated_lir.set_assume(assume);
+    //                     updated_lir
+    //                 } else {
+    //                     current_lir
+    //                 }
+    //             }
+    //             _ => current_lir,
+    //         };
 
-            new_var_map.insert(var_id, new_lir);
-        }
+    //         new_var_map.insert(var_id, new_lir);
+    //     }
 
-        self.var_map = new_var_map;
-    }
+    //     self.var_map = new_var_map;
+    // }
 
-    pub fn gen_new_env(&self, name: String) -> Result<Env<'tcx>, AnalysisError> {
-        let name = self.new_env_name(&name);
-        Ok(Env::from(name, self.smt_vars.clone(), self.path.clone(), self.var_map.clone()))
-    }
+    // pub fn gen_new_env(&self, name: String) -> Result<Env<'tcx>, AnalysisError> {
+    //     let name = self.new_env_name(&name);
+    //     Ok(Env::from(name, self.smt_vars.clone(), self.path.clone(), self.var_map.clone()))
+    // }
 
-    pub fn merge_then_else_env(
-        &mut self, cond_str: String, mut then_env: Env<'tcx>, mut else_env: Option<Env<'tcx>>,
-    ) -> Result<(), AnalysisError> {
-        let len = self.len();
-        then_env.adapt_cond_to_path(&cond_str, &len)?;
-        if let Some(else_env) = &mut else_env {
-            else_env.adapt_cond_to_path(&format!("(not {})", cond_str), &len)?;
-        }
-        self.merge_env(cond_str, then_env, else_env);
-        Ok(())
-    }
+    // pub fn merge_then_else_env(
+    //     &mut self, cond_str: String, mut then_env: Env<'tcx>, mut else_env: Option<Env<'tcx>>,
+    // ) -> Result<(), AnalysisError> {
+    //     let len = self.len();
+    //     then_env.adapt_cond_to_path(&cond_str, &len)?;
+    //     if let Some(else_env) = &mut else_env {
+    //         else_env.adapt_cond_to_path(&format!("(not {})", cond_str), &len)?;
+    //     }
+    //     self.merge_env(cond_str, then_env, else_env);
+    //     Ok(())
+    // }
 
-    fn adapt_cond_to_path(&mut self, cond_str: &String, len: &usize) -> Result<(), AnalysisError> {
-        for i in *len..self.len() {
-            self.path[i] = format!("(=> {cond_str} {})", self.path[i]);
-        }
-        Ok(())
-    }
+    // fn adapt_cond_to_path(&mut self, cond_str: &String, len: &usize) -> Result<(), AnalysisError> {
+    //     for i in *len..self.len() {
+    //         self.path[i] = format!("(=> {cond_str} {})", self.path[i]);
+    //     }
+    //     Ok(())
+    // }
 }

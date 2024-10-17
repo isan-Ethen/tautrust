@@ -14,7 +14,7 @@ pub fn get_fn_map<'tcx>(tcx: &TyCtxt<'tcx>) -> Map<LocalDefId, Rc<RThir<'tcx>>> 
     tcx.mir_keys(()).iter().for_each(|&key| {
         // println!("{}", thir_tree(tcx, key));
         let rthir = generate_rthir(&tcx, key).expect("failed to generate ReducedTHIR");
-        // println!("{:?}, {:?}", key, rthir);
+        println!("{:?}, {:?}", key, rthir);
         map.insert(key, Rc::new(rthir));
     });
     map
