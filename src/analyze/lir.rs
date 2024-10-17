@@ -51,12 +51,12 @@ impl<'tcx> Lir<'tcx> {
 
 #[derive(Debug, Clone)]
 pub enum LirKind<'tcx> {
-    Path { assume: String, ty: TyKind<'tcx> },
+    VarExpr { assume: String, ty: TyKind<'tcx> },
     Aggregate { _ty: Ty<'tcx>, fields: Vec<LirKind<'tcx>> },
 }
 
 impl<'tcx> LirKind<'tcx> {
-    pub fn new(ty: TyKind<'tcx>, assume: String) -> Self { LirKind::Path { assume, ty } }
+    pub fn new(ty: TyKind<'tcx>, assume: String) -> Self { LirKind::VarExpr { assume, ty } }
 
     pub fn new_aggregate(ty: Ty<'tcx>, args: Vec<String>) -> Self {
         LirKind::Aggregate {
@@ -67,14 +67,14 @@ impl<'tcx> LirKind<'tcx> {
 
     pub fn get_ty(&self) -> TyKind<'tcx> {
         match self {
-            LirKind::Path { ty, .. } => ty.clone(),
+            LirKind::VarExpr { ty, .. } => ty.clone(),
             LirKind::Aggregate { fields, .. } => fields[0].get_ty(),
         }
     }
 
     pub fn get_assume(&self) -> &String {
         match self {
-            LirKind::Path { assume, .. } => assume,
+            LirKind::VarExpr { assume, .. } => assume,
             LirKind::Aggregate { fields, .. } => fields[0].get_assume(),
         }
     }
@@ -84,20 +84,20 @@ impl<'tcx> LirKind<'tcx> {
             LirKind::Aggregate { fields, .. } => {
                 fields[indices.remove(0)].get_assume_by_index(indices)
             }
-            LirKind::Path { assume, .. } => assume,
+            LirKind::VarExpr { assume, .. } => assume,
         }
     }
 
     pub fn set_assume(&mut self, new_assume: String) {
         match self {
-            LirKind::Path { assume, .. } => *assume = new_assume,
+            LirKind::VarExpr { assume, .. } => *assume = new_assume,
             LirKind::Aggregate { fields, .. } => fields[0].set_assume(new_assume),
         }
     }
 
     pub fn set_assume_by_index(&mut self, new_assume: String, mut indices: Vec<usize>) {
         match self {
-            LirKind::Path { assume, .. } => *assume = new_assume,
+            LirKind::VarExpr { assume, .. } => *assume = new_assume,
             LirKind::Aggregate { fields, .. } => {
                 fields[indices.remove(0)].set_assume_by_index(new_assume, indices)
             }
