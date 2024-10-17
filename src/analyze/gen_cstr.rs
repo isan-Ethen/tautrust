@@ -168,12 +168,12 @@ impl<'tcx> Analyzer<'tcx> {
         let cond = self.expr_to_constraint(cond, env)?;
         let cond_str = cond.get_assume();
 
-        let mut then_env = env.gen_new_env("then".to_string())?;
+        let mut then_env = env.gen_new_env()?;
         then_env.add_assume(cond_str.to_string());
         let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
 
         let else_block = else_opt.expect("Else block of if initializer not found");
-        let mut else_env = env.gen_new_env("else".to_string())?;
+        let mut else_env = env.gen_new_env()?;
         else_env.add_assume(format!("(not {})", cond_str));
         let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 

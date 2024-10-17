@@ -15,27 +15,19 @@ use crate::thir::rthir::*;
 
 #[derive(Clone)]
 pub struct Env<'tcx> {
-    pub name: String,
     pub smt_vars: Vec<(String, TyKind<'tcx>)>,
     pub path: Vec<String>,
     pub var_map: Map<LocalVarId, Lir<'tcx>>,
 }
 
 impl<'tcx> Env<'tcx> {
-    pub fn new() -> Self {
-        Self {
-            name: "main".to_string(),
-            smt_vars: Vec::new(),
-            path: Vec::new(),
-            var_map: Map::new(),
-        }
-    }
+    pub fn new() -> Self { Self { smt_vars: Vec::new(), path: Vec::new(), var_map: Map::new() } }
 
     pub fn from(
-        name: String, smt_vars: Vec<(String, TyKind<'tcx>)>, path: Vec<String>,
+        smt_vars: Vec<(String, TyKind<'tcx>)>, path: Vec<String>,
         var_map: Map<LocalVarId, Lir<'tcx>>,
     ) -> Self {
-        Self { name, smt_vars, path, var_map }
+        Self { smt_vars, path, var_map }
     }
 
     pub fn verify(&mut self, assert: &String, span: Span) -> Result<(), AnalysisError> {
@@ -139,14 +131,6 @@ impl<'tcx> Env<'tcx> {
         target.kind = assume;
     }
 
-    pub fn new_env_name(&self, name: &str) -> String {
-        if self.name.starts_with(name) {
-            format!("{}+", self.name)
-        } else {
-            name.to_string()
-        }
-    }
-
     pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
         let len = self.len();
         self.path.extend_from_slice(&then_env.path[len + 1..]);
@@ -198,9 +182,8 @@ impl<'tcx> Env<'tcx> {
         }
     }
 
-    pub fn gen_new_env(&self, name: String) -> Result<Env<'tcx>, AnalysisError> {
-        let name = self.new_env_name(&name);
-        Ok(Env::from(name, self.smt_vars.clone(), self.path.clone(), self.var_map.clone()))
+    pub fn gen_new_env(&self) -> Result<Env<'tcx>, AnalysisError> {
+        Ok(Env::from(self.smt_vars.clone(), self.path.clone(), self.var_map.clone()))
     }
 
     pub fn merge_then_else_env(
