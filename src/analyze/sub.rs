@@ -208,12 +208,12 @@ impl<'tcx> Analyzer<'tcx> {
     //     let cond = self.expr_to_constraint(cond, env)?;
     //     let cond_str = cond.get_assume();
 
-    //     let mut then_env = env.gen_new_env("then".into())?;
+    //     let mut then_env = env.gen_new_env()?;
     //     then_env.add_assume(cond_str.to_string());
     //     let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
 
     //     let else_block = else_opt.expect("Else block of if initializer not found");
-    //     let mut else_env = env.gen_new_env("else".into())?;
+    //     let mut else_env = env.gen_new_env()?;
     //     else_env.add_assume(format!("(not {cond_str})"));
     //     let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 
@@ -259,13 +259,13 @@ impl<'tcx> Analyzer<'tcx> {
     // ) -> Result<(), AnalysisError> {
     //     let cond_str: String = self.expr_to_constraint(cond.clone(), env)?.get_assume().into();
 
-    //     let mut then_env = env.gen_new_env("then".into())?;
+    //     let mut then_env = env.gen_new_env()?;
     //     then_env.add_assume(cond_str.clone());
     //     self.analyze_block(then_block, &mut then_env)?;
 
     //     let mut else_env = None;
     //     if let Some(else_block) = else_opt {
-    //         let mut else_env_ = env.gen_new_env("else".into())?;
+    //         let mut else_env_ = env.gen_new_env()?;
     //         else_env_.add_assume(format!("(not {})", cond_str));
     //         self.analyze_block(else_block, &mut else_env_)?;
     //         else_env = Some(else_env_)
