@@ -50,9 +50,15 @@ impl<'tcx> ThirReducer<'tcx> {
     fn reduce_pattern_kind(&self, pat_kind: &PatKind<'tcx>) -> RPatKind<'tcx> {
         match pat_kind {
             // PatKind::Wild => RPatKind::Wild,
-            PatKind::Binding { name, mode, var, ty, subpattern, is_primary } => RPatKind::Binding {
-                name: *name,
-                mode: *mode,
+            PatKind::Binding {
+                // name, mode,
+                var,
+                ty,
+                subpattern, // is_primary
+                ..
+            } => RPatKind::Binding {
+                // name: *name,
+                // mode: *mode,
                 var: *var,
                 ty: *ty,
                 subpattern: if let Some(pat) = subpattern {
@@ -60,7 +66,7 @@ impl<'tcx> ThirReducer<'tcx> {
                 } else {
                     None
                 },
-                is_primary: *is_primary,
+                // is_primary: *is_primary,
             },
             // PatKind::Deref { subpattern } => {
             //     RPatKind::Deref { subpattern: self.reduce_pattern(subpattern) }
@@ -152,13 +158,13 @@ impl<'tcx> ThirReducer<'tcx> {
             //         None
             //     },
             // },
-            // Call { ty, fun, args, from_hir_call, fn_span } => RExprKind::Call {
-            //     ty: *ty,
-            //     fun: self.reduce_expr(fun),
-            //     args: args.iter().map(|arg| self.reduce_expr(arg)).collect(),
-            //     from_hir_call: *from_hir_call,
-            //     fn_span: *fn_span,
-            // },
+            Call { ty, fun, args, from_hir_call, fn_span } => RExprKind::Call {
+                ty: *ty,
+                fun: self.reduce_expr(fun),
+                args: args.iter().map(|arg| self.reduce_expr(arg)).collect(),
+                from_hir_call: *from_hir_call,
+                fn_span: *fn_span,
+            },
             // Deref { arg } => RExprKind::Deref { arg: self.reduce_expr(arg) },
             Binary { op, lhs, rhs } => RExprKind::Binary {
                 op: *op,
@@ -181,11 +187,11 @@ impl<'tcx> ThirReducer<'tcx> {
             // Assign { lhs, rhs } => {
             //     RExprKind::Assign { lhs: self.reduce_expr(lhs), rhs: self.reduce_expr(rhs) }
             // }
-            // AssignOp { op, lhs, rhs } => RExprKind::AssignOp {
-            //     op: *op,
-            //     lhs: self.reduce_expr(lhs),
-            //     rhs: self.reduce_expr(rhs),
-            // },
+            AssignOp { op, lhs, rhs } => RExprKind::AssignOp {
+                op: *op,
+                lhs: self.reduce_expr(lhs),
+                rhs: self.reduce_expr(rhs),
+            },
             // Field { lhs, variant_index, name } => RExprKind::Field {
             //     lhs: self.reduce_expr(lhs),
             //     variant_index: *variant_index,
@@ -214,8 +220,11 @@ impl<'tcx> ThirReducer<'tcx> {
             // }
             // Return { value } => RExprKind::Return { value: unwrap_option(value) },
             Literal { lit, neg } => RExprKind::Literal { lit: *lit, neg: *neg },
-            // ZstLiteral { user_ty } => RExprKind::ZstLiteral { user_ty: user_ty.clone() },
-            _ => unimplemented!(),
+            ZstLiteral { user_ty } => RExprKind::ZstLiteral { user_ty: user_ty.clone() },
+            _ => {
+                println!("{:?}", expr_kind);
+                unimplemented!()
+            }
         }
     }
 

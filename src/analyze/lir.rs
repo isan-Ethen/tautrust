@@ -10,7 +10,7 @@ use std::rc::Rc;
 use crate::analyze::helper_struct::*;
 use crate::thir::rthir::*;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Lir<'tcx> {
     pub kind: LirKind<'tcx>,
     pub expr: Rc<RExpr<'tcx>>,
@@ -49,7 +49,7 @@ impl<'tcx> Lir<'tcx> {
     pub fn get_ty(&self) -> TyKind<'tcx> { self.kind.get_ty() }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum LirKind<'tcx> {
     VarExpr { assume: String, ty: TyKind<'tcx> },
     Aggregate { _ty: Ty<'tcx>, fields: Vec<LirKind<'tcx>> },

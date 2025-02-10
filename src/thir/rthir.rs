@@ -107,13 +107,18 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             // RPatKind::Wild => {
             //     self.add_indented_string("Wild", depth_lvl + 1);
             // }
-            RPatKind::Binding { name, mode, var, ty, subpattern, is_primary } => {
+            RPatKind::Binding {
+                // name, mode,
+                var,
+                ty,
+                subpattern, // is_primary
+            } => {
                 self.add_indented_string("Binding {", depth_lvl + 1);
-                self.add_indented_string(&format!("name: {name:?}"), depth_lvl + 2);
-                self.add_indented_string(&format!("mode: {mode:?}"), depth_lvl + 2);
+                // self.add_indented_string(&format!("name: {name:?}"), depth_lvl + 2);
+                // self.add_indented_string(&format!("mode: {mode:?}"), depth_lvl + 2);
                 self.add_indented_string(&format!("var: {var:?}"), depth_lvl + 2);
                 self.add_indented_string(&format!("ty: {ty:?}"), depth_lvl + 2);
-                self.add_indented_string(&format!("is_primary: {is_primary:?}"), depth_lvl + 2);
+                // self.add_indented_string(&format!("is_primary: {is_primary:?}"), depth_lvl + 2);
 
                 if let Some(subpattern) = subpattern {
                     self.add_indented_string("subpattern: Some( ", depth_lvl + 2);
@@ -183,26 +188,26 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
             //     self.add_indented_string("}", depth_lvl);
             // }
-            // Call { fun, args, ty, from_hir_call, fn_span } => {
-            //     self.add_indented_string("Call {", depth_lvl);
-            //     self.add_indented_string(&format!("ty: {ty:?}"), depth_lvl + 1);
-            //     self.add_indented_string(&format!("from_hir_call: {from_hir_call}"), depth_lvl + 1);
-            //     self.add_indented_string(&format!("fn_span: {fn_span:?}"), depth_lvl + 1);
-            //     self.add_indented_string("fun:", depth_lvl + 1);
-            //     self.format_expr(fun, depth_lvl + 2);
+            Call { fun, args, ty, from_hir_call, fn_span } => {
+                self.add_indented_string("Call {", depth_lvl);
+                self.add_indented_string(&format!("ty: {ty:?}"), depth_lvl + 1);
+                self.add_indented_string(&format!("from_hir_call: {from_hir_call}"), depth_lvl + 1);
+                self.add_indented_string(&format!("fn_span: {fn_span:?}"), depth_lvl + 1);
+                self.add_indented_string("fun:", depth_lvl + 1);
+                self.format_expr(fun, depth_lvl + 2);
 
-            //     if args.len() > 0 {
-            //         self.add_indented_string("args: [", depth_lvl + 1);
-            //         for arg in args.iter() {
-            //             self.format_expr(arg, depth_lvl + 2);
-            //         }
-            //         self.add_indented_string("]", depth_lvl + 1);
-            //     } else {
-            //         self.add_indented_string("args: []", depth_lvl + 1);
-            //     }
+                if args.len() > 0 {
+                    self.add_indented_string("args: [", depth_lvl + 1);
+                    for arg in args.iter() {
+                        self.format_expr(arg, depth_lvl + 2);
+                    }
+                    self.add_indented_string("]", depth_lvl + 1);
+                } else {
+                    self.add_indented_string("args: []", depth_lvl + 1);
+                }
 
-            //     self.add_indented_string("}", depth_lvl);
-            // }
+                self.add_indented_string("}", depth_lvl);
+            }
             // Deref { arg } => {
             //     self.add_indented_string("Deref {", depth_lvl);
             //     self.format_expr(arg, depth_lvl + 1);
@@ -270,15 +275,15 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             //     self.format_expr(rhs, depth_lvl + 2);
             //     self.add_indented_string("}", depth_lvl);
             // }
-            // AssignOp { op, lhs, rhs } => {
-            //     self.add_indented_string("AssignOp {", depth_lvl);
-            //     self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
-            //     self.add_indented_string("lhs:", depth_lvl + 1);
-            //     self.format_expr(lhs, depth_lvl + 2);
-            //     self.add_indented_string("rhs:", depth_lvl + 1);
-            //     self.format_expr(rhs, depth_lvl + 2);
-            //     self.add_indented_string("}", depth_lvl);
-            // }
+            AssignOp { op, lhs, rhs } => {
+                self.add_indented_string("AssignOp {", depth_lvl);
+                self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
+                self.add_indented_string("lhs:", depth_lvl + 1);
+                self.format_expr(lhs, depth_lvl + 2);
+                self.add_indented_string("rhs:", depth_lvl + 1);
+                self.format_expr(rhs, depth_lvl + 2);
+                self.add_indented_string("}", depth_lvl);
+            }
             // Field { lhs, variant_index, name } => {
             //     self.add_indented_string("Field {", depth_lvl);
             //     self.add_indented_string(
@@ -341,9 +346,9 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                     depth_lvl,
                 );
             }
-            // ZstLiteral { user_ty } => {
-            //     self.add_indented_string(&format!("ZstLiteral(user_ty: {user_ty:?})"), depth_lvl);
-            // }
+            ZstLiteral { user_ty } => {
+                self.add_indented_string(&format!("ZstLiteral(user_ty: {user_ty:?})"), depth_lvl);
+            }
             LetStmt { pattern, initializer } => {
                 self.add_indented_string("LetStmt {", depth_lvl + 1);
 
@@ -377,12 +382,12 @@ impl<'tcx> RParam<'tcx> {
 pub enum RPatKind<'tcx> {
     // Wild,
     Binding {
-        name: Symbol,
-        mode: BindingMode,
+        // name: Symbol,
+        // mode: BindingMode,
         var: LocalVarId,
         ty: Ty<'tcx>,
         subpattern: Option<Rc<RExpr<'tcx>>>,
-        is_primary: bool,
+        // is_primary: bool,
     },
     // Deref {
     //     subpattern: Rc<RExpr<'tcx>>,
@@ -417,17 +422,21 @@ pub enum RExprKind<'tcx> {
     //     then: Rc<RExpr<'tcx>>,
     //     else_opt: Option<Rc<RExpr<'tcx>>>,
     // },
-    // Call {
-    //     ty: Ty<'tcx>,
-    //     fun: Rc<RExpr<'tcx>>,
-    //     args: Box<[Rc<RExpr<'tcx>>]>,
-    //     from_hir_call: bool,
-    //     fn_span: Span,
-    // },
+    Call {
+        ty: Ty<'tcx>,
+        fun: Rc<RExpr<'tcx>>,
+        args: Box<[Rc<RExpr<'tcx>>]>,
+        from_hir_call: bool,
+        fn_span: Span,
+    },
     // Deref {
     //     arg: Rc<RExpr<'tcx>>,
     // },
-    Binary { op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>> },
+    Binary {
+        op: BinOp,
+        lhs: Rc<RExpr<'tcx>>,
+        rhs: Rc<RExpr<'tcx>>,
+    },
     // LogicalOp {
     //     op: LogicalOp,
     //     lhs: Rc<RExpr<'tcx>>,
@@ -438,20 +447,27 @@ pub enum RExprKind<'tcx> {
     //     arg: Rc<RExpr<'tcx>>,
     // },
     // LetBinding { expr: Rc<RExpr<'tcx>>, pat: Rc<RExpr<'tcx>> },
-    Pat { kind: RPatKind<'tcx> },
-    Block { stmts: Vec<Rc<RExpr<'tcx>>>, expr: Option<Rc<RExpr<'tcx>>> },
+    Pat {
+        kind: RPatKind<'tcx>,
+    },
+    Block {
+        stmts: Vec<Rc<RExpr<'tcx>>>,
+        expr: Option<Rc<RExpr<'tcx>>>,
+    },
     // Assign { lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>> },
-    // AssignOp {
-    //     op: BinOp,
-    //     lhs: Rc<RExpr<'tcx>>,
-    //     rhs: Rc<RExpr<'tcx>>,
-    // },
+    AssignOp {
+        op: BinOp,
+        lhs: Rc<RExpr<'tcx>>,
+        rhs: Rc<RExpr<'tcx>>,
+    },
     // Field {
     //     lhs: Rc<RExpr<'tcx>>,
     //     variant_index: VariantIdx,
     //     name: FieldIdx,
     // },
-    VarRef { id: LocalVarId },
+    VarRef {
+        id: LocalVarId,
+    },
     // UpvarRef {
     //     closure_def_id: DefId,
     //     var_hir_id: LocalVarId,
@@ -467,9 +483,15 @@ pub enum RExprKind<'tcx> {
     // Return {
     //     value: Option<Rc<RExpr<'tcx>>>,
     // },
-    Literal { lit: &'tcx hir::Lit, neg: bool },
-    // ZstLiteral {
-    //     user_ty: UserTy<'tcx>,
-    // },
-    LetStmt { pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>> },
+    Literal {
+        lit: &'tcx hir::Lit,
+        neg: bool,
+    },
+    ZstLiteral {
+        user_ty: UserTy<'tcx>,
+    },
+    LetStmt {
+        pattern: Rc<RExpr<'tcx>>,
+        initializer: Option<Rc<RExpr<'tcx>>>,
+    },
 }

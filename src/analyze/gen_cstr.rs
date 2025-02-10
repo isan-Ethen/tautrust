@@ -26,13 +26,9 @@ impl<'tcx> Analyzer<'tcx> {
             //     Ok(self.un_op_to_constraint(*op, &arg_str)?)
             // }
             Binary { op, lhs, rhs } => {
-                let mut lhs = self.expr_to_constraint(lhs.clone(), env)?;
-                let rhs = self.expr_to_constraint(rhs.clone(), env)?;
-                let (op_str, rhs_str) = self.bin_op_to_constraint(*op, &rhs)?;
-                lhs.adapt_assume(&op_str, rhs_str);
-                Ok(lhs)
+                self.bin_op_to_constraint(*op, lhs.clone(), rhs.clone(), env)
             }
-            // Call { ty, args, .. } => self.fn_to_constraint(*ty, args.clone(), env),
+            Call { ty, args, .. } => self.fn_to_constraint(*ty, args.clone(), env),
             // If { cond, then, else_opt } => {
             //     Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)
             // }
@@ -68,7 +64,13 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn var_ref_to_constraint(
         &self, id: &LocalVarId, env: &Env<'tcx>,
     ) -> Result<LirKind<'tcx>, AnalysisError> {
-        Ok(env.var_map.get(id).expect("var not found in ver_ref_to_constraint").kind.clone())
+        match env.var_map.get(id) {
+            Some(lir) => Ok(lir.kind.clone()),
+            None => Err(AnalysisError::UnsupportedPattern(format!(
+                "var id {:?} not found in ver_ref_to_constraint",
+                id
+            ))),
+        }
     }
 
     // pub fn logical_op_to_constraint<'a>(
@@ -95,9 +97,13 @@ impl<'tcx> Analyzer<'tcx> {
     // }
 
     pub fn bin_op_to_constraint<'a>(
-        &self, op: BinOp, rhs: &'a LirKind<'tcx>,
-    ) -> Result<(String, &'a String), AnalysisError> {
-        Ok((Analyzer::bin_op_to_smt(op)?, rhs.get_assume()))
+        &self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        let mut lir = self.expr_to_constraint(lhs, env)?;
+        let rhs = self.expr_to_constraint(rhs, env)?;
+        let op_str = Analyzer::bin_op_to_smt(op)?;
+        lir.adapt_assume(&op_str, rhs.get_assume());
+        Ok(lir)
     }
 
     pub fn bin_op_to_smt(op: BinOp) -> Result<String, AnalysisError> {
@@ -120,24 +126,25 @@ impl<'tcx> Analyzer<'tcx> {
             Gt => ">",
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{op:?}"))),
         };
-        Ok(op_str.to_string())
+        Ok(op_str.into())
     }
 
-    // pub fn fn_to_constraint(
-    //     &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<LirKind<'tcx>, AnalysisError> {
-    //     match ty.kind() {
-    //         TyKind::FnDef(def_id, ..) => {
-    //             let fn_info = self.get_fn_info(def_id);
-    //             if let Some(fun) = self.get_local_fn(def_id) {
-    //                 self.local_fn_to_constraint(fun.clone(), args, env)
-    //             } else {
-    //                 self.extern_fn_to_constraint(fn_info, args)
-    //             }
-    //         }
-    //         _ => panic!("Call has not have FnDef"),
-    //     }
-    // }
+    pub fn fn_to_constraint(
+        &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        match ty.kind() {
+            TyKind::FnDef(def_id, ..) => {
+                let fn_info = self.get_fn_info(def_id);
+                if let Some(fun) = self.get_local_fn(def_id) {
+                    unimplemented!();
+                    // self.local_fn_to_constraint(fun.clone(), args, env)
+                } else {
+                    self.extern_fn_to_constraint(fn_info, args)
+                }
+            }
+            _ => panic!("Call has not have FnDef"),
+        }
+    }
 
     // pub fn local_fn_to_constraint(
     //     &self, expr: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
@@ -146,20 +153,20 @@ impl<'tcx> Analyzer<'tcx> {
     //     self.block_to_constraint(expr.body.as_ref().expect("Body not found").clone(), env)
     // }
 
-    // pub fn extern_fn_to_constraint(
-    //     &self, fn_info: Vec<String>, _: Box<[Rc<RExpr<'tcx>>]>,
-    // ) -> Result<LirKind<'tcx>, AnalysisError> {
-    //     if fn_info[0] == "t3modules" {
-    //         match fn_info[1].as_str() {
-    //             "rand_bool" => Err(AnalysisError::RandFunctions),
-    //             "rand_int" => Err(AnalysisError::RandFunctions),
-    //             "rand_float" => Err(AnalysisError::RandFunctions),
-    //             _ => unreachable!(),
-    //         }
-    //     } else {
-    //         Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
-    //     }
-    // }
+    pub fn extern_fn_to_constraint(
+        &self, fn_info: Vec<String>, _: Box<[Rc<RExpr<'tcx>>]>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        if fn_info[0] == "t3modules" {
+            match fn_info[1].as_str() {
+                "rand_bool" => Err(AnalysisError::RandFunctions),
+                "rand_int" => Err(AnalysisError::RandFunctions),
+                "rand_float" => Err(AnalysisError::RandFunctions),
+                _ => unreachable!(),
+            }
+        } else {
+            Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
+        }
+    }
 
     // pub fn if_to_constraint(
     //     &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,

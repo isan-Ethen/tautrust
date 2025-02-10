@@ -20,6 +20,6 @@ pub enum AnalysisType<'tcx> {
 pub enum AnalysisError {
     FunctionNotFound(LocalDefId),
     UnsupportedPattern(String),
-    // RandFunctions,
-    VerifyError { span: Span },
+    RandFunctions,
+    VerifyError(Span),
 }

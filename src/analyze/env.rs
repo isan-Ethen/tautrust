@@ -33,7 +33,7 @@ impl<'tcx> Env<'tcx> {
         Self { smt_vars, path, var_map }
     }
 
-    pub fn verify(&mut self, assert: &String, span: Span) -> Result<(), AnalysisError> {
+    pub fn verify(&mut self, constraint: &String, span: Span) -> Result<(), AnalysisError> {
         let mut child = Command::new("z3")
             .args(["-in", "-model"])
             .stdin(std::process::Stdio::piped())
@@ -43,9 +43,9 @@ impl<'tcx> Env<'tcx> {
 
         let mut smt = String::new();
         smt.push_str(&self.get_assumptions()?);
-        smt.push_str(&format!("(assert (not {assert}))\n"));
+        smt.push_str(&format!("(assert (not {constraint}))\n"));
 
-        let mut stdin = child.stdin.take().expect("Open std failed");
+        let mut stdin = child.stdin.take().expect("Open stdin failed");
         smt += "(check-sat)\n";
         println!("{smt}");
         stdin.write_all(smt.as_bytes()).expect("Write smt failed");
@@ -54,7 +54,7 @@ impl<'tcx> Env<'tcx> {
         let output = child.wait_with_output().expect("Get stdout failed");
         let result = String::from_utf8(output.stdout).expect("Load result failed");
         if &result != "unsat\n" {
-            return Err(AnalysisError::VerifyError { span });
+            return Err(AnalysisError::VerifyError(span));
         }
 
         println!("Verification success!\n");
@@ -122,12 +122,12 @@ impl<'tcx> Env<'tcx> {
     pub fn add_rand(&mut self, name: String, ty: &TyKind<'tcx>) { self.smt_vars.push((name, *ty)); }
 
     pub fn assign_new_value(&mut self, target_id: &LocalVarId, constraint: String) {
-        let target = self.var_map.get_mut(target_id).expect("target not found");
+        let target = self.var_map.get_mut(target_id).expect("target value not found");
         target.set_assume(constraint);
     }
 
     pub fn assign_assume(&mut self, target_id: &LocalVarId, assume: LirKind<'tcx>) {
-        let target = self.var_map.get_mut(target_id).expect("target not found");
+        let target = self.var_map.get_mut(target_id).expect("target value not found");
         target.kind = assume;
     }
 

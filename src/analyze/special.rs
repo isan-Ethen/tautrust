@@ -4,21 +4,21 @@
 use crate::analyze::*;
 
 impl<'tcx> Analyzer<'tcx> {
-    // pub fn analyze_t3assert(
-    //     &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<AnalysisType<'tcx>, AnalysisError> {
-    //     let constraint = self.expr_to_constraint(args[0].clone(), env)?;
-    //     env.verify(constraint.get_assume(), args[0].span)?;
-    //     Ok(AnalysisType::Other)
-    // }
+    pub fn analyze_t3assert(
+        &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        let constraint = self.expr_to_constraint(args[0].clone(), env)?;
+        env.verify(constraint.get_assume(), args[0].span)?;
+        Ok(AnalysisType::Other)
+    }
 
-    // pub fn analyze_t3assume(
-    //     &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<AnalysisType<'tcx>, AnalysisError> {
-    //     let constraint = self.expr_to_constraint(args[0].clone(), env)?;
-    //     env.add_assume(constraint.get_assume().into());
-    //     Ok(AnalysisType::Other)
-    // }
+    pub fn analyze_t3assume(
+        &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        let constraint = self.expr_to_constraint(args[0].clone(), env)?;
+        env.add_assume(constraint.get_assume().into());
+        Ok(AnalysisType::Other)
+    }
 
     // pub fn analyze_invariant(
     //     &self, args: Box<[Rc<RExpr<'tcx>>]>,

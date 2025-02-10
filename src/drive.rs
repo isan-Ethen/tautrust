@@ -20,9 +20,10 @@ pub fn drive_tautrust(tcx: TyCtxt) {
             match error {
                 FunctionNotFound(id) => eprintln!("Function not found: {:?}", id),
                 UnsupportedPattern(pattern) => eprintln!("Unsupported pattern: {}", pattern),
-                VerifyError { span } => {
+                VerifyError(span) => {
                     print_error(span);
-                } // _ => unreachable!(),
+                }
+                _ => unreachable!(),
             }
         } else {
             println!("\x1b[92mAll verification success!\x1b[0m\n");

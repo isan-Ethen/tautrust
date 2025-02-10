@@ -7,9 +7,7 @@ use rustc_middle::mir::{
 use rustc_middle::thir::LocalVarId;
 // use rustc_middle::thir::LogicalOp;
 use rustc_middle::ty::TyCtxt;
-use rustc_middle::ty::{
-    Ty, //TyKind
-};
+use rustc_middle::ty::{Ty, TyKind};
 use rustc_span::def_id::LocalDefId;
 
 // std crates
@@ -41,13 +39,12 @@ pub fn analyze<'tcx>(
 
 struct Analyzer<'tcx> {
     fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>,
-    // tcx: TyCtxt<'tcx>,
+    tcx: TyCtxt<'tcx>,
 }
 
 impl<'tcx> Analyzer<'tcx> {
-    pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, _tcx: TyCtxt<'tcx>) -> Self {
-        Self { fn_map, //tcx 
-                       }
+    pub fn new(fn_map: Map<LocalDefId, Rc<RThir<'tcx>>>, tcx: TyCtxt<'tcx>) -> Self {
+        Self { fn_map, tcx }
     }
 
     pub fn run(

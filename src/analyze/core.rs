@@ -77,14 +77,14 @@ impl<'tcx> Analyzer<'tcx> {
             VarRef { .. } => Ok(AnalysisType::Other),
             Binary { lhs, rhs, .. } => handle_result(self.analyze_binary(rhs, lhs, env)),
             Pat { kind } => handle_result(self.analyze_pat(&kind, expr, env)),
-            // Call { ty, args, .. } => self.analyze_fn(ty, args, env),
+            Call { ty, args, .. } => self.analyze_fn(ty, args, env),
             LetStmt { pattern, initializer } => {
                 handle_result(self.analyze_let_stmt(pattern, initializer, env))
             }
             // Return { value } => self.handle_return(value, env),
-            // AssignOp { op, lhs, rhs } => {
-            //     handle_result(self.analyze_assign_op(op, lhs, rhs, expr, env))
-            // }
+            AssignOp { op, lhs, rhs } => {
+                handle_result(self.analyze_assign_op(op, lhs, rhs, expr, env))
+            }
             // Assign { lhs, rhs } => handle_result(self.analyze_assign(lhs, rhs, env)),
             // If { cond, then, else_opt } => {
             //     handle_result(self.analyze_if(cond, then, else_opt, env))

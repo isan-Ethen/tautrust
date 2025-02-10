@@ -45,40 +45,41 @@ impl<'tcx> Analyzer<'tcx> {
         Ok(())
     }
 
-    // pub fn analyze_fn(
-    //     &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<AnalysisType<'tcx>, AnalysisError> {
-    //     match ty.kind() {
-    //         TyKind::FnDef(def_id, ..) => {
-    //             let fn_info = self.get_fn_info(def_id);
-    //             if let Some(fun) = self.get_local_fn(def_id) {
-    //                 match self.analyze_local_fn(fun, args, env) {
-    //                     Ok(()) => Ok(AnalysisType::Other),
-    //                     Err(why) => Err(why),
-    //                 }
-    //             } else {
-    //                 self.analyze_extern_fn(fn_info, args, env)
-    //             }
-    //         }
-    //         _ => panic!("Call has not have FnDef"),
-    //     }
-    // }
+    pub fn analyze_fn(
+        &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        match ty.kind() {
+            TyKind::FnDef(def_id, ..) => {
+                if let Some(_fun) = self.get_local_fn(def_id) {
+                    unimplemented!();
+                    // match self.analyze_local_fn(fun, args, env) {
+                    //     Ok(()) => Ok(AnalysisType::Other),
+                    //     Err(why) => Err(why),
+                    // }
+                } else {
+                    let fn_info = self.get_fn_info(def_id);
+                    self.analyze_external_fn(fn_info, args, env)
+                }
+            }
+            _ => panic!("Call has not have FnDef"),
+        }
+    }
 
-    // pub fn analyze_extern_fn(
-    //     &self, fn_info: Vec<String>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<AnalysisType<'tcx>, AnalysisError> {
-    //     if fn_info[0] == "t3modules" {
-    //         match fn_info[1].as_str() {
-    //             "t3assert" => self.analyze_t3assert(args, env),
-    //             "t3assume" => self.analyze_t3assume(args, env),
-    //             "invariant" => self.analyze_invariant(args),
-    //             "t3drop" => self.analyze_drop(args, env),
-    //             _ => unreachable!(),
-    //         }
-    //     } else {
-    //         Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
-    //     }
-    // }
+    pub fn analyze_external_fn(
+        &self, fn_info: Vec<String>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        if fn_info[0] == "t3modules" {
+            match fn_info[1].as_str() {
+                "t3assert" => self.analyze_t3assert(args, env),
+                "t3assume" => self.analyze_t3assume(args, env),
+                // "invariant" => self.analyze_invariant(args),
+                // "t3drop" => self.analyze_drop(args, env),
+                _ => unreachable!(),
+            }
+        } else {
+            Err(AnalysisError::UnsupportedPattern("Unknown function!".into()))
+        }
+    }
 
     pub fn analyze_let_stmt(
         &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
@@ -114,14 +115,12 @@ impl<'tcx> Analyzer<'tcx> {
     //     if let Some(init) = initializer {
     //         match self.expr_to_constraint(init, env) {
     //             Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
-    //             Err(err) => match err {
-    //                 AnalysisError::RandFunctions => {
+    //             Err(AnalysisError::RandFunctions) => {
     //                     let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
     //                     env.add_rand(rand.clone(), ref_ty.kind());
     //                     env.assign_new_value(var, rand)
-    //                 }
-    //                 _ => return Err(err),
     //             },
+    //             Err(err) => return Err(err),
     //         }
     //     }
     //     Ok(())
@@ -185,17 +184,15 @@ impl<'tcx> Analyzer<'tcx> {
         var: &LocalVarId, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
         env.add_parameter(ty.kind(), &var, pattern.clone());
-        if let Some(init) = initializer {
-            match self.expr_to_constraint(init, env) {
-                Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
-                Err(err) => match err {
-                    // AnalysisError::RandFunctions => {
-                    //     let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
-                    //     env.add_rand(rand.clone(), ty.kind());
-                    //     env.assign_new_value(var, rand)
-                    // }
-                    _ => return Err(err),
-                },
+        if let Some(expr) = initializer {
+            match self.expr_to_constraint(expr, env) {
+                Ok(value) => env.assign_new_value(var, value.get_assume().into()),
+                Err(AnalysisError::RandFunctions) => {
+                    let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
+                    env.add_rand(rand.clone(), ty.kind());
+                    env.assign_new_value(var, rand)
+                }
+                Err(err) => return Err(err),
             }
         }
         Ok(())
@@ -234,15 +231,15 @@ impl<'tcx> Analyzer<'tcx> {
     //     Ok(then_value)
     // }
 
-    // pub fn analyze_assign_op(
-    //     &self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
-    //     env: &mut Env<'tcx>,
-    // ) -> Result<(), AnalysisError> {
-    //     let rhs = self.expr_to_constraint(rhs, env)?;
-    //     let op_str = Analyzer::bin_op_to_smt(op)?;
-    //     env.add_assumption(&Analyzer::expr_to_id(lhs), op_str, rhs.get_assume().to_string(), expr);
-    //     Ok(())
-    // }
+    pub fn analyze_assign_op(
+        &self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
+        env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        let rhs = self.expr_to_constraint(rhs, env)?;
+        let op_str = Analyzer::bin_op_to_smt(op)?;
+        env.add_assumption(&Analyzer::expr_to_id(lhs), op_str, rhs.get_assume().to_string(), expr);
+        Ok(())
+    }
 
     // pub fn analyze_assign(
     //     &self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
