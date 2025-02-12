@@ -120,44 +120,44 @@ impl<'tcx> ThirReducer<'tcx> {
         //         None
         //     }
         // };
-
+        //
         match expr_kind {
             Scope { value, .. } => self.handle_scope(value),
-            // If { cond, then, else_opt, .. } => RExprKind::If {
-            //     cond: self.reduce_expr(cond),
-            //     then: if let Scope { value, .. } = &self.thir[*then].kind {
-            //         match &self.thir[*value].kind {
-            //             Borrow { arg, .. } => {
-            //                 if let Deref { arg } = &self.thir[*arg].kind {
-            //                     self.reduce_expr(arg)
-            //                 } else {
-            //                     panic!("Unknown if borrow")
-            //                 }
-            //             }
-            //             _ => self.reduce_expr(value),
-            //         }
-            //     } else {
-            //         panic!("Unknown then pattern")
-            //     },
-            //     else_opt: if let Some(expr_id) = else_opt {
-            //         if let Scope { value, .. } = &self.thir[*expr_id].kind {
-            //             match &self.thir[*value].kind {
-            //                 Borrow { arg, .. } => {
-            //                     if let Deref { arg } = &self.thir[*arg].kind {
-            //                         Some(self.reduce_expr(arg))
-            //                     } else {
-            //                         panic!("Unknown if borrow")
-            //                     }
-            //                 }
-            //                 _ => Some(self.reduce_expr(value)),
-            //             }
-            //         } else {
-            //             panic!("Unknown else_opt pattern")
-            //         }
-            //     } else {
-            //         None
-            //     },
-            // },
+            If { cond, then, else_opt, .. } => RExprKind::If {
+                cond: self.reduce_expr(cond),
+                then: if let Scope { value, .. } = &self.thir[*then].kind {
+                    match &self.thir[*value].kind {
+                        Borrow { arg, .. } => {
+                            if let Deref { arg } = &self.thir[*arg].kind {
+                                self.reduce_expr(arg)
+                            } else {
+                                panic!("Unknown if borrow")
+                            }
+                        }
+                        _ => self.reduce_expr(value),
+                    }
+                } else {
+                    panic!("Unknown then pattern")
+                },
+                else_opt: if let Some(expr_id) = else_opt {
+                    if let Scope { value, .. } = &self.thir[*expr_id].kind {
+                        match &self.thir[*value].kind {
+                            Borrow { arg, .. } => {
+                                if let Deref { arg } = &self.thir[*arg].kind {
+                                    Some(self.reduce_expr(arg))
+                                } else {
+                                    panic!("Unknown if borrow")
+                                }
+                            }
+                            _ => Some(self.reduce_expr(value)),
+                        }
+                    } else {
+                        panic!("Unknown else_opt pattern")
+                    }
+                } else {
+                    None
+                },
+            },
             Call { ty, fun, args, from_hir_call, fn_span } => RExprKind::Call {
                 ty: *ty,
                 fun: self.reduce_expr(fun),
@@ -177,16 +177,16 @@ impl<'tcx> ThirReducer<'tcx> {
             //     rhs: self.reduce_expr(rhs),
             // },
             // Unary { op, arg } => RExprKind::Unary { op: *op, arg: self.reduce_expr(arg) },
-            // Use { source } => self.handle_use(source),
+            Use { source } => self.handle_use(source),
             // NeverToAny { source } => self.handle_never_to_any(source),
             // Let { expr, pat } => RExprKind::LetBinding {
             //     expr: self.reduce_expr(expr),
             //     pat: self.reduce_pattern(pat),
             // },
             Block { block } => self.handle_block(block),
-            // Assign { lhs, rhs } => {
-            //     RExprKind::Assign { lhs: self.reduce_expr(lhs), rhs: self.reduce_expr(rhs) }
-            // }
+            Assign { lhs, rhs } => {
+                RExprKind::Assign { lhs: self.reduce_expr(lhs), rhs: self.reduce_expr(rhs) }
+            }
             AssignOp { op, lhs, rhs } => RExprKind::AssignOp {
                 op: *op,
                 lhs: self.reduce_expr(lhs),
@@ -233,10 +233,10 @@ impl<'tcx> ThirReducer<'tcx> {
         self.reduce_expr_kind(&scope.kind)
     }
 
-    // fn handle_use(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
-    //     let use_expr = &self.thir[*expr_id];
-    //     self.reduce_expr_kind(&use_expr.kind)
-    // }
+    fn handle_use(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
+        let use_expr = &self.thir[*expr_id];
+        self.reduce_expr_kind(&use_expr.kind)
+    }
 
     // fn handle_never_to_any(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
     //     let never_to_any = &self.thir[*expr_id];

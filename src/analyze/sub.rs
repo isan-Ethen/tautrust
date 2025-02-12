@@ -10,15 +10,15 @@ use crate::analyze::{
 };
 
 impl<'tcx> Analyzer<'tcx> {
-    // pub fn analyze_local_fn(
-    //     &self, rthir: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<(), AnalysisError> {
-    //     self.analyze_params(&rthir.params, args, env)?;
-    //     if let Some(body) = &rthir.body {
-    //         self.analyze_body(body.clone(), env)?;
-    //     }
-    //     Ok(())
-    // }
+    pub fn analyze_local_fn(
+        &self, rthir: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        self.analyze_params(&rthir.params, args, env)?;
+        if let Some(body) = &rthir.body {
+            self.analyze_body(body.clone(), env)?;
+        }
+        Ok(())
+    }
 
     pub fn analyze_binary(
         &self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
@@ -50,12 +50,11 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         match ty.kind() {
             TyKind::FnDef(def_id, ..) => {
-                if let Some(_fun) = self.get_local_fn(def_id) {
-                    unimplemented!();
-                    // match self.analyze_local_fn(fun, args, env) {
-                    //     Ok(()) => Ok(AnalysisType::Other),
-                    //     Err(why) => Err(why),
-                    // }
+                if let Some(fun) = self.get_local_fn(def_id) {
+                    match self.analyze_local_fn(fun, args, env) {
+                        Ok(()) => Ok(AnalysisType::Other),
+                        Err(why) => Err(why),
+                    }
                 } else {
                     let fn_info = self.get_fn_info(def_id);
                     self.analyze_external_fn(fn_info, args, env)
@@ -114,7 +113,7 @@ impl<'tcx> Analyzer<'tcx> {
     //     env.add_parameter(ref_ty.kind(), var, pattern.clone());
     //     if let Some(init) = initializer {
     //         match self.expr_to_constraint(init, env) {
-    //             Ok(value) => env.assign_new_value(var, value.get_assume().to_string()),
+    //             Ok(value) => env.assign_new_value(var, value.get_var_expr().to_string()),
     //             Err(AnalysisError::RandFunctions) => {
     //                     let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
     //                     env.add_rand(rand.clone(), ref_ty.kind());
@@ -151,7 +150,7 @@ impl<'tcx> Analyzer<'tcx> {
     //             RExprKind::Deref { arg } => {
     //                 env.add_parameter(ty.kind(), var, arg.clone());
     //                 let constraint = self.expr_to_constraint(arg.clone(), env)?;
-    //                 env.assign_assume(var, constraint.clone());
+    //                 env.assign_var_expr(var, constraint.clone());
     //             }
     //             _ => {
     //                 println!("{init:?}");
@@ -171,8 +170,8 @@ impl<'tcx> Analyzer<'tcx> {
     // ) {
     //     if let RExprKind::VarRef { id } = arg.kind {
     //         let mut_init = env.var_map.get_mut(&id).expect("var not found in Mutable");
-    //         let temp = mut_init.get_assume().clone();
-    //         mut_init.set_assume(name.clone());
+    //         let temp = mut_init.get_var_expr().clone();
+    //         mut_init.set_var_expr(name.clone());
     //         env.smt_vars.push((name.clone(), *ty.kind()));
     //         let lir = lir::Lir::new(*ty.kind(), vec![temp, name], pattern).unwrap();
     //         env.add_mutable_ref(&var, lir);
@@ -186,7 +185,7 @@ impl<'tcx> Analyzer<'tcx> {
         env.add_parameter(ty.kind(), &var, pattern.clone());
         if let Some(expr) = initializer {
             match self.expr_to_constraint(expr, env) {
-                Ok(value) => env.assign_new_value(var, value.get_assume().into()),
+                Ok(value) => env.assign_new_value(var, value.get_var_expr().into()),
                 Err(AnalysisError::RandFunctions) => {
                     let rand = format!("rand_{}", Analyzer::span_to_str(&pattern.span));
                     env.add_rand(rand.clone(), ty.kind());
@@ -203,7 +202,7 @@ impl<'tcx> Analyzer<'tcx> {
     //     else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     // ) -> Result<LirKind<'tcx>, AnalysisError> {
     //     let cond = self.expr_to_constraint(cond, env)?;
-    //     let cond_str = cond.get_assume();
+    //     let cond_str = cond.get_var_expr();
 
     //     let mut then_env = env.gen_new_env()?;
     //     then_env.add_assume(cond_str.to_string());
@@ -215,21 +214,30 @@ impl<'tcx> Analyzer<'tcx> {
     //     let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 
     //     env.merge_then_else_env(cond_str.to_string(), then_env, Some(else_env))?;
-    //     then_value.set_assume(Analyzer::value_to_ite(
+    //     then_value.set_var_expr(Analyzer::value_to_ite(
     //         cond_str,
-    //         then_value.get_assume(),
-    //         else_value.get_assume(),
+    //         then_value.get_var_expr(),
+    //         else_value.get_var_expr(),
     //     ));
-    //     then_value.set_assume_by_index(
+    //     then_value.set_var_expr_by_index(
     //         Analyzer::value_to_ite(
     //             cond_str,
-    //             then_value.get_assume_by_index(vec![1]),
-    //             else_value.get_assume_by_index(vec![1]),
+    //             then_value.get_var_expr_by_index(vec![1]),
+    //             else_value.get_var_expr_by_index(vec![1]),
     //         ),
     //         vec![1],
     //     );
     //     Ok(then_value)
     // }
+
+    pub fn analyze_assign(
+        &self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        let constraint = self.expr_to_constraint(rhs, env)?;
+        let var = env.var_map.get_mut(&Analyzer::expr_to_id(lhs)).expect("Assign target not found");
+        var.set_var_expr(constraint.get_var_expr().into());
+        Ok(())
+    }
 
     pub fn analyze_assign_op(
         &self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, expr: Rc<RExpr<'tcx>>,
@@ -237,51 +245,34 @@ impl<'tcx> Analyzer<'tcx> {
     ) -> Result<(), AnalysisError> {
         let rhs = self.expr_to_constraint(rhs, env)?;
         let op_str = Analyzer::bin_op_to_smt(op)?;
-        env.add_assumption(&Analyzer::expr_to_id(lhs), op_str, rhs.get_assume().to_string(), expr);
+        env.add_assumption(
+            &Analyzer::expr_to_id(lhs),
+            op_str,
+            rhs.get_var_expr().to_string(),
+            expr,
+        );
         Ok(())
     }
 
-    // pub fn analyze_assign(
-    //     &self, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
-    // ) -> Result<(), AnalysisError> {
-    //     let constraint = self.expr_to_constraint(rhs, env)?;
-    //     let var = env.var_map.get_mut(&Analyzer::expr_to_id(lhs)).expect("Assign target not found");
-    //     var.set_assume(constraint.get_assume().into());
-    //     Ok(())
-    // }
+    pub fn analyze_if(
+        &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+    ) -> Result<(), AnalysisError> {
+        let cond_str: String = self.expr_to_constraint(cond.clone(), env)?.get_var_expr().into();
 
-    // pub fn analyze_if(
-    //     &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
-    //     else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
-    // ) -> Result<(), AnalysisError> {
-    //     let cond_str: String = self.expr_to_constraint(cond.clone(), env)?.get_assume().into();
+        let mut then_env = env.clone();
+        then_env.add_assume(cond_str.clone());
+        self.analyze_body(then_block, &mut then_env)?;
 
-    //     let mut then_env = env.gen_new_env()?;
-    //     then_env.add_assume(cond_str.clone());
-    //     self.analyze_block(then_block, &mut then_env)?;
+        let mut else_env = None;
+        if let Some(else_block) = else_opt {
+            let mut else_env_ = env.clone();
+            else_env_.add_assume(format!("(not {})", cond_str));
+            self.analyze_body(else_block, &mut else_env_)?;
+            else_env = Some(else_env_)
+        }
 
-    //     let mut else_env = None;
-    //     if let Some(else_block) = else_opt {
-    //         let mut else_env_ = env.gen_new_env()?;
-    //         else_env_.add_assume(format!("(not {})", cond_str));
-    //         self.analyze_block(else_block, &mut else_env_)?;
-    //         else_env = Some(else_env_)
-    //     }
-
-    //     env.merge_then_else_env(cond_str.clone(), then_env, else_env)?;
-    //     Ok(())
-    // }
-
-    // pub fn analyze_block(
-    //     &self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
-    // ) -> Result<(), AnalysisError> {
-    //     if let RExpr { kind: RExprKind::Block { stmts, .. }, .. } = block.as_ref() {
-    //         for stmt in stmts {
-    //             self.analyze_expr(stmt.clone(), env)?;
-    //         }
-    //     } else {
-    //         return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
-    //     }
-    //     Ok(())
-    // }
+        env.merge_then_else_env(cond_str.clone(), then_env, else_env)?;
+        Ok(())
+    }
 }

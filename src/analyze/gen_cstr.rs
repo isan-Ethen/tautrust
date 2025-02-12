@@ -18,7 +18,7 @@ impl<'tcx> Analyzer<'tcx> {
             //     let mut lhs = self.expr_to_constraint(lhs.clone(), env)?;
             //     let rhs = self.expr_to_constraint(rhs.clone(), env)?;
             //     let (op_str, rhs_str) = self.logical_op_to_constraint(*op, &rhs)?;
-            //     lhs.adapt_assume(&op_str, rhs_str);
+            //     lhs.adapt_var_expr(&op_str, rhs_str);
             //     Ok(lhs)
             // }
             // Unary { op, arg } => {
@@ -29,9 +29,9 @@ impl<'tcx> Analyzer<'tcx> {
                 self.bin_op_to_constraint(*op, lhs.clone(), rhs.clone(), env)
             }
             Call { ty, args, .. } => self.fn_to_constraint(*ty, args.clone(), env),
-            // If { cond, then, else_opt } => {
-            //     Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)
-            // }
+            If { cond, then, else_opt } => {
+                Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)
+            }
             // Deref { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
             // Borrow { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
             _ => {
@@ -80,7 +80,7 @@ impl<'tcx> Analyzer<'tcx> {
     //         LogicalOp::And => "and",
     //         LogicalOp::Or => "or",
     //     };
-    //     Ok((op_str.to_string(), rhs.get_assume()))
+    //     Ok((op_str.to_string(), rhs.get_var_expr()))
     // }
 
     // pub fn un_op_to_constraint(
@@ -102,7 +102,7 @@ impl<'tcx> Analyzer<'tcx> {
         let mut lir = self.expr_to_constraint(lhs, env)?;
         let rhs = self.expr_to_constraint(rhs, env)?;
         let op_str = Analyzer::bin_op_to_smt(op)?;
-        lir.adapt_assume(&op_str, rhs.get_assume());
+        lir.adapt_var_expr(&op_str, rhs.get_var_expr());
         Ok(lir)
     }
 
@@ -136,8 +136,7 @@ impl<'tcx> Analyzer<'tcx> {
             TyKind::FnDef(def_id, ..) => {
                 let fn_info = self.get_fn_info(def_id);
                 if let Some(fun) = self.get_local_fn(def_id) {
-                    unimplemented!();
-                    // self.local_fn_to_constraint(fun.clone(), args, env)
+                    self.local_fn_to_constraint(fun.clone(), args, env)
                 } else {
                     self.extern_fn_to_constraint(fn_info, args)
                 }
@@ -146,12 +145,12 @@ impl<'tcx> Analyzer<'tcx> {
         }
     }
 
-    // pub fn local_fn_to_constraint(
-    //     &self, expr: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<LirKind<'tcx>, AnalysisError> {
-    //     self.analyze_params(&expr.params, args, env)?;
-    //     self.block_to_constraint(expr.body.as_ref().expect("Body not found").clone(), env)
-    // }
+    pub fn local_fn_to_constraint(
+        &self, expr: Rc<RThir<'tcx>>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        self.analyze_params(&expr.params, args, env)?;
+        self.block_to_constraint(expr.body.as_ref().expect("Body not found").clone(), env)
+    }
 
     pub fn extern_fn_to_constraint(
         &self, fn_info: Vec<String>, _: Box<[Rc<RExpr<'tcx>>]>,
@@ -168,54 +167,55 @@ impl<'tcx> Analyzer<'tcx> {
         }
     }
 
-    // pub fn if_to_constraint(
-    //     &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
-    //     else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
-    // ) -> Result<LirKind<'tcx>, AnalysisError> {
-    //     let cond = self.expr_to_constraint(cond, env)?;
-    //     let cond_str = cond.get_assume();
+    pub fn if_to_constraint(
+        &self, cond: Rc<RExpr<'tcx>>, then_block: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        let cond = self.expr_to_constraint(cond, env)?;
+        let cond_str = cond.get_var_expr();
 
-    //     let mut then_env = env.gen_new_env()?;
-    //     then_env.add_assume(cond_str.to_string());
-    //     let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
-    //     let else_block = else_opt.expect("Else block of if initializer not found");
-    //     let mut else_env = env.gen_new_env()?;
-    //     else_env.add_assume(format!("(not {cond_str})"));
-    //     let else_value = self.block_to_constraint(else_block, &mut else_env)?;
+        let mut then_env = env.clone();
+        then_env.add_assume(cond_str.clone());
+        let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
 
-    //     env.merge_then_else_env(cond_str.clone(), then_env, Some(else_env))?;
-    //     then_value.set_assume(Analyzer::value_to_ite(
-    //         cond_str,
-    //         then_value.get_assume(),
-    //         else_value.get_assume(),
-    //     ));
-    //     Ok(then_value)
-    // }
+        let else_block = else_opt.expect("Else block of if assign initializer not found");
+        let mut else_env = env.clone();
+        else_env.add_assume(format!("(not {cond_str})"));
+        let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 
-    // pub fn value_to_ite(cond_str: &String, then_value: &String, else_value: &String) -> String {
-    //     format!("(ite {cond_str} {then_value} {else_value})")
-    // }
+        env.merge_then_else_env(cond_str.clone(), then_env, Some(else_env))?;
+        then_value.set_var_expr(Analyzer::value_to_ite(
+            cond_str,
+            then_value.get_var_expr(),
+            else_value.get_var_expr(),
+        ));
+        Ok(then_value)
+    }
 
-    // pub fn block_to_constraint(
-    //     &self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
-    // ) -> Result<LirKind<'tcx>, AnalysisError> {
-    //     let mut return_value = LirKind::new(TyKind::Int(IntTy::I32), String::new());
-    //     if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = block.as_ref() {
-    //         for stmt in stmts {
-    //             if let AnalysisType::Return(value) = self.analyze_expr(stmt.clone(), env)? {
-    //                 return Err(AnalysisError::UnsupportedPattern(
-    //                     value.expect("No value with return"),
-    //                 ));
-    //             }
-    //         }
-    //         if let Some(expr) = expr {
-    //             return_value = self.expr_to_constraint(expr.clone(), env)?;
-    //         }
-    //     } else {
-    //         println!("{}", env.get_assumptions()?);
-    //         println!("{:?}", block);
-    //         return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
-    //     }
-    //     Ok(return_value)
-    // }
+    pub fn value_to_ite(cond_str: &String, then_value: &String, else_value: &String) -> String {
+        format!("(ite {cond_str} {then_value} {else_value})")
+    }
+
+    pub fn block_to_constraint(
+        &self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        let mut return_value = LirKind::new(TyKind::Int(IntTy::I32), String::new());
+        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = block.as_ref() {
+            for stmt in stmts {
+                if let AnalysisType::Return(value) = self.analyze_expr(stmt.clone(), env)? {
+                    return Err(AnalysisError::UnsupportedPattern(
+                        value.expect("No value with return"),
+                    ));
+                }
+            }
+            if let Some(expr) = expr {
+                return_value = self.expr_to_constraint(expr.clone(), env)?;
+            }
+        } else {
+            println!("{}", env.get_assumptions()?);
+            println!("{:?}", block);
+            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
+        }
+        Ok(return_value)
+    }
 }

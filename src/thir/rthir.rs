@@ -174,20 +174,20 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
                 self.format_pat_kind(kind, depth_lvl + 1);
                 self.add_indented_string("}", depth_lvl);
             }
-            // If { cond, then, else_opt } => {
-            //     self.add_indented_string("If {", depth_lvl);
-            //     self.add_indented_string("cond:", depth_lvl + 1);
-            //     self.format_expr(cond, depth_lvl + 2);
-            //     self.add_indented_string("then:", depth_lvl + 1);
-            //     self.format_expr(then, depth_lvl + 2);
+            If { cond, then, else_opt } => {
+                self.add_indented_string("If {", depth_lvl);
+                self.add_indented_string("cond:", depth_lvl + 1);
+                self.format_expr(cond, depth_lvl + 2);
+                self.add_indented_string("then:", depth_lvl + 1);
+                self.format_expr(then, depth_lvl + 2);
 
-            //     if let Some(else_expr) = else_opt {
-            //         self.add_indented_string("else:", depth_lvl + 1);
-            //         self.format_expr(else_expr, depth_lvl + 2);
-            //     }
+                if let Some(else_expr) = else_opt {
+                    self.add_indented_string("else:", depth_lvl + 1);
+                    self.format_expr(else_expr, depth_lvl + 2);
+                }
 
-            //     self.add_indented_string("}", depth_lvl);
-            // }
+                self.add_indented_string("}", depth_lvl);
+            }
             Call { fun, args, ty, from_hir_call, fn_span } => {
                 self.add_indented_string("Call {", depth_lvl);
                 self.add_indented_string(&format!("ty: {ty:?}"), depth_lvl + 1);
@@ -267,14 +267,14 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
                 self.add_indented_string("}", depth_lvl);
             }
-            // Assign { lhs, rhs } => {
-            //     self.add_indented_string("Assign {", depth_lvl);
-            //     self.add_indented_string("lhs:", depth_lvl + 1);
-            //     self.format_expr(lhs, depth_lvl + 2);
-            //     self.add_indented_string("rhs:", depth_lvl + 1);
-            //     self.format_expr(rhs, depth_lvl + 2);
-            //     self.add_indented_string("}", depth_lvl);
-            // }
+            Assign { lhs, rhs } => {
+                self.add_indented_string("Assign {", depth_lvl);
+                self.add_indented_string("lhs:", depth_lvl + 1);
+                self.format_expr(lhs, depth_lvl + 2);
+                self.add_indented_string("rhs:", depth_lvl + 1);
+                self.format_expr(rhs, depth_lvl + 2);
+                self.add_indented_string("}", depth_lvl);
+            }
             AssignOp { op, lhs, rhs } => {
                 self.add_indented_string("AssignOp {", depth_lvl);
                 self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
@@ -417,11 +417,11 @@ type UserTy<'tcx> = Option<Box<CanonicalUserType<'tcx>>>;
 
 #[derive(Clone, Debug)]
 pub enum RExprKind<'tcx> {
-    // If {
-    //     cond: Rc<RExpr<'tcx>>,
-    //     then: Rc<RExpr<'tcx>>,
-    //     else_opt: Option<Rc<RExpr<'tcx>>>,
-    // },
+    If {
+        cond: Rc<RExpr<'tcx>>,
+        then: Rc<RExpr<'tcx>>,
+        else_opt: Option<Rc<RExpr<'tcx>>>,
+    },
     Call {
         ty: Ty<'tcx>,
         fun: Rc<RExpr<'tcx>>,
@@ -454,7 +454,10 @@ pub enum RExprKind<'tcx> {
         stmts: Vec<Rc<RExpr<'tcx>>>,
         expr: Option<Rc<RExpr<'tcx>>>,
     },
-    // Assign { lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>> },
+    Assign {
+        lhs: Rc<RExpr<'tcx>>,
+        rhs: Rc<RExpr<'tcx>>,
+    },
     AssignOp {
         op: BinOp,
         lhs: Rc<RExpr<'tcx>>,

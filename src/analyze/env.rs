@@ -10,10 +10,7 @@ use std::io::Write;
 use std::process::Command;
 
 // Own crates
-use crate::analyze::{
-    lir::*,
-    AnalysisError, //Analyzer
-};
+use crate::analyze::{lir::*, AnalysisError, Analyzer};
 use crate::thir::rthir::*;
 
 #[derive(Clone)]
@@ -108,7 +105,7 @@ impl<'tcx> Env<'tcx> {
         &mut self, var_id: &LocalVarId, operation: String, arg: String, expr: Rc<RExpr<'tcx>>,
     ) {
         let var = self.var_map.get_mut(var_id).expect("Variable not found");
-        var.adapt_assume(&operation, &arg, expr);
+        var.adapt_var_expr(&operation, &arg, expr);
     }
 
     pub fn add_parameter(&mut self, ty: &TyKind<'tcx>, var_id: &LocalVarId, pat: Rc<RExpr<'tcx>>) {
@@ -123,86 +120,100 @@ impl<'tcx> Env<'tcx> {
 
     pub fn assign_new_value(&mut self, target_id: &LocalVarId, constraint: String) {
         let target = self.var_map.get_mut(target_id).expect("target value not found");
-        target.set_assume(constraint);
+        target.set_var_expr(constraint);
     }
 
-    pub fn assign_assume(&mut self, target_id: &LocalVarId, assume: LirKind<'tcx>) {
+    pub fn assign_var_expr(&mut self, target_id: &LocalVarId, var_expr: LirKind<'tcx>) {
         let target = self.var_map.get_mut(target_id).expect("target value not found");
-        target.kind = assume;
+        target.kind = var_expr;
     }
 
-    // pub fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
-    //     let len = self.len();
-    //     self.path.extend_from_slice(&then_env.path[len + 1..]);
+    pub fn merge_then_else_env(
+        &mut self, cond_str: String, mut then_env: Env<'tcx>, mut else_env: Option<Env<'tcx>>,
+    ) -> Result<(), AnalysisError> {
+        let len = self.len();
+        then_env.adapt_cond_to_path(&cond_str, len);
+        if let Some(else_env) = &mut else_env {
+            else_env.adapt_cond_to_path(&format!("(not {})", cond_str), len);
+        }
+        self.merge_env(cond_str, then_env, else_env);
+        Ok(())
+    }
 
-    //     if let Some(ref else_env) = else_env {
-    //         self.path.extend_from_slice(&else_env.path[len + 1..]);
-    //     }
-    //     let mut new_var_map = Map::new();
-    //     let current_var_map = self.var_map.clone();
+    fn adapt_cond_to_path(&mut self, cond_str: &str, len: usize) {
+        for assume in &mut self.path[len..] {
+            *assume = format!("(=> {cond_str} {assume})");
+        }
+    }
 
-    //     for (var_id, current_lir) in current_var_map {
-    //         let new_lir = match (
-    //             then_env.var_map.get(&var_id),
-    //             else_env.as_ref().and_then(|e| e.var_map.get(&var_id)),
-    //         ) {
-    //             (Some(then_lir), Some(else_lir)) => {
-    //                 let assume = vec![Analyzer::value_to_ite(
-    //                     &cond,
-    //                     then_lir.get_assume(),
-    //                     else_lir.get_assume(),
-    //                 )];
-    //                 if then_lir.get_assume() != else_lir.get_assume() {
-    //                     Lir::new(current_lir.get_ty(), assume, current_lir.expr.clone())
-    //                         .expect("failed to make lir")
-    //                 } else {
-    //                     current_lir
-    //                 }
-    //             }
-    //             (Some(then_lir), None) => {
-    //                 if current_lir.get_assume() != then_lir.get_assume() {
-    //                     let assume = Analyzer::value_to_ite(
-    //                         &cond,
-    //                         then_lir.get_assume(),
-    //                         current_lir.get_assume(),
-    //                     );
-    //                     let mut updated_lir = current_lir;
-    //                     updated_lir.set_assume(assume);
-    //                     updated_lir
-    //                 } else {
-    //                     current_lir
-    //                 }
-    //             }
-    //             _ => current_lir,
-    //         };
+    fn merge_env(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
+        self.extend_smt_vars(self.smt_vars.len(), &then_env, &else_env);
+        self.extend_paths(self.path.len(), &then_env, &else_env);
+        self.merge_var_maps(cond, then_env, else_env);
+    }
 
-    //         new_var_map.insert(var_id, new_lir);
-    //     }
+    fn extend_smt_vars(&mut self, len: usize, then_env: &Env<'tcx>, else_env: &Option<Env<'tcx>>) {
+        self.smt_vars.extend_from_slice(&then_env.smt_vars[len..]);
+        if let Some(else_env) = else_env {
+            self.smt_vars.extend_from_slice(&else_env.smt_vars[len..]);
+        }
+    }
 
-    //     self.var_map = new_var_map;
-    // }
+    fn extend_paths(&mut self, len: usize, then_env: &Env<'tcx>, else_env: &Option<Env<'tcx>>) {
+        self.path.extend_from_slice(&then_env.path[len + 1..]);
+        if let Some(else_env) = else_env {
+            self.path.extend_from_slice(&else_env.path[len + 1..]);
+        }
+    }
 
-    // pub fn gen_new_env(&self, name: String) -> Result<Env<'tcx>, AnalysisError> {
-    //     let name = self.new_env_name(&name);
-    //     Ok(Env::from(name, self.smt_vars.clone(), self.path.clone(), self.var_map.clone()))
-    // }
+    fn merge_var_maps(&mut self, cond: String, then_env: Env<'tcx>, else_env: Option<Env<'tcx>>) {
+        let mut new_var_map = Map::new();
 
-    // pub fn merge_then_else_env(
-    //     &mut self, cond_str: String, mut then_env: Env<'tcx>, mut else_env: Option<Env<'tcx>>,
-    // ) -> Result<(), AnalysisError> {
-    //     let len = self.len();
-    //     then_env.adapt_cond_to_path(&cond_str, &len)?;
-    //     if let Some(else_env) = &mut else_env {
-    //         else_env.adapt_cond_to_path(&format!("(not {})", cond_str), &len)?;
-    //     }
-    //     self.merge_env(cond_str, then_env, else_env);
-    //     Ok(())
-    // }
+        for (var_id, current_lir) in self.var_map.iter_mut() {
+            Env::merge_lir(&var_id, &cond, current_lir, &then_env, &else_env);
+            new_var_map.insert(*var_id, current_lir.clone());
+        }
 
-    // fn adapt_cond_to_path(&mut self, cond_str: &String, len: &usize) -> Result<(), AnalysisError> {
-    //     for i in *len..self.len() {
-    //         self.path[i] = format!("(=> {cond_str} {})", self.path[i]);
-    //     }
-    //     Ok(())
-    // }
+        self.var_map = new_var_map;
+    }
+
+    fn merge_lir(
+        var_id: &LocalVarId, cond: &String, current_lir: &mut Lir<'tcx>, then_env: &Env<'tcx>,
+        else_env: &Option<Env<'tcx>>,
+    ) {
+        match (then_env.var_map.get(var_id), else_env.as_ref().and_then(|e| e.var_map.get(var_id)))
+        {
+            (Some(then_lir), Some(else_lir)) => {
+                Env::merge_both_branches(cond, current_lir, then_lir, else_lir);
+            }
+            (Some(then_lir), None) => Env::merge_then_branch(cond, current_lir, then_lir),
+            _ => unreachable!("then and else env not found"),
+        }
+    }
+
+    fn merge_both_branches(
+        cond: &String, current_lir: &mut Lir<'tcx>, then_lir: &Lir<'tcx>, else_lir: &Lir<'tcx>,
+    ) {
+        if current_lir.get_var_expr() == then_lir.get_var_expr()
+            && current_lir.get_var_expr() == else_lir.get_var_expr()
+        {
+            return;
+        }
+
+        let var_expr =
+            Analyzer::value_to_ite(cond, then_lir.get_var_expr(), else_lir.get_var_expr());
+
+        current_lir.set_var_expr(var_expr);
+    }
+
+    fn merge_then_branch(cond: &String, current_lir: &mut Lir<'tcx>, then_lir: &Lir<'tcx>) {
+        if current_lir.get_var_expr() == then_lir.get_var_expr() {
+            return;
+        }
+
+        let var_expr =
+            Analyzer::value_to_ite(cond, then_lir.get_var_expr(), current_lir.get_var_expr());
+
+        current_lir.set_var_expr(var_expr);
+    }
 }
