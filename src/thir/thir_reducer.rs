@@ -123,41 +123,7 @@ impl<'tcx> ThirReducer<'tcx> {
         //
         match expr_kind {
             Scope { value, .. } => self.handle_scope(value),
-            If { cond, then, else_opt, .. } => RExprKind::If {
-                cond: self.reduce_expr(cond),
-                then: if let Scope { value, .. } = &self.thir[*then].kind {
-                    match &self.thir[*value].kind {
-                        Borrow { arg, .. } => {
-                            if let Deref { arg } = &self.thir[*arg].kind {
-                                self.reduce_expr(arg)
-                            } else {
-                                panic!("Unknown if borrow")
-                            }
-                        }
-                        _ => self.reduce_expr(value),
-                    }
-                } else {
-                    panic!("Unknown then pattern")
-                },
-                else_opt: if let Some(expr_id) = else_opt {
-                    if let Scope { value, .. } = &self.thir[*expr_id].kind {
-                        match &self.thir[*value].kind {
-                            Borrow { arg, .. } => {
-                                if let Deref { arg } = &self.thir[*arg].kind {
-                                    Some(self.reduce_expr(arg))
-                                } else {
-                                    panic!("Unknown if borrow")
-                                }
-                            }
-                            _ => Some(self.reduce_expr(value)),
-                        }
-                    } else {
-                        panic!("Unknown else_opt pattern")
-                    }
-                } else {
-                    None
-                },
-            },
+            If { cond, then, else_opt, .. } => self.handle_if(cond, then, else_opt),
             Call { ty, fun, args, from_hir_call, fn_span } => RExprKind::Call {
                 ty: *ty,
                 fun: self.reduce_expr(fun),
@@ -231,6 +197,44 @@ impl<'tcx> ThirReducer<'tcx> {
     fn handle_scope(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
         let scope = &self.thir[*expr_id];
         self.reduce_expr_kind(&scope.kind)
+    }
+
+    fn handle_if(
+        &self, cond: &ExprId, then: &ExprId, else_opt: &Option<ExprId>,
+    ) -> RExprKind<'tcx> {
+        RExprKind::If {
+            cond: self.reduce_expr(cond),
+            then: self.reduce_if_branch(then),
+            else_opt: self.reduce_else_opt_branch(else_opt),
+        }
+    }
+
+    fn reduce_if_branch(&self, expr_id: &ExprId) -> Rc<RExpr<'tcx>> {
+        let thir_expr = &self.thir[*expr_id];
+        match &thir_expr.kind {
+            rustc_middle::thir::ExprKind::Scope { value, .. } => self.reduce_scope_in_branch(value),
+            _ => panic!("Scope not in if branch"),
+        }
+    }
+
+    fn reduce_scope_in_branch(&self, value: &ExprId) -> Rc<RExpr<'tcx>> {
+        let value_expr = &self.thir[*value];
+        match &value_expr.kind {
+            rustc_middle::thir::ExprKind::Borrow { arg, .. } => self.reduce_borrow_in_branch(arg),
+            _ => self.reduce_expr(value),
+        }
+    }
+
+    fn reduce_borrow_in_branch(&self, arg: &ExprId) -> Rc<RExpr<'tcx>> {
+        let arg_expr = &self.thir[*arg];
+        match &arg_expr.kind {
+            rustc_middle::thir::ExprKind::Deref { arg } => self.reduce_expr(arg),
+            _ => panic!("Deref not in if branch borrow"),
+        }
+    }
+
+    fn reduce_else_opt_branch(&self, else_opt: &Option<ExprId>) -> Option<Rc<RExpr<'tcx>>> {
+        else_opt.map(|expr_id| self.reduce_if_branch(&expr_id))
     }
 
     fn handle_use(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
