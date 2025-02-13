@@ -46,17 +46,16 @@ impl<'tcx> Analyzer<'tcx> {
         &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<AnalysisType<'tcx>, AnalysisError> {
         match ty.kind() {
-            TyKind::FnDef(def_id, ..) => {
-                if let Some(fun) = self.get_local_fn(def_id) {
-                    match self.analyze_local_fn(fun, args, env) {
-                        Ok(()) => Ok(AnalysisType::Other),
-                        Err(why) => Err(why),
-                    }
-                } else {
+            TyKind::FnDef(def_id, ..) => match self.get_local_fn(def_id) {
+                Some(fun) => match self.analyze_local_fn(fun, args, env) {
+                    Ok(()) => Ok(AnalysisType::Other),
+                    Err(why) => Err(why),
+                },
+                _ => {
                     let fn_info = self.get_fn_info(def_id);
                     self.analyze_external_fn(fn_info, args, env)
                 }
-            }
+            },
             _ => panic!("Call has not have FnDef"),
         }
     }
@@ -80,10 +79,11 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_let_stmt(
         &self, pattern: Rc<RExpr<'tcx>>, initializer: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        if let RExprKind::Pat { kind: RPatKind::Binding { ty, var, .. } } = &pattern.clone().kind {
-            self.process_binding(pattern, initializer, ty, var, env)?
-        } else {
-            unreachable!();
+        match &pattern.clone().kind {
+            RExprKind::Pat { kind: RPatKind::Binding { ty, var, .. } } => {
+                self.process_binding(pattern, initializer, ty, var, env)?
+            }
+            _ => unreachable!(),
         }
         Ok(())
     }
@@ -142,15 +142,16 @@ impl<'tcx> Analyzer<'tcx> {
         pattern: Rc<RExpr<'tcx>>, arg: &RExpr<'tcx>, prophecy_var: String, ty: &Ty<'tcx>,
         var: &LocalVarId, env: &mut Env<'tcx>,
     ) {
-        if let RExprKind::VarRef { id } = arg.kind {
-            let mut_init = env.var_map.get_mut(&id).expect("var not found in Mutable");
-            let var_expr = mut_init.get_var_expr().clone();
-            env.smt_vars.push((prophecy_var.clone(), *ty.kind()));
-            mut_init.set_var_expr(prophecy_var.clone());
-            let lir = lir::Lir::new(*ty.kind(), vec![var_expr, prophecy_var], pattern).unwrap();
-            env.add_mutable_ref(&var, lir);
-        } else {
-            unreachable!("{arg:?} is in Borrow instead of VarRef");
+        match arg.kind {
+            RExprKind::VarRef { id } => {
+                let mut_init = env.var_map.get_mut(&id).expect("var not found in Mutable");
+                let var_expr = mut_init.get_var_expr().clone();
+                env.smt_vars.push((prophecy_var.clone(), *ty.kind()));
+                mut_init.set_var_expr(prophecy_var.clone());
+                let lir = lir::Lir::new(*ty.kind(), vec![var_expr, prophecy_var], pattern).unwrap();
+                env.add_mutable_ref(&var, lir);
+            }
+            _ => unreachable!("{arg:?} is in Borrow instead of VarRef"),
         }
     }
 

@@ -13,23 +13,28 @@ use crate::util::get_fn_map;
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 
 pub fn drive_tautrust(tcx: TyCtxt) {
-    if let Some((main_id, ..)) = tcx.entry_fn(()) {
-        let fn_map = get_fn_map(&tcx);
-        if let Err(error) = analyze(main_id.expect_local(), fn_map, tcx) {
+    match tcx.entry_fn(()) {
+        Some((main_id, ..)) => {
+            let fn_map = get_fn_map(&tcx);
+            let result = analyze(main_id.expect_local(), fn_map, tcx);
+            handle_drive_result(result);
+        }
+        None => eprintln!("No main function!"),
+    }
+}
+
+fn handle_drive_result(result: Result<(), AnalysisError>) {
+    match result {
+        Ok(()) => println!("\x1b[92mAll verification success!\x1b[0m\n"),
+        Err(err) => {
             use AnalysisError::*;
-            match error {
+            match err {
                 FunctionNotFound(id) => eprintln!("Function not found: {:?}", id),
                 UnsupportedPattern(pattern) => eprintln!("Unsupported pattern: {}", pattern),
-                VerifyError(span) => {
-                    print_error(span);
-                }
-                _ => unreachable!(),
+                VerifyError(span) => print_error(span),
+                _ => unimplemented!("{err:?}"),
             }
-        } else {
-            println!("\x1b[92mAll verification success!\x1b[0m\n");
         }
-    } else {
-        eprintln!("No main function!")
     }
 }
 
