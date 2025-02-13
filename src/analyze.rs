@@ -5,13 +5,13 @@ use rustc_middle::mir::{
     BinOp, // UnOp
 };
 use rustc_middle::thir::LocalVarId;
-use rustc_middle::thir::LogicalOp;
+// use rustc_middle::thir::LogicalOp;
 use rustc_middle::ty::TyCtxt;
 use rustc_middle::ty::{Ty, TyKind};
 use rustc_span::def_id::LocalDefId;
 
 // std crates
-use std::boxed::Box;
+// use std::boxed::Box;
 use std::collections::HashMap as Map;
 // use std::iter::Peekable;
 use std::rc::Rc;

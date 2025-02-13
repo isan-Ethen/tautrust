@@ -21,5 +21,5 @@ pub enum AnalysisError {
     FunctionNotFound(LocalDefId),
     UnsupportedPattern(String),
     RandFunctions,
-    VerifyError { span: Span },
+    VerifyError(Span),
 }

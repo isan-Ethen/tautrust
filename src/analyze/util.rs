@@ -49,13 +49,10 @@ impl<'tcx> Analyzer<'tcx> {
                 if let RExprKind::VarRef { id } = &arg.kind {
                     *id
                 } else {
-                    panic!()
+                    unreachable!("{arg:?} in Deref instead of VarRef")
                 }
             }
-            _ => {
-                eprintln!("{expr:?}");
-                unreachable!()
-            }
+            _ => unreachable!("{expr:?} is supplied to get id"),
         }
     }
 }

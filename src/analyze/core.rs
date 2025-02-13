@@ -35,9 +35,8 @@ impl<'tcx> Analyzer<'tcx> {
         match kind {
             Binding { ty, var, .. } => {
                 self.process_binding(pattern.clone(), Some(arg.clone()), ty, var, env)?
-            }
-            Wild => (),
-            _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
+            } // Wild => (),
+              // _ => return Err(AnalysisError::UnsupportedPattern(format!("{:?}", kind))),
         }
         Ok(())
     }
@@ -81,28 +80,28 @@ impl<'tcx> Analyzer<'tcx> {
             LetStmt { pattern, initializer } => {
                 handle_result(self.analyze_let_stmt(pattern, initializer, env))
             }
-            Return { value } => self.handle_return(value, env),
+            // Return { value } => self.handle_return(value, env),
+            Assign { lhs, rhs } => handle_result(self.analyze_assign(lhs, rhs, env)),
             AssignOp { op, lhs, rhs } => {
                 handle_result(self.analyze_assign_op(op, lhs, rhs, expr, env))
             }
-            Assign { lhs, rhs } => handle_result(self.analyze_assign(lhs, rhs, env)),
             If { cond, then, else_opt } => {
                 handle_result(self.analyze_if(cond, then, else_opt, env))
             }
-            Break { .. } => Ok(AnalysisType::Break),
+            // Break { .. } => Ok(AnalysisType::Break),
             _ => Err(AnalysisError::UnsupportedPattern("Unknown expr".into())),
         }
     }
 
-    fn handle_return(
-        &self, value: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
-    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
-        if let Some(expr) = value {
-            Ok(AnalysisType::Return(Some(self.expr_to_constraint(expr, env)?.get_assume().into())))
-        } else {
-            Ok(AnalysisType::Return(None))
-        }
-    }
+    // fn handle_return(
+    //     &self, value: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
+    // ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+    //     if let Some(expr) = value {
+    //         Ok(AnalysisType::Return(Some(self.expr_to_constraint(expr, env)?.get_var_expr().into())))
+    //     } else {
+    //         Ok(AnalysisType::Return(None))
+    //     }
+    // }
 }
 
 fn handle_result<'tcx>(

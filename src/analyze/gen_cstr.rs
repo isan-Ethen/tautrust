@@ -14,23 +14,19 @@ impl<'tcx> Analyzer<'tcx> {
         match &arg.kind {
             Literal { lit, neg } => Ok(Analyzer::literal_to_constraint(lit, *neg)?),
             VarRef { id } => self.var_ref_to_constraint(id, env),
-            LogicalOp { op, lhs, rhs } => {
-                let mut lhs = self.expr_to_constraint(lhs.clone(), env)?;
-                let rhs = self.expr_to_constraint(rhs.clone(), env)?;
-                let (op_str, rhs_str) = self.logical_op_to_constraint(*op, &rhs)?;
-                lhs.adapt_assume(&op_str, rhs_str);
-                Ok(lhs)
-            }
+            // LogicalOp { op, lhs, rhs } => {
+            //     let mut lhs = self.expr_to_constraint(lhs.clone(), env)?;
+            //     let rhs = self.expr_to_constraint(rhs.clone(), env)?;
+            //     let (op_str, rhs_str) = self.logical_op_to_constraint(*op, &rhs)?;
+            //     lhs.adapt_var_expr(&op_str, rhs_str);
+            //     Ok(lhs)
+            // }
             // Unary { op, arg } => {
             //     let arg_str = self.expr_to_constraint(arg.clone(), env)?;
             //     Ok(self.un_op_to_constraint(*op, &arg_str)?)
             // }
             Binary { op, lhs, rhs } => {
-                let mut lhs = self.expr_to_constraint(lhs.clone(), env)?;
-                let rhs = self.expr_to_constraint(rhs.clone(), env)?;
-                let (op_str, rhs_str) = self.bin_op_to_constraint(*op, &rhs)?;
-                lhs.adapt_assume(&op_str, rhs_str);
-                Ok(lhs)
+                self.bin_op_to_constraint(*op, lhs.clone(), rhs.clone(), env)
             }
             Call { ty, args, .. } => self.fn_to_constraint(*ty, args.clone(), env),
             If { cond, then, else_opt } => {
@@ -68,18 +64,24 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn var_ref_to_constraint(
         &self, id: &LocalVarId, env: &Env<'tcx>,
     ) -> Result<LirKind<'tcx>, AnalysisError> {
-        Ok(env.var_map.get(id).expect("var not found in ver_ref_to_constraint").kind.clone())
+        match env.var_map.get(id) {
+            Some(lir) => Ok(lir.kind.clone()),
+            None => Err(AnalysisError::UnsupportedPattern(format!(
+                "var id {:?} not found in ver_ref_to_constraint",
+                id
+            ))),
+        }
     }
 
-    pub fn logical_op_to_constraint<'a>(
-        &self, op: LogicalOp, rhs: &'a LirKind<'tcx>,
-    ) -> Result<(String, &'a String), AnalysisError> {
-        let op_str = match op {
-            LogicalOp::And => "and",
-            LogicalOp::Or => "or",
-        };
-        Ok((op_str.to_string(), rhs.get_assume()))
-    }
+    // pub fn logical_op_to_constraint<'a>(
+    //     &self, op: LogicalOp, rhs: &'a LirKind<'tcx>,
+    // ) -> Result<(String, &'a String), AnalysisError> {
+    //     let op_str = match op {
+    //         LogicalOp::And => "and",
+    //         LogicalOp::Or => "or",
+    //     };
+    //     Ok((op_str.to_string(), rhs.get_var_expr()))
+    // }
 
     // pub fn un_op_to_constraint(
     //     &self, op: UnOp, arg_str: &String,
@@ -95,9 +97,13 @@ impl<'tcx> Analyzer<'tcx> {
     // }
 
     pub fn bin_op_to_constraint<'a>(
-        &self, op: BinOp, rhs: &'a LirKind<'tcx>,
-    ) -> Result<(String, &'a String), AnalysisError> {
-        Ok((Analyzer::bin_op_to_smt(op)?, rhs.get_assume()))
+        &self, op: BinOp, lhs: Rc<RExpr<'tcx>>, rhs: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
+    ) -> Result<LirKind<'tcx>, AnalysisError> {
+        let mut lir = self.expr_to_constraint(lhs, env)?;
+        let rhs = self.expr_to_constraint(rhs, env)?;
+        let op_str = Analyzer::bin_op_to_smt(op)?;
+        lir.adapt_var_expr(&op_str, rhs.get_var_expr());
+        Ok(lir)
     }
 
     pub fn bin_op_to_smt(op: BinOp) -> Result<String, AnalysisError> {
@@ -120,8 +126,9 @@ impl<'tcx> Analyzer<'tcx> {
             Gt => ">",
             _ => return Err(AnalysisError::UnsupportedPattern(format!("{op:?}"))),
         };
-        Ok(op_str.to_string())
+        Ok(op_str.into())
     }
+
     pub fn fn_to_constraint(
         &self, ty: Ty<'tcx>, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
     ) -> Result<LirKind<'tcx>, AnalysisError> {
@@ -165,22 +172,22 @@ impl<'tcx> Analyzer<'tcx> {
         else_opt: Option<Rc<RExpr<'tcx>>>, env: &mut Env<'tcx>,
     ) -> Result<LirKind<'tcx>, AnalysisError> {
         let cond = self.expr_to_constraint(cond, env)?;
-        let cond_str = cond.get_assume();
+        let cond_str = cond.get_var_expr();
 
-        let mut then_env = env.gen_new_env("then".into())?;
-        then_env.add_assume(cond_str.to_string());
+        let mut then_env = env.clone();
+        then_env.add_assume(cond_str.clone());
         let mut then_value = self.block_to_constraint(then_block, &mut then_env)?;
 
-        let else_block = else_opt.expect("Else block of if initializer not found");
-        let mut else_env = env.gen_new_env("else".into())?;
+        let else_block = else_opt.expect("Else block of if assign initializer not found");
+        let mut else_env = env.clone();
         else_env.add_assume(format!("(not {cond_str})"));
         let else_value = self.block_to_constraint(else_block, &mut else_env)?;
 
         env.merge_then_else_env(cond_str.clone(), then_env, Some(else_env))?;
-        then_value.set_assume(Analyzer::value_to_ite(
+        then_value.set_var_expr(Analyzer::value_to_ite(
             cond_str,
-            then_value.get_assume(),
-            else_value.get_assume(),
+            then_value.get_var_expr(),
+            else_value.get_var_expr(),
         ));
         Ok(then_value)
     }
