@@ -44,15 +44,16 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn analyze_body(
         &self, body: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<(), AnalysisError> {
-        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = body.as_ref() {
-            self.analyze_statements(stmts.iter().cloned(), env)?;
-            if let Some(expr) = expr {
-                self.analyze_expr(expr.clone(), env)?;
+        match body.as_ref() {
+            RExpr { kind: RExprKind::Block { stmts, expr }, .. } => {
+                self.analyze_statements(stmts.iter().cloned(), env)?;
+                if let Some(expr) = expr {
+                    self.analyze_expr(expr.clone(), env)?;
+                }
+                Ok(())
             }
-        } else {
-            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
+            _ => Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into())),
         }
-        Ok(())
     }
 
     fn analyze_statements<I>(&self, stmts: I, env: &mut Env<'tcx>) -> Result<(), AnalysisError>

@@ -135,10 +135,9 @@ impl<'tcx> Analyzer<'tcx> {
         match ty.kind() {
             TyKind::FnDef(def_id, ..) => {
                 let fn_info = self.get_fn_info(def_id);
-                if let Some(fun) = self.get_local_fn(def_id) {
-                    self.local_fn_to_constraint(fun.clone(), args, env)
-                } else {
-                    self.extern_fn_to_constraint(fn_info, args)
+                match self.get_local_fn(def_id) {
+                    Some(fun) => self.local_fn_to_constraint(fun.clone(), args, env),
+                    None => self.extern_fn_to_constraint(fn_info, args),
                 }
             }
             _ => panic!("Call has not have FnDef"),
@@ -200,21 +199,24 @@ impl<'tcx> Analyzer<'tcx> {
         &self, block: Rc<RExpr<'tcx>>, env: &mut Env<'tcx>,
     ) -> Result<LirKind<'tcx>, AnalysisError> {
         let mut return_value = LirKind::new(TyKind::Int(IntTy::I32), String::new());
-        if let RExpr { kind: RExprKind::Block { stmts, expr }, .. } = block.as_ref() {
-            for stmt in stmts {
-                if let AnalysisType::Return(value) = self.analyze_expr(stmt.clone(), env)? {
-                    return Err(AnalysisError::UnsupportedPattern(
-                        value.expect("No value with return"),
-                    ));
+        match block.as_ref() {
+            RExpr { kind: RExprKind::Block { stmts, expr }, .. } => {
+                for stmt in stmts {
+                    if let AnalysisType::Return(value) = self.analyze_expr(stmt.clone(), env)? {
+                        return Err(AnalysisError::UnsupportedPattern(
+                            value.expect("No value with return"),
+                        ));
+                    }
+                }
+                if let Some(expr) = expr {
+                    return_value = self.expr_to_constraint(expr.clone(), env)?;
                 }
             }
-            if let Some(expr) = expr {
-                return_value = self.expr_to_constraint(expr.clone(), env)?;
+            _ => {
+                println!("{}", env.get_assumptions()?);
+                println!("{:?}", block);
+                return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
             }
-        } else {
-            println!("{}", env.get_assumptions()?);
-            println!("{:?}", block);
-            return Err(AnalysisError::UnsupportedPattern("Unknown body pattern".into()));
         }
         Ok(return_value)
     }
