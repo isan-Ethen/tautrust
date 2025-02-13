@@ -32,8 +32,8 @@ impl<'tcx> Analyzer<'tcx> {
             If { cond, then, else_opt } => {
                 Ok(self.if_to_constraint(cond.clone(), then.clone(), else_opt.clone(), env)?)
             }
-            // Deref { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
-            // Borrow { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
+            Deref { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
+            Borrow { arg } => Ok(self.expr_to_constraint(arg.clone(), env)?),
             _ => {
                 println!("{}", env.get_assumptions()?);
                 Err(AnalysisError::UnsupportedPattern(format!("name: {:?}", arg.kind)))

@@ -1,4 +1,5 @@
 // rustc crates
+use rustc_middle::mir::BorrowKind;
 use rustc_middle::thir::*;
 
 // std crates
@@ -131,7 +132,7 @@ impl<'tcx> ThirReducer<'tcx> {
                 from_hir_call: *from_hir_call,
                 fn_span: *fn_span,
             },
-            // Deref { arg } => RExprKind::Deref { arg: self.reduce_expr(arg) },
+            Deref { arg } => RExprKind::Deref { arg: self.reduce_expr(arg) },
             Binary { op, lhs, rhs } => RExprKind::Binary {
                 op: *op,
                 lhs: self.reduce_expr(lhs),
@@ -167,20 +168,7 @@ impl<'tcx> ThirReducer<'tcx> {
             // UpvarRef { closure_def_id, var_hir_id } => {
             //     RExprKind::UpvarRef { closure_def_id: *closure_def_id, var_hir_id: *var_hir_id }
             // }
-            // Borrow { borrow_kind, arg } => {
-            //     use rustc_middle::mir::MutBorrowKind;
-            //     match borrow_kind {
-            //         rustc_middle::mir::BorrowKind::Mut { kind } => match kind {
-            //             MutBorrowKind::TwoPhaseBorrow => self.handle_two_phase_borrow(arg),
-            //             MutBorrowKind::Default => RExprKind::Borrow { arg: self.reduce_expr(arg) },
-            //             _ => panic!("MutBorrowKind::ClosureCpature is not supported"),
-            //         },
-            //         _ => {
-            //             println!("{borrow_kind:?}");
-            //             panic!("Other BorrowKinds are not supported!")
-            //         }
-            //     }
-            // }
+            Borrow { borrow_kind, arg } => self.handle_borrow(borrow_kind, arg),
             // Break { label, value } => {
             //     RExprKind::Break { label: *label, value: unwrap_option(value) }
             // }
@@ -265,10 +253,24 @@ impl<'tcx> ThirReducer<'tcx> {
         }
     }
 
-    // fn handle_two_phase_borrow(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
-    //     let expr = &self.thir[*expr_id];
-    //     self.reduce_expr_kind(&expr.kind)
-    // }
+    fn handle_borrow(&self, borrow_kind: &BorrowKind, arg: &ExprId) -> RExprKind<'tcx> {
+        use rustc_middle::mir::MutBorrowKind;
+        match borrow_kind {
+            rustc_middle::mir::BorrowKind::Mut { kind } => match kind {
+                MutBorrowKind::TwoPhaseBorrow => self.handle_two_phase_borrow(arg),
+                MutBorrowKind::Default => RExprKind::Borrow { arg: self.reduce_expr(arg) },
+                _ => panic!("MutBorrowKind::ClosureCpature is not supported"),
+            },
+            _ => {
+                unimplemented!("Other BorrowKind {borrow_kind:?} are not supported!")
+            }
+        }
+    }
+
+    fn handle_two_phase_borrow(&self, expr_id: &ExprId) -> RExprKind<'tcx> {
+        let expr = &self.thir[*expr_id];
+        self.reduce_expr_kind(&expr.kind)
+    }
 
     fn handle_stmt(&self, stmt_id: StmtId) -> Rc<RExpr<'tcx>> {
         let Stmt { kind } = &self.thir.stmts[stmt_id];

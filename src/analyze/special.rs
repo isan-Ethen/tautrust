@@ -26,13 +26,17 @@ impl<'tcx> Analyzer<'tcx> {
     //     Ok(AnalysisType::Invariant(Vec::from_iter(args.iter()).remove(0).clone()))
     // }
 
-    // pub fn analyze_drop(
-    //     &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
-    // ) -> Result<AnalysisType<'tcx>, AnalysisError> {
-    //     if let RExprKind::VarRef { id } = args[0].kind {
-    //         let arg = env.var_map.get(&id).expect("Var not found in t3drop");
-    //         env.add_assume(format!("(= {} {})", arg.get_assume(), arg.get_assume_by_index(vec![1])))
-    //     }
-    //     Ok(AnalysisType::Other)
-    // }
+    pub fn analyze_drop(
+        &self, args: Box<[Rc<RExpr<'tcx>>]>, env: &mut Env<'tcx>,
+    ) -> Result<AnalysisType<'tcx>, AnalysisError> {
+        if let RExprKind::VarRef { id } = args[0].kind {
+            let arg = env.var_map.get(&id).expect("Var not found in t3drop");
+            env.add_assume(format!(
+                "(= {} {})",
+                arg.get_var_expr(),
+                arg.get_var_expr_by_index(vec![1])
+            ))
+        }
+        Ok(AnalysisType::Other)
+    }
 }

@@ -208,11 +208,11 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
 
                 self.add_indented_string("}", depth_lvl);
             }
-            // Deref { arg } => {
-            //     self.add_indented_string("Deref {", depth_lvl);
-            //     self.format_expr(arg, depth_lvl + 1);
-            //     self.add_indented_string("}", depth_lvl);
-            // }
+            Deref { arg } => {
+                self.add_indented_string("Deref {", depth_lvl);
+                self.format_expr(arg, depth_lvl + 1);
+                self.add_indented_string("}", depth_lvl);
+            }
             Binary { op, lhs, rhs } => {
                 self.add_indented_string("Binary {", depth_lvl);
                 self.add_indented_string(&format!("op: {op:?}"), depth_lvl + 1);
@@ -309,16 +309,16 @@ impl<'a, 'tcx> RThirFormatter<'a, 'tcx> {
             //     self.add_indented_string(&format!("var_hir_id: {var_hir_id:?}"), depth_lvl + 1);
             //     self.add_indented_string("}", depth_lvl);
             // }
-            // Borrow {
-            //     //borrow_kind,
-            //     arg,
-            // } => {
-            //     self.add_indented_string("Borrow (", depth_lvl);
-            //     // self.add_indented_string(&format!("borrow_kind: {:?}", borrow_kind), depth_lvl + 1);
-            //     self.add_indented_string("arg:", depth_lvl + 1);
-            //     self.format_expr(arg, depth_lvl + 2);
-            //     self.add_indented_string(")", depth_lvl);
-            // }
+            Borrow {
+                //borrow_kind,
+                arg,
+            } => {
+                self.add_indented_string("Borrow (", depth_lvl);
+                // self.add_indented_string(&format!("borrow_kind: {:?}", borrow_kind), depth_lvl + 1);
+                self.add_indented_string("arg:", depth_lvl + 1);
+                self.format_expr(arg, depth_lvl + 2);
+                self.add_indented_string(")", depth_lvl);
+            }
             // Break { label, value } => {
             //     self.add_indented_string("Break (", depth_lvl);
             //     self.add_indented_string(&format!("label: {label:?}"), depth_lvl + 1);
@@ -429,9 +429,9 @@ pub enum RExprKind<'tcx> {
         from_hir_call: bool,
         fn_span: Span,
     },
-    // Deref {
-    //     arg: Rc<RExpr<'tcx>>,
-    // },
+    Deref {
+        arg: Rc<RExpr<'tcx>>,
+    },
     Binary {
         op: BinOp,
         lhs: Rc<RExpr<'tcx>>,
@@ -475,10 +475,10 @@ pub enum RExprKind<'tcx> {
     //     closure_def_id: DefId,
     //     var_hir_id: LocalVarId,
     // },
-    // Borrow {
-    //     // borrow_kind: BorrowKind,
-    //     arg: Rc<RExpr<'tcx>>,
-    // },
+    Borrow {
+        // borrow_kind: BorrowKind,
+        arg: Rc<RExpr<'tcx>>,
+    },
     // Break {
     //     label: region::Scope,
     //     value: Option<Rc<RExpr<'tcx>>>,

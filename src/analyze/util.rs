@@ -45,17 +45,14 @@ impl<'tcx> Analyzer<'tcx> {
     pub fn expr_to_id(expr: Rc<RExpr<'tcx>>) -> LocalVarId {
         match &expr.kind {
             RExprKind::VarRef { id } => id.clone(),
-            // RExprKind::Deref { arg, .. } => {
-            //     if let RExprKind::VarRef { id } = &arg.kind {
-            //         *id
-            //     } else {
-            //         panic!()
-            //     }
-            // }
-            _ => {
-                eprintln!("{expr:?}");
-                unreachable!()
+            RExprKind::Deref { arg, .. } => {
+                if let RExprKind::VarRef { id } = &arg.kind {
+                    *id
+                } else {
+                    unreachable!("{arg:?} in Deref instead of VarRef")
+                }
             }
+            _ => unreachable!("{expr:?} is supplied to get id"),
         }
     }
 }
