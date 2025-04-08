@@ -1,5 +1,7 @@
 # Tautrust
-Verifier written in Rust
+A Verifier written in Rust that uses THIR.
+
+[A blog of this verifier.](https://zenn.dev/isan_ethen/articles/bb0316c17897ea)
 
 ## Usage
 1. Clone this repository
