@@ -6,7 +6,7 @@ A Verifier written in Rust that uses THIR.
 ## Usage
 1. Clone this repository
 ```
-git@github.com:isan-Ethen/tautrust.git
+git clone git@github.com:isan-Ethen/tautrust.git
 ```
 2. cd to this repository.
 ```
