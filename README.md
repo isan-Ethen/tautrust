@@ -1,7 +1,7 @@
 # Tautrust
 A Verifier written in Rust that uses THIR.
 
-[A blog of this verifier.](https://zenn.dev/isan_ethen/articles/bb0316c17897ea)
+A [blog](https://zenn.dev/isan_ethen/articles/bb0316c17897ea) of this verifier.
 
 ## Usage
 1. Clone this repository
